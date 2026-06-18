@@ -67,7 +67,7 @@ export async function GET() {
     }
 
     // 5. SINKRONISASI DATA SAKIT
-    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE!A2:I' });
+    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE SAKIT!A2:I' });
     const rowsSakit = responseSakit.data.values;
     if (rowsSakit && rowsSakit.length > 0) {
       const formattedSakit = rowsSakit.filter(row => row[0] && String(row[0]).toUpperCase() !== 'NIK').map(row => ({
