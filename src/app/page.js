@@ -272,8 +272,8 @@ export default function App() {
             <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] w-24 h-24 rounded-[1.5rem] mx-auto flex items-center justify-center mb-8 shadow-xl shadow-pink-500/30 transform transition-transform hover:scale-105 hover:rotate-3 duration-300">
                <span className="text-white font-black text-3xl tracking-tighter drop-shadow-md">AEON</span>
             </div>
-            <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Dashboard</h2>
-            <p className="text-gray-500 text-[13px] font-medium mb-10 tracking-wide uppercase">Login to access CCM DPM</p>
+            <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Dashboard CCM DPM</h2>
+            <p className="text-gray-500 text-[13px] font-medium mb-10 tracking-wide uppercase">Silahkan login menggunakan NIK & ID Swipe</p>
             
             <div className="space-y-4">
               <div className="relative group">
