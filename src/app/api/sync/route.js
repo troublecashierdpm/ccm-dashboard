@@ -27,12 +27,12 @@ export async function GET() {
     const { error: rpcError } = await supabase.rpc('hapus_semua_data');
     if (rpcError) throw new Error("Gagal menyapu data: " + rpcError.message);
 
-    // 2. SINKRONISASI MEMBER (Dengan Filter Header)
+    // 2. SINKRONISASI MEMBER
     const responseMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'MEMBER_PER_DAY!A2:F' });
     const rowsMember = responseMember.data.values;
     if (rowsMember && rowsMember.length > 0) {
       const formattedMembers = rowsMember
-        .filter(row => row[0] && row[0].toLowerCase() !== 'tanggal') // <-- FILTER: Skip baris judul & kosong
+        .filter(row => row[0] && row[0].toLowerCase() !== 'tanggal')
         .map(row => ({
           tanggal: row[0] || null, nama: row[1] || null, status: row[2] || null, no_member: row[3] || null, qty: parseInt(row[4]) || 0, bulan: row[5] || null
         }));
@@ -42,12 +42,12 @@ export async function GET() {
       }
     }
 
-    // 3. SINKRONISASI SHORTAGE (Dengan Filter Header)
+    // 3. SINKRONISASI SHORTAGE
     const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE_PER_DAY!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
       const formattedShortage = rowsShortage
-        .filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL') // <-- FILTER: Skip teks "POS" & "TANGGAL"
+        .filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL')
         .map(row => ({
           tanggal: row[0] || null, pos: parseInt(row[1]) || null, short_over_shift_pagi: row[2] || null, nik: row[3] || null, nama: row[4] || null, short_over_shift_siang: row[5] || null, nik_1: row[6] || null, nama_1: row[7] || null, total_short_over: row[8] || null, periode: row[9] || null
         }));
@@ -57,12 +57,12 @@ export async function GET() {
       }
     }
 
-    // 4. SINKRONISASI ECOBAG (Dengan Filter Header)
+    // 4. SINKRONISASI ECOBAG
     const responseEcobag = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'ECOBAG!A2:H' });
     const rowsEcobag = responseEcobag.data.values;
     if (rowsEcobag && rowsEcobag.length > 0) {
       const formattedEcobag = rowsEcobag
-        .filter(row => row[0] && String(row[0]).toUpperCase() !== 'YEAR') // <-- FILTER: Skip baris judul
+        .filter(row => row[0] && String(row[0]).toUpperCase() !== 'YEAR')
         .map(row => ({
           year: row[0] || null, month: row[1] || null, staff_name: row[2] || null, bag_la: parseInt(row[3]) || 0, bag_me: parseInt(row[4]) || 0, bag_sm: parseInt(row[5]) || 0, total: parseInt(row[6]) || 0, year_month: row[7] || null
         }));
@@ -72,7 +72,30 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ success: true, message: "Sinkronisasi Data Bersih & Sukses! 🔥" });
+    // 5. SINKRONISASI DATA SAKIT (BARU)
+    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE SAKIT!A2:I' });
+    const rowsSakit = responseSakit.data.values;
+    if (rowsSakit && rowsSakit.length > 0) {
+      const formattedSakit = rowsSakit
+        .filter(row => row[0] && String(row[0]).toUpperCase() !== 'NIK') // <-- Menghapus baris judul otomatis jika terbawa
+        .map(row => ({
+          nik: row[0] || null,
+          nama: row[1] || null,
+          status: row[2] || null,
+          tgl_tidak_masuk: row[3] || null,
+          tgl_mulai_masuk: row[4] || null,
+          bulan: row[5] || null,
+          keterangan: row[6] || null,
+          reason_diagnosa: row[7] || null,
+          alamat_klinik: row[8] || null
+        }));
+      for (let i = 0; i < formattedSakit.length; i += 2000) {
+        const { error } = await supabase.from('sakit_per_day').insert(formattedSakit.slice(i, i + 2000));
+        if (error) throw new Error(`Error Sakit Baris ${i}: ` + error.message);
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Sinkronisasi Seluruh Data Sukses Bersih! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
