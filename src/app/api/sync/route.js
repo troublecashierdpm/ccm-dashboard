@@ -23,15 +23,11 @@ export async function GET() {
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
-    // ==========================================
-    // 1. SAPU BERSIH SEMUA DATA LAMA (INSTAN)
-    // ==========================================
+    // 1. SAPU BERSIH SEMUA DATA LAMA
     const { error: rpcError } = await supabase.rpc('hapus_semua_data');
     if (rpcError) throw new Error("Gagal menyapu data: " + rpcError.message);
 
-    // ==========================================
-    // 2. MASUKKAN DATA MEMBER BARU
-    // ==========================================
+    // 2. SINKRONISASI MEMBER
     const responseMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'MEMBER_PER_DAY!A2:F' });
     const rowsMember = responseMember.data.values;
     if (rowsMember && rowsMember.length > 0) {
@@ -39,13 +35,12 @@ export async function GET() {
         tanggal: row[0] || null, nama: row[1] || null, status: row[2] || null, no_member: row[3] || null, qty: parseInt(row[4]) || 0, bulan: row[5] || null
       }));
       for (let i = 0; i < formattedMembers.length; i += 2000) {
-        await supabase.from('member_per_day').insert(formattedMembers.slice(i, i + 2000));
+        const { error } = await supabase.from('member_per_day').insert(formattedMembers.slice(i, i + 2000));
+        if (error) throw new Error(`Error Insert Member Baris ${i}: ` + error.message);
       }
     }
 
-    // ==========================================
-    // 3. MASUKKAN DATA SHORTAGE BARU
-    // ==========================================
+    // 3. SINKRONISASI SHORTAGE
     const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE_PER_DAY!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
@@ -53,13 +48,12 @@ export async function GET() {
         tanggal: row[0] || null, pos: row[1] || null, short_over_shift_pagi: row[2] || null, nik: row[3] || null, nama: row[4] || null, short_over_shift_siang: row[5] || null, nik_1: row[6] || null, nama_1: row[7] || null, total_short_over: row[8] || null, periode: row[9] || null
       }));
       for (let i = 0; i < formattedShortage.length; i += 2000) {
-        await supabase.from('shortage_per_day').insert(formattedShortage.slice(i, i + 2000));
+        const { error } = await supabase.from('shortage_per_day').insert(formattedShortage.slice(i, i + 2000));
+        if (error) throw new Error(`Error Insert Shortage Baris ${i}: ` + error.message);
       }
     }
 
-    // ==========================================
-    // 4. MASUKKAN DATA ECOBAG BARU
-    // ==========================================
+    // 4. SINKRONISASI ECOBAG
     const responseEcobag = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'ECOBAG!A2:H' });
     const rowsEcobag = responseEcobag.data.values;
     if (rowsEcobag && rowsEcobag.length > 0) {
@@ -67,11 +61,12 @@ export async function GET() {
         year: row[0] || null, month: row[1] || null, staff_name: row[2] || null, bag_la: parseInt(row[3]) || 0, bag_me: parseInt(row[4]) || 0, bag_sm: parseInt(row[5]) || 0, total: parseInt(row[6]) || 0, year_month: row[7] || null
       }));
       for (let i = 0; i < formattedEcobag.length; i += 2000) {
-        await supabase.from('ecobag_per_day').insert(formattedEcobag.slice(i, i + 2000));
+        const { error } = await supabase.from('ecobag_per_day').insert(formattedEcobag.slice(i, i + 2000));
+        if (error) throw new Error(`Error Insert Ecobag Baris ${i}: ` + error.message);
       }
     }
 
-    return NextResponse.json({ success: true, message: "Sinkronisasi Bersih Sukses! 🔥" });
+    return NextResponse.json({ success: true, message: "Sinkronisasi Bersih Sukses Tanpa Error! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
