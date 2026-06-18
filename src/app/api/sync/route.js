@@ -31,11 +31,9 @@ export async function GET() {
     const responseMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'MEMBER_PER_DAY!A2:F' });
     const rowsMember = responseMember.data.values;
     if (rowsMember && rowsMember.length > 0) {
-      const formattedMembers = rowsMember
-        .filter(row => row[0] && row[0].toLowerCase() !== 'tanggal')
-        .map(row => ({
-          tanggal: row[0] || null, nama: row[1] || null, status: row[2] || null, no_member: row[3] || null, qty: parseInt(row[4]) || 0, bulan: row[5] || null
-        }));
+      const formattedMembers = rowsMember.filter(row => row[0] && row[0].toLowerCase() !== 'tanggal').map(row => ({
+        tanggal: row[0] || null, nama: row[1] || null, status: row[2] || null, no_member: row[3] || null, qty: parseInt(row[4]) || 0, bulan: row[5] || null
+      }));
       for (let i = 0; i < formattedMembers.length; i += 2000) {
         const { error } = await supabase.from('member_per_day').insert(formattedMembers.slice(i, i + 2000));
         if (error) throw new Error(`Error Member Baris ${i}: ` + error.message);
@@ -46,11 +44,9 @@ export async function GET() {
     const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE_PER_DAY!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
-      const formattedShortage = rowsShortage
-        .filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL')
-        .map(row => ({
-          tanggal: row[0] || null, pos: parseInt(row[1]) || null, short_over_shift_pagi: row[2] || null, nik: row[3] || null, nama: row[4] || null, short_over_shift_siang: row[5] || null, nik_1: row[6] || null, nama_1: row[7] || null, total_short_over: row[8] || null, periode: row[9] || null
-        }));
+      const formattedShortage = rowsShortage.filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL').map(row => ({
+        tanggal: row[0] || null, pos: parseInt(row[1]) || null, short_over_shift_pagi: row[2] || null, nik: row[3] || null, nama: row[4] || null, short_over_shift_siang: row[5] || null, nik_1: row[6] || null, nama_1: row[7] || null, total_short_over: row[8] || null, periode: row[9] || null
+      }));
       for (let i = 0; i < formattedShortage.length; i += 2000) {
         const { error } = await supabase.from('shortage_per_day').insert(formattedShortage.slice(i, i + 2000));
         if (error) throw new Error(`Error Shortage Baris ${i}: ` + error.message);
@@ -61,41 +57,43 @@ export async function GET() {
     const responseEcobag = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'ECOBAG!A2:H' });
     const rowsEcobag = responseEcobag.data.values;
     if (rowsEcobag && rowsEcobag.length > 0) {
-      const formattedEcobag = rowsEcobag
-        .filter(row => row[0] && String(row[0]).toUpperCase() !== 'YEAR')
-        .map(row => ({
-          year: row[0] || null, month: row[1] || null, staff_name: row[2] || null, bag_la: parseInt(row[3]) || 0, bag_me: parseInt(row[4]) || 0, bag_sm: parseInt(row[5]) || 0, total: parseInt(row[6]) || 0, year_month: row[7] || null
-        }));
+      const formattedEcobag = rowsEcobag.filter(row => row[0] && String(row[0]).toUpperCase() !== 'YEAR').map(row => ({
+        year: row[0] || null, month: row[1] || null, staff_name: row[2] || null, bag_la: parseInt(row[3]) || 0, bag_me: parseInt(row[4]) || 0, bag_sm: parseInt(row[5]) || 0, total: parseInt(row[6]) || 0, year_month: row[7] || null
+      }));
       for (let i = 0; i < formattedEcobag.length; i += 2000) {
         const { error } = await supabase.from('ecobag_per_day').insert(formattedEcobag.slice(i, i + 2000));
         if (error) throw new Error(`Error Ecobag Baris ${i}: ` + error.message);
       }
     }
 
-    // 5. SINKRONISASI DATA SAKIT (BARU)
-    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE SAKIT!A2:I' });
+    // 5. SINKRONISASI DATA SAKIT
+    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE!A2:I' });
     const rowsSakit = responseSakit.data.values;
     if (rowsSakit && rowsSakit.length > 0) {
-      const formattedSakit = rowsSakit
-        .filter(row => row[0] && String(row[0]).toUpperCase() !== 'NIK') // <-- Menghapus baris judul otomatis jika terbawa
-        .map(row => ({
-          nik: row[0] || null,
-          nama: row[1] || null,
-          status: row[2] || null,
-          tgl_tidak_masuk: row[3] || null,
-          tgl_mulai_masuk: row[4] || null,
-          bulan: row[5] || null,
-          keterangan: row[6] || null,
-          reason_diagnosa: row[7] || null,
-          alamat_klinik: row[8] || null
-        }));
+      const formattedSakit = rowsSakit.filter(row => row[0] && String(row[0]).toUpperCase() !== 'NIK').map(row => ({
+        nik: row[0] || null, nama: row[1] || null, status: row[2] || null, tgl_tidak_masuk: row[3] || null, tgl_mulai_masuk: row[4] || null, bulan: row[5] || null, keterangan: row[6] || null, reason_diagnosa: row[7] || null, alamat_klinik: row[8] || null
+      }));
       for (let i = 0; i < formattedSakit.length; i += 2000) {
         const { error } = await supabase.from('sakit_per_day').insert(formattedSakit.slice(i, i + 2000));
         if (error) throw new Error(`Error Sakit Baris ${i}: ` + error.message);
       }
     }
 
-    return NextResponse.json({ success: true, message: "Sinkronisasi Seluruh Data Sukses Bersih! 🔥" });
+    // 6. SINKRONISASI SP/BA (BARU)
+    // Menggunakan tanda kutip tunggal karena nama tab mengandung karakter & dan spasi
+    const responseSpBa = await sheets.spreadsheets.values.get({ spreadsheetId, range: "'SURAT PERNYATAAN & BERITA ACARA'!A2:I" });
+    const rowsSpBa = responseSpBa.data.values;
+    if (rowsSpBa && rowsSpBa.length > 0) {
+      const formattedSpBa = rowsSpBa.filter(row => row[0] && String(row[0]).toUpperCase() !== 'TANGGAL').map(row => ({
+        tanggal: row[0] || null, nik: row[1] || null, nama: row[2] || null, status: row[3] || null, remarks: row[4] || null, jenis_pelanggaran: row[5] || null, bulan: row[6] || null, surat_pernyataan: row[7] || null, pic_under: row[8] || null
+      }));
+      for (let i = 0; i < formattedSpBa.length; i += 2000) {
+        const { error } = await supabase.from('sp_ba_per_day').insert(formattedSpBa.slice(i, i + 2000));
+        if (error) throw new Error(`Error SP/BA Baris ${i}: ` + error.message);
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Sinkronisasi Seluruh Data + SP/BA Sukses! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
