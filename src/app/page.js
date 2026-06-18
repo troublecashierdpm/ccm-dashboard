@@ -11,7 +11,7 @@ export default function App() {
   const [user, setUser] = useState(null);
 
   const [stats, setStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-' });
-  const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [] });
+  const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [] });
   
   const [detailType, setDetailType] = useState(null);
   const [activeModalData, setActiveModalData] = useState(null);
@@ -60,24 +60,37 @@ export default function App() {
 
       // 3. DATA ECOBAG
       const { data: ecobagData } = await supabase.from('ecobag_per_day').select('*').eq('staff_name', user.nama);
-      let totalEcobag = 0;
-      let ecobagList = [];
+      let totalEcobag = 0; let ecobagList = [];
       if (ecobagData) {
         ecobagData.forEach(row => {
-          const qtyTotal = parseInt(row.total) || 0;
-          totalEcobag += qtyTotal;
+          const qtyTotal = parseInt(row.total) || 0; totalEcobag += qtyTotal;
           ecobagList.push({
-            bulan: row.year_month || row.month,
-            la: parseInt(row.bag_la) || 0,
-            me: parseInt(row.bag_me) || 0,
-            sm: parseInt(row.bag_sm) || 0,
-            totalPerBulan: qtyTotal
+            bulan: row.year_month || row.month, la: parseInt(row.bag_la) || 0, me: parseInt(row.bag_me) || 0, sm: parseInt(row.bag_sm) || 0, totalPerBulan: qtyTotal
           });
         });
       }
 
-      setStats(prev => ({ ...prev, member: totalMember, shortage: totalShortage, ecobag: totalEcobag }));
-      setHistory({ member: finalMemberHistory, shortage: Object.values(shortGroups), ecobag: ecobagList });
+      // 4. DATA SAKIT / IZIN (BARU)
+      const { data: sakitData } = await supabase.from('sakit_per_day').select('*').eq('nama', user.nama);
+      let totalSakit = 0; let sakitGroups = {};
+      if (sakitData) {
+        sakitData.forEach(row => {
+          const bulan = row.bulan || 'Unknown';
+          totalSakit++;
+          if (!sakitGroups[bulan]) sakitGroups[bulan] = { bulan, totalPerBulan: 0, details: [] };
+          sakitGroups[bulan].totalPerBulan++;
+          sakitGroups[bulan].details.push({
+            tglTidakMasuk: row.tgl_tidak_masuk || '-',
+            tglMulaiMasuk: row.tgl_mulai_masuk || '-',
+            keterangan: row.keterangan || '-',
+            diagnosa: row.reason_diagnosa || '-',
+            klinik: row.alamat_klinik || '-'
+          });
+        });
+      }
+
+      setStats(prev => ({ ...prev, member: totalMember, shortage: totalShortage, ecobag: totalEcobag, sakit: totalSakit }));
+      setHistory({ member: finalMemberHistory, shortage: Object.values(shortGroups), ecobag: ecobagList, sakit: Object.values(sakitGroups) });
 
     } catch (err) {
       console.error("Gagal menarik data:", err);
@@ -125,7 +138,7 @@ export default function App() {
           <div className="grid grid-cols-4 gap-3">
             <div onClick={() => setDetailType(detailType === 'shortage' ? null : 'shortage')} className="bg-white/90 backdrop-blur-md py-4 rounded-2xl text-center border-t-2 border-t-red-400 cursor-pointer active:scale-95 shadow-sm"><p className="text-[8px] font-bold">Shortage</p><h4 className="text-sm font-black text-red-500">{stats.shortage}</h4></div>
             <div className="bg-white/90 backdrop-blur-md py-4 rounded-2xl text-center border-t-2 border-t-orange-400 shadow-sm"><p className="text-[8px] font-bold">SP/BA</p><h4 className="text-sm font-black text-orange-600">{stats.sp}</h4></div>
-            <div className="bg-white/90 backdrop-blur-md py-4 rounded-2xl text-center border-t-2 border-t-blue-400 shadow-sm"><p className="text-[8px] font-bold">Sakit/Izin</p><h4 className="text-sm font-black text-blue-500">{stats.sakit}</h4></div>
+            <div onClick={() => setDetailType(detailType === 'sakit' ? null : 'sakit')} className="bg-white/90 backdrop-blur-md py-4 rounded-2xl text-center border-t-2 border-t-blue-400 cursor-pointer active:scale-95 shadow-sm"><p className="text-[8px] font-bold">Sakit/Izin</p><h4 className="text-sm font-black text-blue-500">{stats.sakit}</h4></div>
             <div className="bg-white/90 backdrop-blur-md py-4 rounded-2xl text-center border-t-2 border-t-purple-400 shadow-sm"><p className="text-[8px] font-bold">Audit</p><h4 className="text-sm font-black text-purple-600">{stats.audit}</h4></div>
           </div>
 
@@ -137,13 +150,15 @@ export default function App() {
                  <table className="w-full text-[10px] text-left min-w-[300px]">
                     <thead className="bg-gray-50/50 text-[#e20074] font-bold border-b">
                       {(detailType === 'member' || detailType === 'ecobag') && (<tr><th className='p-3'>Bulan</th><th className='p-3 text-right'>Total</th></tr>)}
+                      {detailType === 'sakit' && (<tr><th className='p-3'>Bulan</th><th className='p-3 text-right'>Frekuensi Absen</th></tr>)}
                       {detailType === 'shortage' && (<tr><th className='p-3'>Bulan</th><th className='p-3 text-center'>Freq</th><th className='p-3 text-right'>Short</th><th className='p-3 text-right'>Over</th></tr>)}
                     </thead>
                     <tbody>
                       {detailType === 'member' && history.member.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'member', data: item })} className='hover:bg-pink-50 border-b cursor-pointer transition'><td className='p-3'>{item.bulan}</td><td className='p-3 text-right font-black'>{item.totalPerBulan}</td></tr>))}
                       {detailType === 'ecobag' && history.ecobag.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'ecobag', data: item })} className='hover:bg-pink-50 border-b cursor-pointer transition'><td className='p-3'>{item.bulan}</td><td className='p-3 text-right font-black text-[#e20074]'>{item.totalPerBulan} Pcs</td></tr>))}
+                      {detailType === 'sakit' && history.sakit.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'sakit', data: item })} className='hover:bg-pink-50 border-b cursor-pointer transition'><td className='p-3 font-bold text-gray-700'>{item.bulan}</td><td className='p-3 text-right font-black text-blue-600'>{item.totalPerBulan}x Absen</td></tr>))}
                       {detailType === 'shortage' && history.shortage.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'shortage', data: item })} className='hover:bg-red-50 border-b cursor-pointer transition'><td className='p-3 font-bold text-gray-700'>{item.bulan}</td><td className='p-3 text-center text-gray-500'>{item.frekuensi}x</td><td className='p-3 text-right font-black text-red-600'>{item.totalShort === 0 ? '-' : item.totalShort.toLocaleString('id-ID')}</td><td className='p-3 text-right font-black text-green-600'>{item.totalOver === 0 ? '-' : '+' + item.totalOver.toLocaleString('id-ID')}</td></tr>))}
-                      {history[detailType].length === 0 && (<tr><td colSpan="4" className="p-4 text-center text-gray-400">Tidak ada data.</td></tr>)}
+                      {history[detailType]?.length === 0 && (<tr><td colSpan="4" className="p-4 text-center text-gray-400">Tidak ada data.</td></tr>)}
                     </tbody>
                  </table>
               </div>
@@ -171,6 +186,33 @@ export default function App() {
                 <div className="flex justify-between p-3 border rounded-xl bg-white shadow-sm text-xs"><span className="font-bold text-gray-600">Size Small (SM)</span><span className="font-black text-[#e20074]">{activeModalData.data.sm}</span></div>
               </div>
               <div className="p-4 bg-gray-50 text-center font-black text-[#e20074] border-t">TOTAL TERJUAL: <span>{activeModalData.data.totalPerBulan} Pcs</span></div>
+            </div>
+          </div>
+        )}
+
+        {/* === MODAL POP-UP SAKIT/IZIN (BARU) === */}
+        {activeModalData?.type === 'sakit' && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-[fadeIn_0.2s_ease-in-out]">
+            <div className="bg-white w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-5 text-white flex justify-between items-center">
+                <h3 className="font-black text-sm uppercase">Detail Absensi Sakit/Izin</h3>
+                <button onClick={() => setActiveModalData(null)} className="p-1 bg-white/20 rounded-lg hover:bg-white/30">✕</button>
+              </div>
+              <div className="p-4 bg-gray-50 border-b text-center text-sm font-bold text-gray-700 uppercase">{activeModalData.data.bulan}</div>
+              <div className="p-4 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50">
+                {activeModalData.data.details.map((det, i) => (
+                  <div key={i} className="p-4 border rounded-xl bg-white shadow-sm text-[10px] space-y-2 border-l-4 border-l-blue-500">
+                    <div className="flex justify-between font-bold text-gray-800">
+                      <span>Mulai: {det.tglTidakMasuk}</span>
+                      <span>Masuk: {det.tglMulaiMasuk}</span>
+                    </div>
+                    <div className="text-[9px] bg-blue-50 text-blue-700 font-black px-2 py-1 rounded inline-block uppercase tracking-wider">Status: {det.keterangan}</div>
+                    <p className="text-gray-600 font-medium pt-1"><span className="font-bold text-gray-800">Diagnosa:</span> {det.diagnosa}</p>
+                    <p className="text-gray-500 text-[9px] italic"><span className="font-bold text-gray-700">Klinik:</span> {det.klinik}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 bg-gray-50 text-center font-black text-[#e20074] border-t">TOTAL FREKUENSI: {activeModalData.data.totalPerBulan}x</div>
             </div>
           </div>
         )}
