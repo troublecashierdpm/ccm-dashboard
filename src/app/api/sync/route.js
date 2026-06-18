@@ -4,27 +4,34 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
   try {
-    // 1. Inisialisasi Supabase menggunakan Service Key / Anon Key
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
-    // 2. Otentikasi ke Google Sheets API
-    const auth = new google.auth.JWT(
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      null,
-      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      ['https://www.googleapis.com/auth/spreadsheets.readonly']
-    );
+    // Memaksa format private key agar bersih dari tanda kutip ganda bawaan Vercel
+    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    privateKey = privateKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
+
+    // Menggunakan GoogleAuth yang jauh lebih stabil daripada JWT biasa
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: privateKey,
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
 
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
+    if (!spreadsheetId) {
+      throw new Error("ID Spreadsheet kosong. Cek Vercel Environment Variables Anda.");
+    }
+
     // ==========================================
     // SINKRONISASI 1: MEMBER_PER_DAY
     // ==========================================
-    // Mengambil data dari tab 'MEMBER_PER_DAY' kolom A sampai F
     const responseMember = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: 'MEMBER_PER_DAY!A2:F', 
@@ -32,7 +39,6 @@ export async function GET() {
 
     const rowsMember = responseMember.data.values;
     if (rowsMember && rowsMember.length > 0) {
-      // Mapping data dari baris Google Sheets ke format kolom database Supabase
       const formattedMembers = rowsMember.map(row => ({
         tanggal: row[0] || null,
         nama: row[1] || null,
@@ -42,10 +48,8 @@ export async function GET() {
         bulan: row[5] || null
       }));
 
-      // Hapus data lama di Supabase agar tidak duplikat, lalu masukkan data terbaru secara massal
       await supabase.from('member_per_day').delete().neq('nama', 'RESET_ALL_DATA_TRIGGER');
       
-      // Masukkan dalam beberapa chunk (bagian) agar tidak melebihi batas batas query database
       const chunkSize = 2000;
       for (let i = 0; i < formattedMembers.length; i += chunkSize) {
         const chunk = formattedMembers.slice(i, i + chunkSize);
@@ -70,7 +74,7 @@ export async function GET() {
         nik: row[3] || null,
         nama: row[4] || null,
         short_over_shift_siang: row[5] || null,
-        nik_1: row[6] || null, // Menyesuaikan nama kolom _1 hasil import tempo hari
+        nik_1: row[6] || null,
         nama_1: row[7] || null,
         total_short_over: row[8] || null,
         periode: row[9] || null
