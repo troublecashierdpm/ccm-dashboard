@@ -116,14 +116,12 @@ export default function App() {
     }
   };
 
-  // LOGIKA FOTO PROFIL: Diperbarui untuk mengekstrak ID murni jika ada nama folder
+  // LOGIKA FOTO PROFIL: Cukup gunakan kolom file_id secara langsung dan akurat
   const getPhotoUrl = () => {
-    if (user?.file_id) {
-      const parts = user.file_id.split('/');
-      const realId = parts[parts.length - 1]; // Mengambil bagian paling belakang setelah "/"
-      return `https://drive.google.com/uc?export=view&id=${realId}`;
+    if (user?.file_id && user.file_id.trim() !== '') {
+      return `https://drive.google.com/uc?export=view&id=${user.file_id.trim()}`;
     }
-    return user?.photo || `https://ui-avatars.com/api/?name=${user?.nama || 'A'}&background=FCE7F3&color=E20074&bold=true`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nama || 'A')}&background=FCE7F3&color=E20074&bold=true`;
   };
 
   return (
@@ -151,7 +149,7 @@ export default function App() {
       {isLoggedIn ? (
         <div className="min-h-screen bg-[#f8f9fc] font-sans text-[#1a1a1a] pb-12 overflow-x-hidden anim-fade-in">
           
-          {/* === HEADER DASHBOARD PREMIUM === */}
+          {/* === HEADER DASHBOARD === */}
           <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] pt-14 pb-28 px-6 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
             
@@ -171,11 +169,9 @@ export default function App() {
                 <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-400 border-4 border-[#e20074] rounded-full shadow-lg"></div>
               </div>
               <div className="flex-1 min-w-0 pt-1">
-                {/* Perbaikan nama panjang: hapus truncate, tambahkan leading-tight break-words */}
                 <h1 className="text-xl sm:text-2xl font-black drop-shadow-md leading-tight break-words pr-2">{user.nama}</h1>
                 <div className="flex flex-wrap gap-2 mt-3">
                   <span className="text-[10px] bg-black/25 px-3.5 py-1.5 rounded-xl backdrop-blur-sm border border-white/10">NIK: <span className="font-bold">{user.nik}</span></span>
-                  {/* Menampilkan Join Date jika ada di database */}
                   {user.join_date && (
                     <span className="text-[10px] bg-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-sm border border-white/10 shadow-sm">Join: <span className="font-bold">{user.join_date}</span></span>
                   )}
@@ -253,7 +249,7 @@ export default function App() {
             )}
           </div>
 
-          {/* === MODAL POP-UP (WITH POP-IN ANIMATION) === */}
+          {/* === MODAL POP-UP DETAILS === */}
           {activeModalData?.type === 'member' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Detail Member</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-pink-50/50 border-b text-center text-xs font-black text-pink-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-2.5 bg-gray-50/30">{activeModalData.data.details.map((det, i) => (<div key={i} className="flex justify-between items-center p-3.5 border border-gray-100 rounded-2xl bg-white shadow-sm text-[11px] hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">{det.tgl}</span><span className="font-black text-[#e20074] bg-pink-50 px-3 py-1.5 rounded-lg">{det.qty} Member</span></div>))}</div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL: {activeModalData.data.totalPerBulan}</div></div></div> )}
           {activeModalData?.type === 'ecobag' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Rincian Ecobag</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-pink-50/50 border-b text-center text-xs font-black text-pink-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-6 space-y-3.5 bg-gray-50/30"><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Large (LA)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.la}</span></div><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Medium (ME)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.me}</span></div><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Small (SM)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.sm}</span></div></div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-sm shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL TERJUAL: <span className="text-xl">{activeModalData.data.totalPerBulan}</span> Pcs</div></div></div> )}
           {activeModalData?.type === 'sakit' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Absensi Sakit/Izin</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-600 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-4 bg-gray-50/50">{activeModalData.data.details.map((det, i) => (<div key={i} className="p-4 border border-blue-100 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-blue-500 hover:shadow-md transition-shadow"><div className="flex justify-between font-bold text-gray-800 bg-gray-50 px-3 py-2 rounded-lg"><span>Libur: <span className="text-blue-600">{det.tglTidakMasuk}</span></span><span>Masuk: <span className="text-green-600">{det.tglMulaiMasuk}</span></span></div><div className="mt-2"><span className="text-[9px] bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider inline-block mb-1">{det.keterangan}</span></div><p className="text-gray-700 font-medium leading-relaxed"><span className="font-bold text-gray-900">Diagnosa:</span> {det.diagnosa}</p><div className="pt-2 mt-2 border-t border-dashed"><p className="text-gray-500 text-[10px] italic"><span className="font-bold text-gray-600 not-italic">Klinik:</span> {det.klinik}</p></div></div>))}</div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t shadow-[0_-10px_20px_rgba(0,0,0,0.02)] text-sm">TOTAL FREKUENSI: <span className="text-xl">{activeModalData.data.totalPerBulan}x</span></div></div></div> )}
