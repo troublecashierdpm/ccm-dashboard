@@ -116,12 +116,15 @@ export default function App() {
     }
   };
 
-  // LOGIKA FOTO PROFIL: Cukup gunakan kolom file_id secara langsung dan akurat
+  // Avatar cadangan jika Google Drive gagal
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nama || 'A')}&background=FCE7F3&color=E20074&bold=true`;
+
+  // Format link Google Drive yang lebih kebal pemblokiran (Thumbnail API)
   const getPhotoUrl = () => {
     if (user?.file_id && user.file_id.trim() !== '') {
-      return `https://drive.google.com/uc?export=view&id=${user.file_id.trim()}`;
+      return `https://drive.google.com/thumbnail?id=${user.file_id.trim()}&sz=w500`;
     }
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nama || 'A')}&background=FCE7F3&color=E20074&bold=true`;
+    return fallbackAvatar;
   };
 
   return (
@@ -149,7 +152,6 @@ export default function App() {
       {isLoggedIn ? (
         <div className="min-h-screen bg-[#f8f9fc] font-sans text-[#1a1a1a] pb-12 overflow-x-hidden anim-fade-in">
           
-          {/* === HEADER DASHBOARD === */}
           <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] pt-14 pb-28 px-6 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
             
@@ -164,9 +166,16 @@ export default function App() {
             </div>
 
             <div className="flex items-start gap-5 relative z-10">
-              <div className="relative group shrink-0">
-                <img src={getPhotoUrl()} referrerPolicy="no-referrer" className="w-24 h-24 object-cover rounded-3xl border-[3px] border-white/30 shadow-2xl bg-white/10 transition-transform duration-300 group-hover:scale-105" alt="Foto Profil" />
-                <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-400 border-4 border-[#e20074] rounded-full shadow-lg"></div>
+              <div className="relative group shrink-0 bg-white/10 rounded-3xl p-1 shadow-2xl">
+                {/* Penambahan fallback error untuk gambar agar tidak pecah */}
+                <img 
+                  src={getPhotoUrl()} 
+                  onError={(e) => { e.currentTarget.src = fallbackAvatar; }} 
+                  referrerPolicy="no-referrer" 
+                  className="w-24 h-24 object-cover rounded-[1.2rem] border-2 border-white/40 bg-white/20 transition-transform duration-300 group-hover:scale-105" 
+                  alt="Foto Profil" 
+                />
+                <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-400 border-4 border-[#e20074] rounded-full shadow-lg z-10"></div>
               </div>
               <div className="flex-1 min-w-0 pt-1">
                 <h1 className="text-xl sm:text-2xl font-black drop-shadow-md leading-tight break-words pr-2">{user.nama}</h1>
@@ -181,7 +190,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* === KOTAK STATISTIK === */}
           <div className="px-5 -mt-12 space-y-4 relative z-20">
             <div className="grid grid-cols-2 gap-4 anim-slide-up">
               <div onClick={() => setDetailType(detailType === 'member' ? null : 'member')} className="glass-card border border-white/50 p-6 rounded-[2rem] shadow-lg shadow-pink-500/5 border-b-4 border-b-pink-500 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-pink-500/10 cursor-pointer active:scale-95 group">
@@ -220,7 +228,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* TABEL RANGKUMAN */}
             {detailType && (
               <div className="glass-card p-6 rounded-[2.5rem] mt-6 shadow-xl shadow-gray-200/50 border border-white/60 anim-pop-in">
                 <div className="flex justify-between items-center mb-5">
@@ -249,7 +256,6 @@ export default function App() {
             )}
           </div>
 
-          {/* === MODAL POP-UP DETAILS === */}
           {activeModalData?.type === 'member' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Detail Member</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-pink-50/50 border-b text-center text-xs font-black text-pink-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-2.5 bg-gray-50/30">{activeModalData.data.details.map((det, i) => (<div key={i} className="flex justify-between items-center p-3.5 border border-gray-100 rounded-2xl bg-white shadow-sm text-[11px] hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">{det.tgl}</span><span className="font-black text-[#e20074] bg-pink-50 px-3 py-1.5 rounded-lg">{det.qty} Member</span></div>))}</div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL: {activeModalData.data.totalPerBulan}</div></div></div> )}
           {activeModalData?.type === 'ecobag' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Rincian Ecobag</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-pink-50/50 border-b text-center text-xs font-black text-pink-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-6 space-y-3.5 bg-gray-50/30"><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Large (LA)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.la}</span></div><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Medium (ME)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.me}</span></div><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Small (SM)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.sm}</span></div></div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-sm shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL TERJUAL: <span className="text-xl">{activeModalData.data.totalPerBulan}</span> Pcs</div></div></div> )}
           {activeModalData?.type === 'sakit' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Absensi Sakit/Izin</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-600 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-4 bg-gray-50/50">{activeModalData.data.details.map((det, i) => (<div key={i} className="p-4 border border-blue-100 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-blue-500 hover:shadow-md transition-shadow"><div className="flex justify-between font-bold text-gray-800 bg-gray-50 px-3 py-2 rounded-lg"><span>Libur: <span className="text-blue-600">{det.tglTidakMasuk}</span></span><span>Masuk: <span className="text-green-600">{det.tglMulaiMasuk}</span></span></div><div className="mt-2"><span className="text-[9px] bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider inline-block mb-1">{det.keterangan}</span></div><p className="text-gray-700 font-medium leading-relaxed"><span className="font-bold text-gray-900">Diagnosa:</span> {det.diagnosa}</p><div className="pt-2 mt-2 border-t border-dashed"><p className="text-gray-500 text-[10px] italic"><span className="font-bold text-gray-600 not-italic">Klinik:</span> {det.klinik}</p></div></div>))}</div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t shadow-[0_-10px_20px_rgba(0,0,0,0.02)] text-sm">TOTAL FREKUENSI: <span className="text-xl">{activeModalData.data.totalPerBulan}x</span></div></div></div> )}
@@ -259,7 +265,6 @@ export default function App() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f8f9fc] anim-fade-in relative overflow-hidden">
-          {/* Background Ornaments */}
           <div className="absolute -top-20 -left-20 w-64 h-64 bg-pink-300 rounded-full opacity-20 blur-[80px]"></div>
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#e20074] rounded-full opacity-10 blur-[100px]"></div>
 
