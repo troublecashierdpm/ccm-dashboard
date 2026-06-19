@@ -35,10 +35,13 @@ export default function App() {
           memberGroups[bulan].dailyMap[tanggal] += qty;
         });
       }
-      const finalMemberHistory = Object.values(memberGroups).map(group => ({
-        bulan: group.bulan, totalPerBulan: group.totalPerBulan,
-        details: Object.keys(group.dailyMap).map(tgl => ({ tgl, qty: group.dailyMap[tgl] }))
-      }));
+      // PENGURUTAN: Bulan Terbaru di Atas, Tanggal Terbaru di Atas
+      const finalMemberHistory = Object.values(memberGroups)
+        .sort((a, b) => b.bulan.localeCompare(a.bulan))
+        .map(group => ({
+          bulan: group.bulan, totalPerBulan: group.totalPerBulan,
+          details: Object.keys(group.dailyMap).map(tgl => ({ tgl, qty: group.dailyMap[tgl] })).sort((a,b) => (parseInt(b.tgl.split('-')[0])||0) - (parseInt(a.tgl.split('-')[0])||0))
+        }));
 
       // 2. DATA SHORTAGE
       const { data: shortagePagi } = await supabase.from('shortage_per_day').select('tanggal, pos, short_over_shift_pagi, periode').eq('nama', user.nama);
@@ -57,6 +60,13 @@ export default function App() {
         });
       };
       processShortage(shortagePagi, true); processShortage(shortageSiang, false);
+      // PENGURUTAN: Bulan Terbaru di Atas, Tanggal Terbaru di Atas (Tgl 1 di bawah)
+      const finalShortageHistory = Object.values(shortGroups)
+        .sort((a, b) => b.bulan.localeCompare(a.bulan))
+        .map(group => {
+          group.details.sort((a,b) => (parseInt(b.tgl.split('-')[0])||0) - (parseInt(a.tgl.split('-')[0])||0));
+          return group;
+        });
 
       // 3. DATA ECOBAG
       const { data: ecobagData } = await supabase.from('ecobag_per_day').select('*').eq('staff_name', user.nama);
@@ -66,6 +76,7 @@ export default function App() {
           const qtyTotal = parseInt(row.total) || 0; totalEcobag += qtyTotal;
           ecobagList.push({ bulan: row.year_month || row.month, la: parseInt(row.bag_la) || 0, me: parseInt(row.bag_me) || 0, sm: parseInt(row.bag_sm) || 0, totalPerBulan: qtyTotal });
         });
+        ecobagList.sort((a, b) => b.bulan.localeCompare(a.bulan)); // Urut Bulan Terbaru
       }
 
       // 4. DATA SAKIT
@@ -79,6 +90,13 @@ export default function App() {
           sakitGroups[bulan].details.push({ tglTidakMasuk: row.tgl_tidak_masuk || '-', tglMulaiMasuk: row.tgl_mulai_masuk || '-', keterangan: row.keterangan || '-', diagnosa: row.reason_diagnosa || '-', klinik: row.alamat_klinik || '-' });
         });
       }
+      // PENGURUTAN SAKIT
+      const finalSakitHistory = Object.values(sakitGroups)
+        .sort((a, b) => b.bulan.localeCompare(a.bulan))
+        .map(group => {
+          group.details.sort((a,b) => (parseInt(b.tglTidakMasuk.split('-')[0])||0) - (parseInt(a.tglTidakMasuk.split('-')[0])||0));
+          return group;
+        });
 
       // 5. DATA SP/BA
       const { data: spbaData } = await supabase.from('sp_ba_per_day').select('*').eq('nama', user.nama);
@@ -91,9 +109,16 @@ export default function App() {
           spGroups[bulan].details.push({ tanggal: row.tanggal || '-', jenis: row.jenis_pelanggaran || '-', remarks: row.remarks || '-', surat: row.surat_pernyataan || '-', under: row.pic_under || '-' });
         });
       }
+      // PENGURUTAN SP/BA
+      const finalSpHistory = Object.values(spGroups)
+        .sort((a, b) => b.bulan.localeCompare(a.bulan))
+        .map(group => {
+          group.details.sort((a,b) => (parseInt(b.tanggal.split('-')[0])||0) - (parseInt(a.tanggal.split('-')[0])||0));
+          return group;
+        });
 
-      setStats(prev => ({ ...prev, member: totalMember, shortage: totalShortage, ecobag: totalEcobag, sakit: totalSakit, sp: totalSp }));
-      setHistory({ member: finalMemberHistory, shortage: Object.values(shortGroups), ecobag: ecobagList, sakit: Object.values(sakitGroups), sp: Object.values(spGroups) });
+      setStats({ member: totalMember, shortage: totalShortage, ecobag: totalEcobag, sakit: totalSakit, sp: totalSp, audit: '-' });
+      setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag: ecobagList, sakit: finalSakitHistory, sp: finalSpHistory });
 
     } catch (err) {
       console.error("Gagal menarik data:", err);
@@ -116,10 +141,7 @@ export default function App() {
     }
   };
 
-  // Avatar cadangan jika Google Drive gagal
   const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nama || 'A')}&background=FCE7F3&color=E20074&bold=true`;
-
-  // Format link Google Drive yang lebih kebal pemblokiran (Thumbnail API)
   const getPhotoUrl = () => {
     if (user?.file_id && user.file_id.trim() !== '') {
       return `https://drive.google.com/thumbnail?id=${user.file_id.trim()}&sz=w500`;
@@ -130,23 +152,17 @@ export default function App() {
   return (
     <>
       <style jsx global>{`
-        @keyframes slideUpFade {
-          0% { opacity: 0; transform: translateY(30px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes popIn {
-          0% { opacity: 0; transform: scale(0.9); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes fadeInScale {
-          0% { opacity: 0; transform: scale(0.95); }
-          100% { opacity: 1; transform: scale(1); }
-        }
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translateY(30px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
         .anim-slide-up { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         .anim-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
         .delay-100 { animation-delay: 100ms; }
         .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        
+        /* Mencegah background scroll saat modal terbuka */
+        body { overflow: ${activeModalData ? 'hidden' : 'auto'}; }
       `}</style>
 
       {isLoggedIn ? (
@@ -169,13 +185,7 @@ export default function App() {
 
               <div className="flex items-start gap-5 relative z-10">
                 <div className="relative group shrink-0 bg-white/10 rounded-3xl p-1 shadow-2xl">
-                  <img 
-                    src={getPhotoUrl()} 
-                    onError={(e) => { e.currentTarget.src = fallbackAvatar; }} 
-                    referrerPolicy="no-referrer" 
-                    className="w-24 h-24 object-cover rounded-[1.2rem] border-2 border-white/40 bg-white/20 transition-transform duration-300 group-hover:scale-105" 
-                    alt="Foto Profil" 
-                  />
+                  <img src={getPhotoUrl()} onError={(e) => { e.currentTarget.src = fallbackAvatar; }} referrerPolicy="no-referrer" className="w-24 h-24 object-cover rounded-[1.2rem] border-2 border-white/40 bg-white/20 transition-transform duration-300 group-hover:scale-105" alt="Foto Profil" />
                   <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-400 border-4 border-[#e20074] rounded-full shadow-lg z-10"></div>
                 </div>
                 <div className="flex-1 min-w-0 pt-1">
@@ -259,20 +269,13 @@ export default function App() {
           </div>
 
           {/* ========================================================= */}
-          {/* MODAL POP-UP DIKELUARKAN DARI CONTAINER ANIMASI UTAMA     */}
-          {/* AGAR SELALU MENGUNCI DI TENGAH LAYAR HP / LAPTOP          */}
+          {/* MODAL POP-UP (MENGUNCI DI TENGAH LAYAR ANTI-SCROLL BUG)   */}
           {/* ========================================================= */}
-
           {activeModalData?.type === 'member' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Detail Member</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-pink-50/50 border-b text-center text-xs font-black text-pink-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-2.5 bg-gray-50/30">{activeModalData.data.details.map((det, i) => (<div key={i} className="flex justify-between items-center p-3.5 border border-gray-100 rounded-2xl bg-white shadow-sm text-[11px] hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">{det.tgl}</span><span className="font-black text-[#e20074] bg-pink-50 px-3 py-1.5 rounded-lg">{det.qty} Member</span></div>))}</div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL: {activeModalData.data.totalPerBulan}</div></div></div> )}
-          
           {activeModalData?.type === 'ecobag' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Rincian Ecobag</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-pink-50/50 border-b text-center text-xs font-black text-pink-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-6 space-y-3.5 bg-gray-50/30"><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Large (LA)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.la}</span></div><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Medium (ME)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.me}</span></div><div className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-xs hover:border-pink-200 transition-colors"><span className="font-bold text-gray-600">Size Small (SM)</span><span className="font-black text-[#e20074] text-lg">{activeModalData.data.sm}</span></div></div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-sm shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL TERJUAL: <span className="text-xl">{activeModalData.data.totalPerBulan}</span> Pcs</div></div></div> )}
-          
           {activeModalData?.type === 'sakit' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Absensi Sakit/Izin</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-600 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-4 bg-gray-50/50">{activeModalData.data.details.map((det, i) => (<div key={i} className="p-4 border border-blue-100 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-blue-500 hover:shadow-md transition-shadow"><div className="flex justify-between font-bold text-gray-800 bg-gray-50 px-3 py-2 rounded-lg"><span>Libur: <span className="text-blue-600">{det.tglTidakMasuk}</span></span><span>Masuk: <span className="text-green-600">{det.tglMulaiMasuk}</span></span></div><div className="mt-2"><span className="text-[9px] bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider inline-block mb-1">{det.keterangan}</span></div><p className="text-gray-700 font-medium leading-relaxed"><span className="font-bold text-gray-900">Diagnosa:</span> {det.diagnosa}</p><div className="pt-2 mt-2 border-t border-dashed"><p className="text-gray-500 text-[10px] italic"><span className="font-bold text-gray-600 not-italic">Klinik:</span> {det.klinik}</p></div></div>))}</div><div className="p-5 bg-white text-center font-black text-[#e20074] border-t shadow-[0_-10px_20px_rgba(0,0,0,0.02)] text-sm">TOTAL FREKUENSI: <span className="text-xl">{activeModalData.data.totalPerBulan}x</span></div></div></div> )}
-          
           {activeModalData?.type === 'shortage' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Detail Short/Over</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-5 bg-gray-50 border-b flex flex-col gap-4"><div className="font-black text-gray-600 text-xs text-center tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="flex justify-between w-full gap-3"><div className="bg-red-50 p-3 rounded-2xl flex-1 text-center border border-red-100 shadow-sm"><p className="text-[10px] text-red-500 font-extrabold uppercase tracking-wide">Total Short</p><p className="font-black text-lg text-red-600 mt-1">{activeModalData.data.totalShort === 0 ? '0' : activeModalData.data.totalShort.toLocaleString('id-ID')}</p></div><div className="bg-green-50 p-3 rounded-2xl flex-1 text-center border border-green-100 shadow-sm"><p className="text-[10px] text-green-600 font-extrabold uppercase tracking-wide">Total Over</p><p className="font-black text-lg text-green-600 mt-1">{activeModalData.data.totalOver === 0 ? '0' : '+' + activeModalData.data.totalOver.toLocaleString('id-ID')}</p></div></div></div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50/50">{activeModalData.data.details.map((det, i) => { let valColor = det.nominal < 0 ? 'text-red-600' : (det.nominal > 0 ? 'text-green-600' : 'text-gray-600'); let valBg = det.nominal < 0 ? 'bg-red-50 border-red-200' : (det.nominal > 0 ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'); let valLabel = det.nominal < 0 ? 'Minus' : (det.nominal > 0 ? 'Plus' : 'Pas'); let tanda = det.nominal > 0 ? '+' : ''; return (<div key={i} className={`flex justify-between items-center p-4 border rounded-2xl shadow-sm text-[11px] hover:shadow-md transition-shadow ${valBg}`}><div><p className="font-extrabold text-gray-900 text-xs mb-1">{det.tgl}</p><p className="text-[9px] text-gray-600 uppercase font-bold bg-white/60 inline-block px-2 py-1 rounded-md">POS: {det.pos} • SHIFT: <span className="text-gray-900">{det.shift}</span></p></div><div className="text-right"><span className="text-[9px] bg-white/80 px-2.5 py-1 rounded-lg font-bold text-gray-600 uppercase shadow-sm">{valLabel}</span><p className={`font-black mt-2 text-sm ${valColor}`}>{tanda}{det.nominal.toLocaleString('id-ID')}</p></div></div>); })}</div></div></div> )}
-          
           {activeModalData?.type === 'sp' && ( <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in"><div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white flex justify-between items-center"><h3 className="font-black text-sm uppercase tracking-wider">Detail SP / BA</h3><button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button></div><div className="p-4 bg-orange-50/30 border-b text-center text-xs font-black text-orange-900 tracking-widest uppercase">{activeModalData.data.bulan}</div><div className="p-5 max-h-[50vh] overflow-y-auto space-y-4 bg-gray-50/50">{activeModalData.data.details.map((det, i) => (<div key={i} className="p-4 border border-orange-100 rounded-2xl bg-white shadow-sm text-[11px] space-y-2.5 border-l-[5px] border-l-orange-500 hover:shadow-md transition-shadow"><div className="flex justify-between items-center font-bold text-gray-800 border-b pb-2"><span className="text-xs">{det.tanggal}</span><span className="text-[9px] bg-orange-100 text-orange-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">{det.surat}</span></div><p className="text-gray-700 font-medium leading-relaxed mt-2"><span className="font-bold text-gray-900 block mb-0.5 text-[10px] uppercase tracking-wide text-gray-400">Pelanggaran:</span> {det.jenis}</p><p className="text-gray-700 font-medium leading-relaxed bg-gray-50 p-2.5 rounded-lg"><span className="font-bold text-gray-900 block mb-0.5 text-[10px] uppercase tracking-wide text-gray-400">Remarks:</span> {det.remarks}</p><div className="pt-1 mt-2 flex items-center gap-1.5"><div className="w-4 h-4 bg-orange-100 rounded-full flex items-center justify-center text-orange-500"><svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg></div><p className="text-gray-500 text-[10px] font-bold uppercase tracking-wide">PIC Under: <span className="text-gray-800">{det.under}</span></p></div></div>))}</div><div className="p-5 bg-white text-center font-black text-orange-600 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.02)] text-sm">TOTAL KASUS: <span className="text-xl">{activeModalData.data.totalPerBulan}x</span></div></div></div> )}
-
         </>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f8f9fc] anim-fade-in relative overflow-hidden">
