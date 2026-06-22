@@ -1,512 +1,228 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Chart from "chart.js/auto";
 
-export default function SupervisorDashboard() {
-  const [activePanel, setActivePanel] = useState("dir"); 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  
-  const [allKaryawan, setAllKaryawan] = useState([]);
-  const [rawShortage, setRawShortage] = useState([]);
-  const [rawEcobag, setRawEcobag] = useState([]);
-  const [rawMember, setRawMember] = useState([]);
-  const [rawSakit, setRawSakit] = useState([]);
-  const [rawSpBa, setRawSpBa] = useState([]);
+export default function App() {
+  const [nik, setNik] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
 
-  const [searchNama, setSearchNama] = useState("");
-  const [filterBulan, setFilterBulan] = useState("");
-  const [filterTipe, setFilterTipe] = useState("");
-  const [showL, setShowL] = useState(true);
-  const [showM, setShowM] = useState(true);
-  const [showS, setShowS] = useState(true);
-
-  const [selectedKaryawan, setSelectedKaryawan] = useState(null);
-  const [empMenu, setEmpMenu] = useState("shortage");
-  const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0 });
-  const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [] });
+  const [stats, setStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-' });
+  const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [] });
+  const [detailType, setDetailType] = useState(null);
+  const [activeModalData, setActiveModalData] = useState(null);
 
   useEffect(() => {
-    fetchGlobalData();
-  }, []);
+    if (isLoggedIn && user) fetchDashboardData();
+  }, [isLoggedIn, user]);
 
-  useEffect(() => {
-    if (selectedKaryawan) {
-      renderIndividualChart();
-    }
-  }, [selectedKaryawan, empMenu]);
-
-  const fetchGlobalData = async () => {
-    setLoading(true);
+  const fetchDashboardData = async () => {
     try {
-      const { data: nikData } = await supabase.from("nik").select("*").order("nama", { ascending: true });
-      const { data: shortData } = await supabase.from("shortage_per_day").select("*");
-      const { data: ecoData } = await supabase.from("ecobag_per_day").select("*");
-      const { data: memData } = await supabase.from("member_per_day").select("*");
-      const { data: sakData } = await supabase.from("sakit_per_day").select("*");
-      const { data: spData } = await supabase.from("sp_ba_per_day").select("*");
-
-      setAllKaryawan(nikData || []);
-      setRawShortage(shortData || []);
-      setRawEcobag(ecoData || []);
-      setRawMember(memData || []);
-      setRawSakit(sakData || []);
-      setRawSpBa(spData || []);
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  };
-
-  const getGroupedKaryawan = () => {
-    const groups = {};
-    allKaryawan.forEach(k => {
-      const groupName = k.under || "OTHERS";
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(k);
-    });
-    return groups;
-  };
-
-  const handleKaryawanClick = (karyawan) => {
-    setSelectedKaryawan(karyawan);
-    setEmpMenu("shortage");
-
-    const nama = karyawan.nama;
-    const mData = rawMember.filter(r => r.nama === nama);
-    let tMem = 0; let mGroups = {};
-    mData.forEach(r => {
-      tMem += parseInt(r.qty) || 0;
-      if (!mGroups[r.bulan]) mGroups[r.bulan] = { bulan: r.bulan, totalPerBulan: 0, details: [] };
-      mGroups[r.bulan].totalPerBulan += parseInt(r.qty) || 0;
-      mGroups[r.bulan].details.push({ tgl: r.tanggal, qty: r.qty });
-    });
-
-    const sPagi = rawShortage.filter(r => r.nama === nama);
-    const sSiang = rawShortage.filter(r => r.nama_1 === nama);
-    let tShort = 0; let sGroups = {};
-    const processS = (arr, isPagi) => {
-      arr.forEach(r => {
-        tShort++;
-        const nominal = parseInt(isPagi ? r.short_over_shift_pagi : r.short_over_shift_siang) || 0;
-        if (!sGroups[r.periode]) sGroups[r.periode] = { bulan: r.periode, frekuensi: 0, totalShort: 0, totalOver: 0, details: [] };
-        sGroups[r.periode].frekuensi++;
-        if (nominal < 0) sGroups[r.periode].totalShort += nominal;
-        if (nominal > 0) sGroups[r.periode].totalOver += nominal;
-        sGroups[r.periode].details.push({ tgl: r.tanggal, pos: r.pos, shift: isPagi?'PAGI':'SIANG', nominal });
-      });
-    };
-    processS(sPagi, true); processS(sSiang, false);
-
-    const eData = rawEcobag.filter(r => r.staff_name === nama);
-    let tEco = 0; let eList = [];
-    eData.forEach(r => {
-      tEco += parseInt(r.total) || 0;
-      eList.push({ bulan: r.year_month || r.month, la: r.bag_la, me: r.bag_me, sm: r.bag_sm, totalPerBulan: r.total });
-    });
-
-    const sakData = rawSakit.filter(r => r.nama === nama);
-    let tSak = sakData.length; let sakGroups = {};
-    sakData.forEach(r => {
-      if (!sakGroups[r.bulan]) sakGroups[r.bulan] = { bulan: r.bulan, totalPerBulan: 0, details: [] };
-      sakGroups[r.bulan].totalPerBulan++;
-      sakGroups[r.bulan].details.push({ tglTidakMasuk: r.tgl_tidak_masuk, tglMulaiMasuk: r.tgl_mulai_masuk, keterangan: r.keterangan, diagnosa: r.reason_diagnosa, klinik: r.alamat_klinik });
-    });
-
-    const spData = rawSpBa.filter(r => r.nama === nama);
-    let tSp = spData.length; let spGroups = {};
-    spData.forEach(r => {
-      if (!spGroups[r.bulan]) spGroups[r.bulan] = { bulan: r.bulan, totalPerBulan: 0, details: [] };
-      spGroups[r.bulan].totalPerBulan++;
-      spGroups[r.bulan].details.push({ tanggal: r.tanggal, jenis: r.jenis_pelanggaran, remarks: r.remarks, surat: r.surat_pernyataan, under: r.pic_under });
-    });
-
-    setEmpStats({ member: tMem, ecobag: tEco, shortage: tShort, sp: tSp, sakit: tSak });
-    setEmpHistory({
-      member: Object.values(mGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      shortage: Object.values(sGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      ecobag: eList.sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      sakit: Object.values(sakGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      sp: Object.values(spGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan))
-    });
-    setActivePanel("emp_detail");
-  };
-
-  const renderIndividualChart = () => {
-    const canvas = document.getElementById("individualChartCanvas");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    
-    const existingChart = Chart.getChart("individualChartCanvas");
-    if (existingChart) existingChart.destroy();
-
-    if (empMenu === "shortage") {
-      const labels = empHistory.shortage.map(h => h.bulan).reverse();
-      const shorts = empHistory.shortage.map(h => Math.abs(h.totalShort)).reverse();
-      const overs = empHistory.shortage.map(h => h.totalOver).reverse();
-
-      new Chart(ctx, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            { label: "Short", data: shorts, borderColor: "#e74c3c", tension: 0.3, fill: true, backgroundColor: "rgba(231,76,60,0.05)" },
-            { label: "Over", data: overs, borderColor: "#3498db", tension: 0.3, fill: true, backgroundColor: "rgba(52,152,219,0.05)" }
-          ]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    } else if (empMenu === "member") {
-      const labels = empHistory.member.map(h => h.bulan).reverse();
-      const totals = empHistory.member.map(h => h.totalPerBulan).reverse();
-      new Chart(ctx, {
-        type: "bar",
-        data: { labels, datasets: [{ label: "Total Member", data: totals, backgroundColor: "#C80082", borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    } else if (empMenu === "ecobag") {
-      const labels = empHistory.ecobag.map(h => h.bulan).reverse();
-      const totals = empHistory.ecobag.map(h => h.totalPerBulan).reverse();
-      new Chart(ctx, {
-        type: "bar",
-        data: { labels, datasets: [{ label: "Total Ecobag", data: totals, backgroundColor: "#2ecc71", borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false }
-      });
-    }
-  };
-
-  const getPhotoUrl = (fileId, nama) => {
-    if (fileId && fileId.trim() !== "") {
-      return `https://drive.google.com/thumbnail?id=${fileId.trim()}&sz=w300`;
-    }
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=FCE7F3&color=E20074&bold=true`;
-  };
-
-  const getFilteredGlobalData = () => {
-    if (activePanel === "shortage") {
-      return rawShortage.filter(r => 
-        (!filterBulan || r.periode === filterBulan) &&
-        (!searchNama || (r.nama && r.nama.toLowerCase().includes(searchNama.toLowerCase())))
-      );
-    }
-    if (activePanel === "ecobag") {
-      return rawEcobag.filter(r => 
-        (!filterBulan || r.year_month === filterBulan || r.month === filterBulan) &&
-        (!searchNama || (r.staff_name && r.staff_name.toLowerCase().includes(searchNama.toLowerCase()))) &&
-        ((showL && r.bag_la > 0) || (showM && r.bag_me > 0) || (showS && r.bag_sm > 0) || (!showL && !showM && !showS))
-      );
-    }
-    if (activePanel === "member") {
-      const map = {};
-      rawMember.forEach(r => {
-        if (filterBulan && r.bulan !== filterBulan) return;
-        if (searchNama && !r.nama.toLowerCase().includes(searchNama.toLowerCase())) return;
-        const key = r.nama + "||" + r.bulan;
-        if (!map[key]) map[key] = { nama: r.nama, bulan: r.bulan, total: 0 };
-        map[key].total += parseInt(r.qty) || 0;
-      });
-      return Object.values(map).sort((a,b)=>b.bulan.localeCompare(a.bulan));
-    }
-    if (activePanel === "sakit") {
-      return rawSakit.filter(r => 
-        (!filterBulan || r.bulan === filterBulan) &&
-        (!filterTipe || r.keterangan === filterTipe) &&
-        (!searchNama || r.nama.toLowerCase().includes(searchNama.toLowerCase()))
-      );
-    }
-    if (activePanel === "sp") {
-      return rawSpBa.filter(r => 
-        (!filterBulan || r.bulan === filterBulan) &&
-        (!filterTipe || r.surat_pernyataan === filterTipe) &&
-        (!searchNama || r.nama.toLowerCase().includes(searchNama.toLowerCase()))
-      );
-    }
-    return [];
-  };
-
-  const filteredData = getFilteredGlobalData();
-
-  const getGlobalSummary = () => {
-    let card1 = 0, card2 = 0, card3 = 0;
-    filteredData.forEach(r => {
-      if (activePanel === "shortage") {
-        card1 += Math.abs(parseInt(r.short_over_shift_pagi) < 0 ? parseInt(r.short_over_shift_pagi) : 0) + Math.abs(parseInt(r.short_over_shift_siang) < 0 ? parseInt(r.short_over_shift_siang) : 0);
-        card2 += (parseInt(r.short_over_shift_pagi) > 0 ? parseInt(r.short_over_shift_pagi) : 0) + (parseInt(r.short_over_shift_siang) > 0 ? parseInt(r.short_over_shift_siang) : 0);
+      const { data: memberData } = await supabase.from('member_per_day').select('tanggal, qty, bulan').eq('nama', user.nama);
+      let totalMember = 0; let memberGroups = {};
+      if (memberData) {
+        memberData.forEach(row => {
+          const bulan = row.bulan || 'Unknown'; const tanggal = row.tanggal || 'Unknown'; const qty = parseInt(row.qty) || 0;
+          totalMember += qty;
+          if (!memberGroups[bulan]) memberGroups[bulan] = { bulan, totalPerBulan: 0, dailyMap: {} };
+          memberGroups[bulan].totalPerBulan += qty;
+          if (!memberGroups[bulan].dailyMap[tanggal]) memberGroups[bulan].dailyMap[tanggal] = 0;
+          memberGroups[bulan].dailyMap[tanggal] += qty;
+        });
       }
-      if (activePanel === "ecobag") card1 += r.total || 0;
-      if (activePanel === "member") card1 += r.total || 0;
-    });
-    return { card1, card2, card3 };
+      const finalMemberHistory = Object.values(memberGroups).sort((a, b) => b.bulan.localeCompare(a.bulan)).map(group => ({
+        bulan: group.bulan, totalPerBulan: group.totalPerBulan,
+        details: Object.keys(group.dailyMap).map(tgl => ({ tgl, qty: group.dailyMap[tgl] })).sort((a,b) => (parseInt(b.tgl.split('-')[0])||0) - (parseInt(a.tgl.split('-')[0])||0))
+      }));
+
+      const { data: shortagePagi } = await supabase.from('shortage_per_day').select('tanggal, pos, short_over_shift_pagi, periode').eq('nama', user.nama);
+      const { data: shortageSiang } = await supabase.from('shortage_per_day').select('tanggal, pos, short_over_shift_siang, periode').eq('nama_1', user.nama);
+      let shortGroups = {}; let totalShortage = 0;
+      const processShortage = (data, isPagi) => {
+        if (!data) return;
+        data.forEach(row => {
+          const bulan = row.periode || 'Unknown'; const nominal = parseInt(isPagi ? row.short_over_shift_pagi : row.short_over_shift_siang) || 0;
+          totalShortage++; 
+          if (!shortGroups[bulan]) shortGroups[bulan] = { bulan, frekuensi: 0, totalShort: 0, totalOver: 0, details: [] };
+          shortGroups[bulan].frekuensi++;
+          if (nominal < 0) shortGroups[bulan].totalShort += nominal;
+          if (nominal > 0) shortGroups[bulan].totalOver += nominal;
+          shortGroups[bulan].details.push({ tgl: row.tanggal, pos: row.pos || '-', shift: isPagi ? 'PAGI' : 'SIANG', nominal });
+        });
+      };
+      processShortage(shortagePagi, true); processShortage(shortageSiang, false);
+      const finalShortageHistory = Object.values(shortGroups).sort((a, b) => b.bulan.localeCompare(a.bulan)).map(group => {
+        group.details.sort((a,b) => (parseInt(b.tgl.split('-')[0])||0) - (parseInt(a.tgl.split('-')[0])||0));
+        return group;
+      });
+
+      const { data: ecobagData } = await supabase.from('ecobag_per_day').select('*').eq('staff_name', user.nama);
+      let totalEcobag = 0; let ecobagList = [];
+      if (ecobagData) {
+        ecobagData.forEach(row => {
+          const qtyTotal = parseInt(row.total) || 0; totalEcobag += qtyTotal;
+          ecobagList.push({ bulan: row.year_month || row.month, la: parseInt(row.bag_la) || 0, me: parseInt(row.bag_me) || 0, sm: parseInt(row.bag_sm) || 0, totalPerBulan: qtyTotal });
+        });
+        ecobagList.sort((a, b) => b.bulan.localeCompare(a.bulan)); 
+      }
+
+      const { data: sakitData } = await supabase.from('sakit_per_day').select('*').eq('nama', user.nama);
+      let totalSakit = 0; let sakitGroups = {};
+      if (sakitData) {
+        sakitData.forEach(row => {
+          const bulan = row.bulan || 'Unknown'; totalSakit++;
+          if (!sakitGroups[bulan]) sakitGroups[bulan] = { bulan, totalPerBulan: 0, details: [] };
+          sakitGroups[bulan].totalPerBulan++;
+          sakitGroups[bulan].details.push({ tglTidakMasuk: row.tgl_tidak_masuk || '-', tglMulaiMasuk: row.tgl_mulai_masuk || '-', keterangan: row.keterangan || '-', diagnosa: row.reason_diagnosa || '-', klinik: row.alamat_klinik || '-' });
+        });
+      }
+      const finalSakitHistory = Object.values(sakitGroups).sort((a, b) => b.bulan.localeCompare(a.bulan)).map(group => {
+        group.details.sort((a,b) => (parseInt(b.tglTidakMasuk.split('-')[0])||0) - (parseInt(a.tglTidakMasuk.split('-')[0])||0));
+        return group;
+      });
+
+      const { data: spbaData } = await supabase.from('sp_ba_per_day').select('*').eq('nama', user.nama);
+      let totalSp = 0; let spGroups = {};
+      if (spbaData) {
+        spbaData.forEach(row => {
+          const bulan = row.bulan || 'Unknown'; totalSp++;
+          if (!spGroups[bulan]) spGroups[bulan] = { bulan, totalPerBulan: 0, details: [] };
+          spGroups[bulan].totalPerBulan++;
+          spGroups[bulan].details.push({ tanggal: row.tanggal || '-', jenis: row.jenis_pelanggaran || '-', remarks: row.remarks || '-', surat: row.surat_pernyataan || '-', under: row.pic_under || '-' });
+        });
+      }
+      const finalSpHistory = Object.values(spGroups).sort((a, b) => b.bulan.localeCompare(a.bulan)).map(group => {
+        group.details.sort((a,b) => (parseInt(b.tanggal.split('-')[0])||0) - (parseInt(a.tanggal.split('-')[0])||0));
+        return group;
+      });
+
+      setStats({ member: totalMember, shortage: totalShortage, ecobag: totalEcobag, sakit: totalSakit, sp: totalSp, audit: '-' });
+      setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag: ecobagList, sakit: finalSakitHistory, sp: finalSpHistory });
+    } catch (err) { console.error(err); }
   };
 
-  const gSum = getGlobalSummary();
+  const prosesLogin = async () => {
+    if (!nik || !password) { alert("Wajib isi NIK & ID Swipe!"); return; }
+    setLoading(true);
+    const { data: userData, error } = await supabase.from('nik').select('*').eq('nik', nik).eq('id_swipe', password).single();
+    if (error) { 
+      await supabase.from('log_login').insert([{ nik: nik, nama: '-', status: 'LOGIN FAILED' }]);
+      alert("Login Gagal: NIK atau ID Swipe salah."); setLoading(false); return; 
+    }
+    await supabase.from('log_login').insert([{ nik: userData.nik, nama: userData.nama, status: 'LOGIN SUCCESS' }]);
+    setUser(userData); setIsLoggedIn(true); setLoading(false);
+  };
+
+  const prosesLogout = async () => {
+    if(confirm("Yakin ingin keluar dari portal?")) {
+      if (user) await supabase.from('log_login').insert([{ nik: user.nik, nama: user.nama, status: 'LOGOUT' }]);
+      setIsLoggedIn(false); setUser(null); setNik(""); setPassword("");
+      setStats({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-' });
+      setDetailType(null); setActiveModalData(null);
+    }
+  };
+
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nama || 'A')}&background=FCE7F3&color=E20074&bold=true`;
+  const getPhotoUrl = () => {
+    if (user?.file_id && user.file_id.trim() !== '') return `https://drive.google.com/thumbnail?id=${user.file_id.trim()}&sz=w500`;
+    return fallbackAvatar;
+  };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f9] font-sans flex text-gray-800">
+    <>
       <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(15px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes popIn {
-          0% { opacity: 0; transform: scale(0.95); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        .anim-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        .anim-pop-in { animation: popIn 0.3s ease-out forwards; }
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translateY(30px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        .anim-slide-up { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .anim-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
+        .delay-100 { animation-delay: 100ms; }
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        body { overflow: ${activeModalData ? 'hidden' : 'auto'}; }
       `}</style>
 
-      {/* === SIDEBAR MENU NAVIGASI === */}
-      <aside className={`fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
-        <div className="bg-[#C80082] p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2 font-black text-sm tracking-wider">
-            <span className="bg-white text-[#C80082] px-2 py-1 rounded font-black">AEON</span> TRC PANEL
+      {isLoggedIn ? (
+        <div className="min-h-screen bg-[#f8f9fc] font-sans text-[#1a1a1a] pb-12 overflow-x-hidden anim-fade-in relative z-0">
+          <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] pt-14 pb-28 px-6 rounded-b-[2.5rem] shadow-lg text-white relative overflow-hidden">
+            <div className="flex items-center justify-between mb-10 relative z-10">
+              <div><h3 className="font-bold opacity-80 uppercase tracking-widest text-[10px] mb-1">Staff Performance</h3><p className="text-xl font-extrabold tracking-tight">Halo, Kasir!</p></div>
+              <button onClick={prosesLogout} className="bg-white/20 hover:bg-white/30 p-3.5 rounded-2xl transition-all shadow-sm">✕ Logout</button>
+            </div>
+            <div className="flex items-start gap-5 relative z-10">
+              <img src={getPhotoUrl()} onError={(e) => { e.currentTarget.src = fallbackAvatar; }} className="w-24 h-24 object-cover rounded-3xl border-2 border-white/40 bg-white/20" alt="Foto Profil" />
+              <div className="flex-1 min-w-0 pt-1">
+                <h1 className="text-xl sm:text-2xl font-black drop-shadow-md break-words">{user.nama}</h1>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="text-[10px] bg-black/25 px-3 py-1.5 rounded-xl">NIK: {user.nik}</span>
+                  {user.join_date && <span className="text-[10px] bg-white/20 px-3 py-1.5 rounded-xl">Join: {user.join_date}</span>}
+                  <span className="text-[10px] bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 px-3 py-1.5 rounded-xl font-bold">Under: {user.under}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="md:hidden text-white font-bold text-xl">✕</button>
+
+          <div className="px-5 -mt-12 space-y-4 relative z-20">
+            <div className="grid grid-cols-2 gap-4 anim-slide-up">
+              <div onClick={() => setDetailType(detailType === 'member' ? null : 'member')} className="glass-card p-6 rounded-[2rem] shadow-lg border-b-4 border-pink-500 cursor-pointer"><p className="text-[11px] text-gray-500 uppercase font-extrabold">Member</p><h3 className="text-3xl font-black">{stats.member}</h3></div>
+              <div onClick={() => setDetailType(detailType === 'ecobag' ? null : 'ecobag')} className="glass-card p-6 rounded-[2rem] shadow-lg border-b-4 border-[#e20074] cursor-pointer"><p className="text-[11px] text-gray-500 uppercase font-extrabold">Ecobag</p><h3 className="text-3xl font-black">{stats.ecobag}</h3></div>
+            </div>
+            <div className="grid grid-cols-4 gap-3 anim-slide-up delay-100">
+              <div onClick={() => setDetailType(detailType === 'shortage' ? null : 'shortage')} className="glass-card py-5 rounded-[1.5rem] text-center border-t-[3px] border-red-400 cursor-pointer"><p className="text-[9px] font-bold text-gray-500">Shortage</p><h4 className="text-base font-black text-red-500">{stats.shortage}</h4></div>
+              <div onClick={() => setDetailType(detailType === 'sp' ? null : 'sp')} className="glass-card py-5 rounded-[1.5rem] text-center border-t-[3px] border-orange-400 cursor-pointer"><p className="text-[9px] font-bold text-gray-500">SP/BA</p><h4 className="text-base font-black text-orange-600">{stats.sp}</h4></div>
+              <div onClick={() => setDetailType(detailType === 'sakit' ? null : 'sakit')} className="glass-card py-5 rounded-[1.5rem] text-center border-t-[3px] border-blue-400 cursor-pointer"><p className="text-[9px] font-bold text-gray-500">Sakit/Izin</p><h4 className="text-base font-black text-blue-500">{stats.sakit}</h4></div>
+              <div className="glass-card py-5 rounded-[1.5rem] text-center border-t-[3px] border-purple-400 opacity-80"><p className="text-[9px] font-bold text-gray-400">Audit</p><h4 className="text-base font-black text-purple-600">{stats.audit}</h4></div>
+            </div>
+
+            {detailType && (
+              <div className="glass-card p-6 rounded-[2.5rem] mt-6 shadow-xl anim-pop-in">
+                <div className="flex justify-between items-center mb-5"><h4 className="font-black text-sm uppercase">Tabel {detailType}</h4><button onClick={() => setDetailType(null)} className="bg-gray-100 p-2.5 rounded-xl">✕</button></div>
+                <div className="overflow-x-auto rounded-2xl border bg-white/50">
+                  <table className="w-full text-[11px] text-left">
+                      <thead className="bg-gray-50 text-[#e20074] border-b uppercase">
+                        {(detailType === 'member' || detailType === 'ecobag') && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-right'>Total</th></tr>)}
+                        {detailType === 'sakit' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-right'>Absen</th></tr>)}
+                        {detailType === 'sp' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-right'>Kasus</th></tr>)}
+                        {detailType === 'shortage' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-center'>Freq</th><th className='p-4 text-right'>Short</th><th className='p-4 text-right'>Over</th></tr>)}
+                      </thead>
+                      <tbody>
+                        {detailType === 'member' && history.member.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'member', data: item })} className='border-b cursor-pointer'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-right font-black text-lg'>{item.totalPerBulan}</td></tr>))}
+                        {detailType === 'ecobag' && history.ecobag.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'ecobag', data: item })} className='border-b cursor-pointer'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-right font-black text-[#e20074] text-lg'>{item.totalPerBulan}</td></tr>))}
+                        {detailType === 'sakit' && history.sakit.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'sakit', data: item })} className='border-b cursor-pointer'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-right font-black text-blue-600 text-lg'>{item.totalPerBulan}x</td></tr>))}
+                        {detailType === 'sp' && history.sp.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'sp', data: item })} className='border-b cursor-pointer'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-right font-black text-orange-600 text-lg'>{item.totalPerBulan}x</td></tr>))}
+                        {detailType === 'shortage' && history.shortage.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'shortage', data: item })} className='border-b cursor-pointer'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-center text-gray-500'>{item.frekuensi}x</td><td className='p-4 text-right font-black text-red-600'>{item.totalShort.toLocaleString('id-ID')}</td><td className='p-4 text-right font-black text-green-600'>+{item.totalOver.toLocaleString('id-ID')}</td></tr>))}
+                      </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MODAL POP UP BAWAH */}
+          {activeModalData?.type === 'member' && ( <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-3xl overflow-hidden anim-pop-in"><div className="bg-[#e20074] p-5 text-white flex justify-between"><h3 className="font-black">Detail Member</h3><button onClick={() => setActiveModalData(null)}>✕</button></div><div className="p-4 max-h-[50vh] overflow-y-auto space-y-2">{activeModalData.data.details.map((det, i) => (<div key={i} className="flex justify-between p-3 border rounded-xl"><span className="font-bold">{det.tgl}</span><span className="font-black text-[#e20074]">{det.qty} Member</span></div>))}</div></div></div> )}
+          {activeModalData?.type === 'ecobag' && ( <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-3xl overflow-hidden anim-pop-in"><div className="bg-[#e20074] p-5 text-white flex justify-between"><h3 className="font-black">Detail Ecobag</h3><button onClick={() => setActiveModalData(null)}>✕</button></div><div className="p-4 space-y-3"><div className="flex justify-between border p-3 rounded-xl"><span className="font-bold">Large</span><span className="font-black text-[#e20074]">{activeModalData.data.la}</span></div><div className="flex justify-between border p-3 rounded-xl"><span className="font-bold">Medium</span><span className="font-black text-[#e20074]">{activeModalData.data.me}</span></div><div className="flex justify-between border p-3 rounded-xl"><span className="font-bold">Small</span><span className="font-black text-[#e20074]">{activeModalData.data.sm}</span></div></div></div></div> )}
+          {activeModalData?.type === 'shortage' && ( <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-xs rounded-3xl overflow-hidden anim-pop-in"><div className="bg-[#e20074] p-5 text-white flex justify-between"><h3 className="font-black">Detail Shortage</h3><button onClick={() => setActiveModalData(null)}>✕</button></div><div className="p-4 max-h-[50vh] overflow-y-auto space-y-3">{activeModalData.data.details.map((det, i) => (<div key={i} className="flex justify-between p-3 border rounded-xl"><div><p className="font-bold">{det.tgl}</p><p className="text-[10px] text-gray-500">POS: {det.pos} | {det.shift}</p></div><p className="font-black mt-2 text-sm">{det.nominal}</p></div>))}</div></div></div> )}
+          {activeModalData?.type === 'sakit' && ( <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden anim-pop-in"><div className="bg-[#e20074] p-5 text-white flex justify-between"><h3 className="font-black">Detail Sakit</h3><button onClick={() => setActiveModalData(null)}>✕</button></div><div className="p-4 max-h-[50vh] overflow-y-auto space-y-3">{activeModalData.data.details.map((det, i) => (<div key={i} className="p-3 border rounded-xl space-y-1"><p className="font-bold">Libur: {det.tglTidakMasuk} - Masuk: {det.tglMulaiMasuk}</p><p className="text-xs bg-blue-100 text-blue-600 inline-block px-2 rounded">{det.keterangan}</p><p className="text-xs">Diagnosa: {det.diagnosa}</p></div>))}</div></div></div> )}
+          {activeModalData?.type === 'sp' && ( <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-6"><div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden anim-pop-in"><div className="bg-orange-500 p-5 text-white flex justify-between"><h3 className="font-black">Detail SP</h3><button onClick={() => setActiveModalData(null)}>✕</button></div><div className="p-4 max-h-[50vh] overflow-y-auto space-y-3">{activeModalData.data.details.map((det, i) => (<div key={i} className="p-3 border rounded-xl space-y-1"><p className="font-bold">{det.tanggal}</p><p className="text-xs bg-orange-100 text-orange-600 inline-block px-2 rounded">{det.surat}</p><p className="text-xs font-bold">Kasus: {det.jenis}</p></div>))}</div></div></div> )}
         </div>
-        <nav className="p-4 space-y-1">
-          {[
-            { id: "dir", label: "Direktori Staff", icon: "👥" },
-            { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" },
-            { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" },
-            { id: "member", label: "Monitoring Member", icon: "💳" },
-            { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" },
-            { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" },
-          ].map(menu => (
-            <button 
-              key={menu.id} 
-              onClick={() => { setActivePanel(menu.id); setSelectedKaryawan(null); setSidebarOpen(false); }} 
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wide transition-all ${activePanel === menu.id && !selectedKaryawan ? "bg-[#C80082] text-white shadow-lg" : "text-gray-500 hover:bg-pink-50 hover:text-[#C80082]"}`}
-            >
-              <span>{menu.icon}</span> {menu.label}
+      ) : (
+        <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f8f9fc] anim-fade-in relative">
+          <div className="glass-card p-10 rounded-[3rem] shadow-xl w-full max-w-[360px] text-center border relative z-10 anim-slide-up">
+            <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] w-24 h-24 rounded-2xl mx-auto flex items-center justify-center mb-8"><span className="text-white font-black text-3xl">AEON</span></div>
+            <h2 className="text-3xl font-black mb-2">Dashboard</h2>
+            <p className="text-gray-500 text-[13px] font-medium mb-10 uppercase">Login to access CCM DPM</p>
+            <div className="space-y-4">
+              <input type="text" placeholder="Masukkan NIK" value={nik} onChange={(e) => setNik(e.target.value)} className="w-full p-4 rounded-2xl bg-gray-50 border outline-none font-bold" />
+              <input type="password" placeholder="ID Swipe (Password)" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-2xl bg-gray-50 border outline-none font-bold" />
+            </div>
+            <button onClick={prosesLogin} disabled={loading} className="mt-10 bg-[#e20074] text-white font-black py-4 px-6 rounded-2xl w-full">
+              {loading ? "MEMVERIFIKASI..." : "Masuk Sekarang"}
             </button>
-          ))}
-        </nav>
-      </aside>
-
-      {/* === KONTEN UTAMA DASHBOARD === */}
-      <main className="flex-1 md:ml-64 min-w-0 p-6">
-        
-        {/* TOP BAR LAYAR HP */}
-        <header className="flex items-center justify-between bg-white px-6 py-4 rounded-2xl shadow-sm border mb-6">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden text-2xl">☰</button>
-            <h2 className="font-black text-lg text-gray-800 uppercase tracking-wide">
-              {selectedKaryawan ? `Profil: ${selectedKaryawan.nama}` : activePanel === "dir" ? "Direktori Karyawan DPM" : `Panel ${activePanel}`}
-            </h2>
           </div>
-          {selectedKaryawan && (
-            <button onClick={() => setActivePanel("dir")} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-bold text-xs uppercase transition">← Kembali</button>
-          )}
-        </header>
-
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-40 gap-3"><div className="w-12 h-12 border-4 border-[#C80082] border-t-transparent rounded-full animate-spin"></div><p className="text-gray-400 font-bold text-xs tracking-widest uppercase animate-pulse">Memuat Database Supabase...</p></div>
-        ) : (
-          <>
-            {/* ========================================================= */}
-            {/* VIEW 1: DIREKTORI KARYAWAN (GROUPED BY UNDER)             */}
-            {/* ========================================================= */}
-            {activePanel === "dir" && !selectedKaryawan && (
-              <div className="space-y-10 anim-fade-in">
-                {Object.entries(getGroupedKaryawan()).map(([under, members]) => (
-                  <div key={under} className="bg-white p-6 rounded-3xl border shadow-sm">
-                    <h3 className="font-black text-sm text-gray-400 uppercase tracking-widest border-b pb-3 mb-6 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 bg-pink-500 rounded-full"></span> Under Leader: <span className="text-[#C80082] font-black">{under}</span> ({members.length} Staff)
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {members.map(k => (
-                        <div key={k.nik} onClick={() => handleKaryawanClick(k)} className="bg-gray-50/50 hover:bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-pink-200 group active:scale-95">
-                          <img 
-                            src={getPhotoUrl(k.file_id, k.nama)} 
-                            onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(k.nama)}&background=FCE7F3&color=E20074&bold=true`; }}
-                            referrerPolicy="no-referrer" 
-                            className="w-20 h-24 object-cover rounded-xl mx-auto border-2 border-gray-200 group-hover:border-[#C80082] shadow-sm transition-colors" 
-                            alt={k.nama} 
-                          />
-                          <h4 className="font-extrabold text-xs text-gray-800 mt-3 leading-snug break-words max-w-full px-1 group-hover:text-[#C80082] transition-colors">{k.nama}</h4>
-                          <p className="text-[10px] text-gray-400 font-semibold mt-1">NIK: {k.nik}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* VIEW 2: PANEL REKAP DATA GLOBAL (SHORTAGE, ECOBAG, DLL)    */}
-            {/* ========================================================= */}
-            {["shortage", "ecobag", "member", "sakit", "sp"].includes(activePanel) && !selectedKaryawan && (
-              <div className="space-y-6 anim-fade-in">
-                
-                {/* FILTER BAR GLOBAL */}
-                <div className="bg-white p-5 rounded-2xl border shadow-sm flex flex-wrap items-end gap-4">
-                  <div className="flex flex-col gap-1.5 min-w-[140px] flex-1 sm:flex-none">
-                    <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Cari Nama Karyawan</label>
-                    <input type="text" placeholder="Ketik nama..." value={searchNama} onChange={(e) => setSearchNama(e.target.value)} className="p-3 border rounded-xl bg-gray-50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" />
-                  </div>
-                  <div className="flex flex-col gap-1.5 min-w-[120px]">
-                    <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Filter Bulan / Periode</label>
-                    <input type="text" placeholder="Contoh: 2025-10" value={filterBulan} onChange={(e) => setFilterBulan(e.target.value)} className="p-3 border rounded-xl bg-gray-50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" />
-                  </div>
-                  {["sakit", "sp"].includes(activePanel) && (
-                    <div className="flex flex-col gap-1.5 min-w-[140px]">
-                      <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Filter Keterangan/Surat</label>
-                      <input type="text" placeholder="Sakit, SP1, BA..." value={filterTipe} onChange={(e) => setFilterTipe(e.target.value)} className="p-3 border rounded-xl bg-gray-50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" />
-                    </div>
-                  )}
-                  {activePanel === "ecobag" && (
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 border rounded-xl text-xs font-bold text-gray-600">
-                      <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={showL} onChange={(e)=>setShowL(e.target.checked)} /> LA</label>
-                      <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={showM} onChange={(e)=>setShowM(e.target.checked)} /> ME</label>
-                      <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={showS} onChange={(e)=>setShowS(e.target.checked)} /> SM</label>
-                    </div>
-                  )}
-                  <button onClick={() => { setSearchNama(""); setFilterBulan(""); setFilterTipe(""); setShowL(true); setShowM(true); setShowS(true); }} className="bg-gray-50 hover:bg-red-50 hover:text-red-600 border px-4 py-3 rounded-xl text-xs font-bold transition">Reset</button>
-                </div>
-
-                {/* SINKRONISASI KOTAK SUMMARY ATAS */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="bg-white p-5 rounded-2xl border border-b-4 border-b-pink-500 shadow-sm">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Baris Terfilter</p>
-                    <h3 className="text-xl font-black mt-1">{filteredData.length} baris</h3>
-                  </div>
-                  {activePanel === "shortage" && (
-                    <>
-                      <div className="bg-white p-5 rounded-2xl border border-b-4 border-b-red-500 shadow-sm">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Akumulasi Short</p>
-                        <h3 className="text-xl font-black text-red-600 mt-1">Rp {gSum.card1.toLocaleString("id-ID")}</h3>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-b-4 border-b-green-500 shadow-sm">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Akumulasi Over</p>
-                        <h3 className="text-xl font-black text-green-600 mt-1">Rp {gSum.card2.toLocaleString("id-ID")}</h3>
-                      </div>
-                    </>
-                  )}
-                  {(activePanel === "ecobag" || activePanel === "member") && (
-                    <div className="bg-white p-5 rounded-2xl border border-b-4 border-b-[#C80082] shadow-sm">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Kantong/Member Terjual</p>
-                      <h3 className="text-xl font-black text-[#C80082] mt-1">{gSum.card1.toLocaleString("id-ID")} Pcs</h3>
-                    </div>
-                  )}
-                </div>
-
-                {/* TABEL DATA GLOBAL */}
-                <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-                  <div className="p-4 bg-gray-50 border-b flex justify-between items-center text-xs font-bold text-gray-500">
-                    <span>Menampilkan {filteredData.length} Data Real Supabase</span>
-                  </div>
-                  <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-white text-[#C80082] font-black border-b sticky top-0 uppercase tracking-wider text-[9px]">
-                        {activePanel === "shortage" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Kasir</th><th className="p-4 text-center">POS</th><th className="p-4 text-right">Shift Pagi</th><th className="p-4 text-right">Shift Siang</th><th className="p-4">Periode</th></tr>)}
-                        {activePanel === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4">Nama Kasir</th><th className="p-4 text-right">Large</th><th className="p-4 text-right">Medium</th><th className="p-4 text-right">Small</th><th className="p-4 text-right font-black">Total</th></tr>)}
-                        {activePanel === "member" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Bulan</th><th className="p-4 text-right font-black">Total Member</th></tr>)}
-                        {activePanel === "sakit" && (<tr><th className="p-4">Nama</th><th className="p-4">Mulai Absen</th><th className="p-4">Masuk Kembali</th><th className="p-4">Bulan</th><th className="p-4">Keterangan</th><th className="p-4">Diagnosa Dokter</th></tr>)}
-                        {activePanel === "sp" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Karyawan</th><th className="p-4">Jenis Surat</th><th className="p-4">Kasus / Pelanggaran</th><th className="p-4">Bulan</th><th className="p-4">PIC Under</th></tr>)}
-                      </thead>
-                      <tbody className="divide-y text-gray-700 font-medium">
-                        {activePanel === "shortage" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/30"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{r.nama || r.nama_1}</td><td className="p-4 text-center">{r.pos}</td><td className={`p-4 text-right font-bold ${parseInt(r.short_over_shift_pagi)<0?'text-red-500':'text-green-600'}`}>{r.short_over_shift_pagi}</td><td className={`p-4 text-right font-bold ${parseInt(r.short_over_shift_siang)<0?'text-red-500':'text-green-600'}`}>{r.short_over_shift_siang}</td><td className="p-4 text-gray-400">{r.periode}</td></tr>))}
-                        {activePanel === "ecobag" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/30"><td className="p-4 font-bold">{r.year_month || r.month}</td><td className="p-4 font-black">{r.staff_name}</td><td className="p-4 text-right text-red-500 font-bold">{r.bag_la}</td><td className="p-4 text-right text-orange-500 font-bold">{r.bag_me}</td><td className="p-4 text-right text-blue-500 font-bold">{r.bag_sm}</td><td className="p-4 text-right text-[#C80082] font-black">{r.total} Pcs</td></tr>))}
-                        {activePanel === "member" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/30"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-pink-600">{r.total}</td></tr>))}
-                        {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/30"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2 py-1 rounded text-[10px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400">{r.alamat_klinik}</p></td></tr>))}
-                        {activePanel === "sp" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/30"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{r.nama}</td><td className="p-4"><span className="bg-orange-50 text-orange-600 font-black px-2 py-1 rounded text-[10px] uppercase">{r.surat_pernyataan}</span></td><td className="p-4"><p className="font-bold text-gray-800">{r.jenis_pelanggaran}</p><p className="text-[10px] text-gray-400 font-medium">{r.remarks}</p></td><td className="p-4 text-gray-400">{r.bulan}</td><td className="p-4 text-gray-500 font-bold">{r.pic_under}</td></tr>))}
-                        {filteredData.length === 0 && (<tr><td colSpan="10" className="p-10 text-center text-gray-400 font-bold">Belum ada data terfilter yang cocok di Supabase.</td></tr>)}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* VIEW 3: POP-UP INSPEKSI/DASHBOARD INDIVIDU KASIR          */}
-            {/* ========================================================= */}
-            {activePanel === "emp_detail" && selectedKaryawan && (
-              <div className="space-y-6 anim-pop-in">
-                
-                {/* PILIHAN MENU TABS KASIR */}
-                <div className="flex flex-wrap gap-2 bg-white p-3 rounded-2xl border shadow-sm">
-                  {[
-                    { id: "shortage", label: "📊 Shortage", count: empStats.shortage },
-                    { id: "ecobag", label: "🛍️ Ecobag", count: empStats.ecobag },
-                    { id: "member", label: "💳 Member", count: empStats.member },
-                    { id: "sp", label: "📄 SP/BA", count: empStats.sp },
-                    { id: "sakit", label: "🏥 Sakit", count: empStats.sakit },
-                  ].map(tab => (
-                    <button 
-                      key={tab.id} 
-                      onClick={() => setEmpMenu(tab.id)} 
-                      className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${empMenu === tab.id ? "bg-[#C80082] text-white shadow-md anim-pop-in" : "bg-gray-50 text-gray-500 hover:bg-pink-50"}`}
-                    >
-                      {tab.label} <span className={`text-[10px] px-2 py-0.5 rounded-full ${empMenu === tab.id ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{tab.count}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* AREA GRAFIK INDIVIDU */}
-                {["shortage", "member", "ecobag"].includes(empMenu) && (
-                  <div className="bg-white p-6 rounded-3xl border shadow-sm">
-                    <div className="h-64 relative w-full">
-                      <canvas id="individualChartCanvas"></canvas>
-                    </div>
-                  </div>
-                )}
-
-                {/* TABEL DETAILED DETAIL INDIVIDU KASIR */}
-                <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-gray-50 text-[#C80082] font-black border-b uppercase tracking-wider text-[9px] sticky top-0 z-10">
-                        {empMenu === "shortage" && (<tr><th className="p-4">Bulan</th><th className="p-4 text-center">Freq</th><th className="p-4 text-right">Short Minus</th><th className="p-4 text-right">Over Plus</th></tr>)}
-                        {empMenu === "member" && (<tr><th className="p-4">Bulan</th><th className="p-4 text-right">Total Akumulasi</th></tr>)}
-                        {empMenu === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4 text-right">Size L</th><th className="p-4 text-right">Size M</th><th className="p-4 text-right">Size S</th><th className="p-4 text-right">Total</th></tr>)}
-                        {empMenu === "sakit" && (<tr><th className="p-4">Bulan</th><th className="p-4">Detail Absen Sakit Karyawan</th></tr>)}
-                        {empMenu === "sp" && (<tr><th className="p-4">Bulan</th><th className="p-4">Riwayat Pelanggaran & Kasus</th></tr>)}
-                      </thead>
-                      <tbody className="divide-y text-gray-700 font-medium">
-                        {empMenu === "shortage" && empHistory.shortage.map((h, i) => (<tr key={i} className="hover:bg-red-50/30"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-center text-gray-400">{h.frekuensi}x</td><td className="p-4 text-right text-red-600 font-black">{h.totalShort.toLocaleString("id-ID")}</td><td className="p-4 text-right text-green-600 font-black">+{h.totalOver.toLocaleString("id-ID")}</td></tr>))}
-                        {empMenu === "member" && empHistory.member.map((h, i) => (<tr key={i} className="hover:bg-pink-50/30"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-[#C80082] font-black text-sm">{h.totalPerBulan} Member</td></tr>))}
-                        {empMenu === "ecobag" && empHistory.ecobag.map((h, i) => (<tr key={i} className="hover:bg-green-50/30"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-red-500 font-bold">{h.la}</td><td className="p-4 text-right text-orange-500 font-bold">{h.me}</td><td className="p-4 text-right text-blue-500 font-bold">{h.sm}</td><td className="p-4 text-right text-green-600 font-black">{h.totalPerBulan} Pcs</td></tr>))}
-                        
-                        {/* Detail Bersarang untuk Sakit */}
-                        {empMenu === "sakit" && empHistory.sakit.map((h, i) => (
-                          <tr key={i}><td className="p-4 font-black border-r bg-gray-50/50 w-24">{h.bulan}</td><td className="p-4 space-y-3 bg-gray-50/10">
-                            {h.details.map((det, idx) => (
-                              <div key={idx} className="p-4 border rounded-2xl bg-white shadow-sm flex flex-col gap-1 border-l-4 border-l-blue-500">
-                                <div className="flex justify-between font-bold text-gray-800"><span>Libur: {det.tglTidakMasuk}</span> <span>Masuk: {det.tglMulaiMasuk}</span></div>
-                                <div><span className="text-[9px] bg-blue-100 text-blue-700 font-black px-2 py-0.5 rounded uppercase">{det.keterangan}</span></div>
-                                <p className="text-gray-600 pt-1"><span className="font-bold text-gray-800">Diagnosa:</span> {det.diagnosa}</p>
-                                <p className="text-[10px] text-gray-400 italic">Klinik: {det.klinik}</p>
-                              </div>
-                            ))}
-                          </td></tr>
-                        ))}
-
-                        {/* Detail Bersarang untuk SP */}
-                        {empMenu === "sp" && empHistory.sp.map((h, i) => (
-                          <tr key={i}><td className="p-4 font-black border-r bg-gray-50/50 w-24">{h.bulan}</td><td className="p-4 space-y-3 bg-gray-50/10">
-                            {h.details.map((det, idx) => (
-                              <div key={idx} className="p-4 border rounded-2xl bg-white shadow-sm flex flex-col gap-1 border-l-4 border-l-orange-500">
-                                <div className="flex justify-between items-center font-bold text-gray-800"><span>Tgl Kasus: {det.tanggal}</span> <span className="text-[9px] bg-orange-100 text-orange-700 font-black px-2 py-0.5 rounded uppercase">{det.surat}</span></div>
-                                <p className="text-gray-600 pt-1"><span className="font-bold text-gray-800">Pelanggaran:</span> {det.jenis}</p>
-                                <p className="text-gray-600 bg-gray-50 p-2.5 rounded-lg"><span className="font-bold text-gray-500 text-[10px] block uppercase">Remarks</span> {det.remarks}</p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-1">PIC Under: {det.under}</p>
-                              </div>
-                            ))}
-                          </td></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
