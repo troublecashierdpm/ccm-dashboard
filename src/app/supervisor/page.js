@@ -15,6 +15,7 @@ export default function SupervisorDashboard() {
   const [rawSakit, setRawSakit] = useState([]);
   const [rawSpBa, setRawSpBa] = useState([]);
 
+  // FILTER UNTUK PANEL GLOBAL (Shortage, Ecobag, dll)
   const [searchNama, setSearchNama] = useState("");
   const [filterBulan, setFilterBulan] = useState("");
   const [filterTipe, setFilterTipe] = useState("");
@@ -22,12 +23,16 @@ export default function SupervisorDashboard() {
   const [showM, setShowM] = useState(true);
   const [showS, setShowS] = useState(true);
 
+  // FILTER KHUSUS DIREKTORI STAFF
+  const [dirSearch, setDirSearch] = useState("");
+  const [dirStatus, setDirStatus] = useState("");
+  const [dirUnder, setDirUnder] = useState("");
+
   const [selectedKaryawan, setSelectedKaryawan] = useState(null);
   const [empMenu, setEmpMenu] = useState("shortage");
   const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0 });
   const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [] });
 
-  // Tambahan state untuk modal popup global
   const [activeModalData, setActiveModalData] = useState(null);
 
   useEffect(() => {
@@ -40,16 +45,41 @@ export default function SupervisorDashboard() {
     }
   }, [selectedKaryawan, empMenu]);
 
+  // LOGIKA BARU: TARIK SEMUA DATA TANPA BATAS 1000 BARIS (PAGINATION LOOP)
+  const fetchAllData = async (table, orderByCol = null) => {
+    let all = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+      let q = supabase.from(table).select("*").range(from, from + step - 1);
+      if (orderByCol) q = q.order(orderByCol, { ascending: true });
+      
+      const { data, error } = await q;
+      if (error) { console.error(`Error fetch ${table}:`, error); break; }
+      
+      if (data && data.length > 0) {
+        all = [...all, ...data];
+        if (data.length < step) break; // Jika data yang ditarik kurang dari 1000, berarti sudah habis
+        from += step;
+      } else {
+        break;
+      }
+    }
+    return all;
+  };
+
   const fetchGlobalData = async () => {
     setLoading(true);
     try {
-      // PENAMBAHAN .limit(10000) UNTUK MENEMBUS BATAS 1000 BARIS SUPABASE
-      const { data: nikData } = await supabase.from("nik").select("*").order("nama", { ascending: true }).limit(10000);
-      const { data: shortData } = await supabase.from("shortage_per_day").select("*").limit(10000);
-      const { data: ecoData } = await supabase.from("ecobag_per_day").select("*").limit(10000);
-      const { data: memData } = await supabase.from("member_per_day").select("*").limit(10000);
-      const { data: sakData } = await supabase.from("sakit_per_day").select("*").limit(10000);
-      const { data: spData } = await supabase.from("sp_ba_per_day").select("*").limit(10000);
+      // Menjalankan semua penarikan data secara bersamaan agar cepat
+      const [nikData, shortData, ecoData, memData, sakData, spData] = await Promise.all([
+        fetchAllData("nik", "nama"),
+        fetchAllData("shortage_per_day"),
+        fetchAllData("ecobag_per_day"),
+        fetchAllData("member_per_day"),
+        fetchAllData("sakit_per_day"),
+        fetchAllData("sp_ba_per_day")
+      ]);
 
       setAllKaryawan(nikData || []);
       setRawShortage(shortData || []);
@@ -61,16 +91,6 @@ export default function SupervisorDashboard() {
       console.error(err);
     }
     setLoading(false);
-  };
-
-  const getGroupedKaryawan = () => {
-    const groups = {};
-    allKaryawan.forEach(k => {
-      const groupName = k.under || "OTHERS";
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(k);
-    });
-    return groups;
   };
 
   const handleKaryawanClick = (karyawan) => {
@@ -165,9 +185,26 @@ export default function SupervisorDashboard() {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(nama)}&background=FCE7F3&color=E20074&bold=true`;
   };
 
+  // -------------------------------------------------------------
+  // LOGIKA DIREKTORI STAFF: PENGELOMPOKAN & FILTER
+  // -------------------------------------------------------------
+  const uniqueUnders = [...new Set(allKaryawan.map(k => k.under || "OTHERS"))].sort();
+  const uniqueStatuses = [...new Set(allKaryawan.map(k => k.status || "UNKNOWN"))].sort();
+
+  const filteredKaryawanDir = allKaryawan.filter(k => {
+    const matchSearch = (k.nama?.toLowerCase() || "").includes(dirSearch.toLowerCase()) || (k.nik?.toLowerCase() || "").includes(dirSearch.toLowerCase());
+    const matchStatus = dirStatus ? (k.status || "UNKNOWN") === dirStatus : true;
+    const matchUnder = dirUnder ? (k.under || "OTHERS") === dirUnder : true;
+    return matchSearch && matchStatus && matchUnder;
+  });
+
+  const isFolderView = !dirSearch && !dirStatus && !dirUnder;
+
+  // -------------------------------------------------------------
+  // LOGIKA GLOBAL PANEL LAINNYA
+  // -------------------------------------------------------------
   const getFilteredGlobalData = () => {
     if (activePanel === "shortage") {
-      // LOGIKA BARU: GROUP BY NAMA & PERIODE
       const map = {};
       rawShortage.forEach(r => {
         if (filterBulan && r.periode !== filterBulan) return;
@@ -186,12 +223,7 @@ export default function SupervisorDashboard() {
         if (nomSiang < 0) map[key].totalShort += nomSiang;
         if (nomSiang > 0) map[key].totalOver += nomSiang;
         
-        map[key].details.push({
-          tanggal: r.tanggal,
-          pos: r.pos,
-          shiftPagi: nomPagi,
-          shiftSiang: nomSiang
-        });
+        map[key].details.push({ tanggal: r.tanggal, pos: r.pos, shiftPagi: nomPagi, shiftSiang: nomSiang });
       });
       return Object.values(map).sort((a,b) => b.periode.localeCompare(a.periode));
     }
@@ -237,7 +269,6 @@ export default function SupervisorDashboard() {
         .delay-100 { animation-delay: 100ms; }
         .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.6); }
         
-        /* Mencegah background scroll saat modal terbuka */
         body { overflow: ${activeModalData ? 'hidden' : 'auto'}; }
       `}</style>
 
@@ -261,21 +292,83 @@ export default function SupervisorDashboard() {
 
         {loading ? ( <div className="flex flex-col items-center justify-center py-40 gap-3"><div className="w-12 h-12 border-4 border-[#e20074] border-t-transparent rounded-full animate-spin"></div><p className="text-gray-400 font-bold text-xs tracking-widest uppercase animate-pulse">Memuat Database...</p></div> ) : (
           <>
+            {/* ========================================================= */}
+            {/* VIEW 1: DIREKTORI STAFF DENGAN FILTER & FOLDER LEADER     */}
+            {/* ========================================================= */}
             {activePanel === "dir" && !selectedKaryawan && (
-              <div className="space-y-10 anim-slide-up">
-                {Object.entries(getGroupedKaryawan()).map(([under, members]) => (
-                  <div key={under} className="glass-card p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50">
-                    <h3 className="font-black text-sm text-gray-400 uppercase tracking-widest border-b pb-3 mb-6 flex items-center gap-2"><span className="w-2.5 h-2.5 bg-[#e20074] rounded-full"></span> Under Leader: <span className="text-[#e20074] font-black">{under}</span> ({members.length} Staff)</h3>
+              <div className="space-y-6 anim-slide-up">
+                
+                {/* FILTER BAR DIREKTORI */}
+                <div className="glass-card p-5 rounded-[2rem] shadow-sm flex flex-wrap items-end gap-4">
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-[140px]">
+                    <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Pencarian Cepat</label>
+                    <input type="text" placeholder="Nama / NIK..." value={dirSearch} onChange={(e) => setDirSearch(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" />
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-[140px]">
+                    <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Filter Status</label>
+                    <select value={dirStatus} onChange={(e) => setDirStatus(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400 cursor-pointer">
+                      <option value="">Semua Status</option>
+                      {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-[140px]">
+                    <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Filter Under (Leader)</label>
+                    <select value={dirUnder} onChange={(e) => setDirUnder(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400 cursor-pointer">
+                      <option value="">Semua Leader</option>
+                      {uniqueUnders.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={() => { setDirSearch(""); setDirStatus(""); setDirUnder(""); }} className="bg-white/80 hover:bg-pink-50 hover:text-[#e20074] border px-5 py-3.5 rounded-xl text-xs font-bold transition shadow-sm">Reset</button>
+                </div>
+
+                {/* KONDISI: TAMPILKAN FOLDER LEADER ATAU DAFTAR KARYAWAN */}
+                {isFolderView ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 anim-pop-in">
+                    {uniqueUnders.map(under => {
+                      const count = allKaryawan.filter(k => (k.under || "OTHERS") === under).length;
+                      return (
+                        <div key={under} onClick={() => setDirUnder(under)} className="glass-card p-6 rounded-[2rem] shadow-md shadow-pink-500/5 border-b-4 border-b-[#e20074] cursor-pointer hover:-translate-y-1.5 hover:shadow-xl hover:shadow-[#e20074]/10 transition-all active:scale-95 group">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-pink-50 flex items-center justify-center text-[#e20074] text-xl group-hover:scale-110 transition-transform">📁</div>
+                            <span className="bg-gray-100 text-gray-500 text-[10px] font-black px-3 py-1 rounded-full">{count} Staff</span>
+                          </div>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Under Leader</p>
+                          <h3 className="text-lg font-black text-gray-800 break-words leading-tight">{under}</h3>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="glass-card p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 anim-pop-in">
+                    <div className="flex justify-between items-center mb-6 border-b pb-4">
+                      <div>
+                        <h3 className="font-black text-sm text-[#e20074] uppercase tracking-widest mb-1">Hasil Filter Staff</h3>
+                        <p className="text-xs text-gray-500 font-bold">Ditemukan {filteredKaryawanDir.length} Karyawan</p>
+                      </div>
+                      <button onClick={() => { setDirSearch(""); setDirStatus(""); setDirUnder(""); }} className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl text-xs font-bold uppercase transition">← Kembali ke Grup</button>
+                    </div>
+                    
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {members.map(k => (
-                        <div key={k.nik} onClick={() => handleKaryawanClick(k)} className="bg-white/60 hover:bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm text-center cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:shadow-pink-500/10 group active:scale-95"><img src={getPhotoUrl(k.file_id, k.nama)} onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(k.nama)}&background=FCE7F3&color=E20074&bold=true`; }} referrerPolicy="no-referrer" className="w-20 h-24 object-cover rounded-[1.2rem] mx-auto border-2 border-gray-100 group-hover:border-[#e20074] shadow-sm transition-colors" alt={k.nama} /><h4 className="font-extrabold text-xs text-gray-800 mt-3 leading-snug break-words max-w-full px-1 group-hover:text-[#e20074] transition-colors">{k.nama}</h4><p className="text-[10px] text-gray-400 font-bold mt-1 bg-gray-50/80 inline-block px-2 py-0.5 rounded-md">NIK: {k.nik}</p></div>
+                      {filteredKaryawanDir.map(k => (
+                        <div key={k.nik} onClick={() => handleKaryawanClick(k)} className="bg-white/60 hover:bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm text-center cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:shadow-pink-500/10 group active:scale-95">
+                          <img src={getPhotoUrl(k.file_id, k.nama)} onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(k.nama)}&background=FCE7F3&color=E20074&bold=true`; }} referrerPolicy="no-referrer" className="w-20 h-24 object-cover rounded-[1.2rem] mx-auto border-2 border-gray-100 group-hover:border-[#e20074] shadow-sm transition-colors" alt={k.nama} />
+                          <h4 className="font-extrabold text-xs text-gray-800 mt-3 leading-snug break-words max-w-full px-1 group-hover:text-[#e20074] transition-colors">{k.nama}</h4>
+                          <p className="text-[10px] text-gray-400 font-bold mt-1 bg-gray-50/80 inline-block px-2 py-0.5 rounded-md">NIK: {k.nik}</p>
+                          {k.status && <p className={`text-[8px] font-black uppercase mt-1.5 px-2 py-0.5 rounded-full inline-block ${k.status.includes('RESIGN') ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'}`}>{k.status}</p>}
+                        </div>
                       ))}
+                      {filteredKaryawanDir.length === 0 && (
+                        <div className="col-span-full py-10 text-center text-gray-400 font-bold">Tidak ada staff yang cocok dengan filter tersebut.</div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
+            {/* ========================================================= */}
+            {/* PANEL LAINNYA (SHORTAGE, ECOBAG, DLL)                     */}
+            {/* ========================================================= */}
             {["shortage", "ecobag", "member", "sakit", "sp"].includes(activePanel) && !selectedKaryawan && (
               <div className="space-y-6 anim-slide-up">
                 <div className="glass-card p-5 rounded-[2rem] shadow-sm flex flex-wrap items-end gap-4">
@@ -304,7 +397,6 @@ export default function SupervisorDashboard() {
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
                         
-                        {/* UPDATE: TABLE SHORTAGE GLOBAL CLICKABLE */}
                         {activePanel === "shortage" && filteredData.map((r, i) => (
                           <tr key={i} onClick={() => setActiveModalData({ type: 'global_shortage', data: r })} className="hover:bg-pink-50/50 transition-colors cursor-pointer group">
                             <td className="p-4 font-bold">{r.periode}</td>
@@ -319,7 +411,7 @@ export default function SupervisorDashboard() {
                         {activePanel === "member" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-[#e20074]">{r.total}</td></tr>))}
                         {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400 mt-0.5">{r.alamat_klinik}</p></td></tr>))}
                         {activePanel === "sp" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{r.nama}</td><td className="p-4"><span className="bg-orange-50 text-orange-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.surat_pernyataan}</span></td><td className="p-4"><p className="font-bold text-gray-800">{r.jenis_pelanggaran}</p><p className="text-[10px] text-gray-500 font-medium mt-0.5">{r.remarks}</p></td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4 text-gray-500 font-black">{r.pic_under}</td></tr>))}
-                        {filteredData.length === 0 && (<tr><td colSpan="10" className="p-10 text-center text-gray-400 font-bold">Belum ada data.</td></tr>)}
+                        {filteredData.length === 0 && (<tr><td colSpan="10" className="p-10 text-center text-gray-400 font-bold">Belum ada data terfilter yang cocok di Supabase.</td></tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -381,7 +473,7 @@ export default function SupervisorDashboard() {
                 const tPagi = det.shiftPagi;
                 const tSiang = det.shiftSiang;
                 return (
-                  <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-gray-400">
+                  <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-gray-400 hover:shadow-md transition-shadow">
                     <div className="flex justify-between font-bold text-gray-800 border-b pb-2">
                       <span>{det.tanggal}</span>
                       <span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">POS: {det.pos}</span>
