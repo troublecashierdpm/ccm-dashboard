@@ -23,7 +23,7 @@ export async function GET() {
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
-    // 1. SAPU BERSIH SEMUA DATA LAMA
+    // 1. SAPU BERSIH SEMUA DATA LAMA DI SUPABASE
     const { error: rpcError } = await supabase.rpc('hapus_semua_data');
     if (rpcError) throw new Error("Gagal menyapu data: " + rpcError.message);
 
@@ -67,7 +67,7 @@ export async function GET() {
     }
 
     // 5. SINKRONISASI DATA SAKIT
-    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE SAKIT!A2:I' });
+    const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE!A2:I' });
     const rowsSakit = responseSakit.data.values;
     if (rowsSakit && rowsSakit.length > 0) {
       const formattedSakit = rowsSakit.filter(row => row[0] && String(row[0]).toUpperCase() !== 'NIK').map(row => ({
@@ -79,8 +79,7 @@ export async function GET() {
       }
     }
 
-    // 6. SINKRONISASI SP/BA (BARU)
-    // Menggunakan tanda kutip tunggal karena nama tab mengandung karakter & dan spasi
+    // 6. SINKRONISASI SP/BA
     const responseSpBa = await sheets.spreadsheets.values.get({ spreadsheetId, range: "'SURAT PERNYATAAN & BERITA ACARA'!A2:I" });
     const rowsSpBa = responseSpBa.data.values;
     if (rowsSpBa && rowsSpBa.length > 0) {
