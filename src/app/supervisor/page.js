@@ -27,6 +27,9 @@ export default function SupervisorDashboard() {
   const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0 });
   const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [] });
 
+  // Tambahan state untuk modal popup global
+  const [activeModalData, setActiveModalData] = useState(null);
+
   useEffect(() => {
     fetchGlobalData();
   }, []);
@@ -40,12 +43,13 @@ export default function SupervisorDashboard() {
   const fetchGlobalData = async () => {
     setLoading(true);
     try {
-      const { data: nikData } = await supabase.from("nik").select("*").order("nama", { ascending: true });
-      const { data: shortData } = await supabase.from("shortage_per_day").select("*");
-      const { data: ecoData } = await supabase.from("ecobag_per_day").select("*");
-      const { data: memData } = await supabase.from("member_per_day").select("*");
-      const { data: sakData } = await supabase.from("sakit_per_day").select("*");
-      const { data: spData } = await supabase.from("sp_ba_per_day").select("*");
+      // PENAMBAHAN .limit(10000) UNTUK MENEMBUS BATAS 1000 BARIS SUPABASE
+      const { data: nikData } = await supabase.from("nik").select("*").order("nama", { ascending: true }).limit(10000);
+      const { data: shortData } = await supabase.from("shortage_per_day").select("*").limit(10000);
+      const { data: ecoData } = await supabase.from("ecobag_per_day").select("*").limit(10000);
+      const { data: memData } = await supabase.from("member_per_day").select("*").limit(10000);
+      const { data: sakData } = await supabase.from("sakit_per_day").select("*").limit(10000);
+      const { data: spData } = await supabase.from("sp_ba_per_day").select("*").limit(10000);
 
       setAllKaryawan(nikData || []);
       setRawShortage(shortData || []);
@@ -162,24 +166,62 @@ export default function SupervisorDashboard() {
   };
 
   const getFilteredGlobalData = () => {
-    if (activePanel === "shortage") return rawShortage.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || (r.nama && r.nama.toLowerCase().includes(searchNama.toLowerCase()))) );
+    if (activePanel === "shortage") {
+      // LOGIKA BARU: GROUP BY NAMA & PERIODE
+      const map = {};
+      rawShortage.forEach(r => {
+        if (filterBulan && r.periode !== filterBulan) return;
+        const namaKasir = r.nama || r.nama_1 || "Unknown";
+        if (searchNama && !namaKasir.toLowerCase().includes(searchNama.toLowerCase())) return;
+        
+        const key = namaKasir + "||" + r.periode;
+        if (!map[key]) map[key] = { nama: namaKasir, periode: r.periode, totalShort: 0, totalOver: 0, frekuensi: 0, details: [] };
+        
+        const nomPagi = parseInt(r.short_over_shift_pagi) || 0;
+        const nomSiang = parseInt(r.short_over_shift_siang) || 0;
+        
+        map[key].frekuensi++;
+        if (nomPagi < 0) map[key].totalShort += nomPagi;
+        if (nomPagi > 0) map[key].totalOver += nomPagi;
+        if (nomSiang < 0) map[key].totalShort += nomSiang;
+        if (nomSiang > 0) map[key].totalOver += nomSiang;
+        
+        map[key].details.push({
+          tanggal: r.tanggal,
+          pos: r.pos,
+          shiftPagi: nomPagi,
+          shiftSiang: nomSiang
+        });
+      });
+      return Object.values(map).sort((a,b) => b.periode.localeCompare(a.periode));
+    }
+    
     if (activePanel === "ecobag") return rawEcobag.filter(r => (!filterBulan || r.year_month === filterBulan || r.month === filterBulan) && (!searchNama || (r.staff_name && r.staff_name.toLowerCase().includes(searchNama.toLowerCase()))) && ((showL && r.bag_la > 0) || (showM && r.bag_me > 0) || (showS && r.bag_sm > 0) || (!showL && !showM && !showS)) );
+    
     if (activePanel === "member") { const map = {}; rawMember.forEach(r => { if (filterBulan && r.bulan !== filterBulan) return; if (searchNama && !r.nama.toLowerCase().includes(searchNama.toLowerCase())) return; const key = r.nama + "||" + r.bulan; if (!map[key]) map[key] = { nama: r.nama, bulan: r.bulan, total: 0 }; map[key].total += parseInt(r.qty) || 0; }); return Object.values(map).sort((a,b)=>b.bulan.localeCompare(a.bulan)); }
+    
     if (activePanel === "sakit") return rawSakit.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.keterangan === filterTipe) && (!searchNama || r.nama.toLowerCase().includes(searchNama.toLowerCase())) );
+    
     if (activePanel === "sp") return rawSpBa.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.surat_pernyataan === filterTipe) && (!searchNama || r.nama.toLowerCase().includes(searchNama.toLowerCase())) );
+    
     return [];
   };
+  
   const filteredData = getFilteredGlobalData();
 
   const getGlobalSummary = () => {
     let card1 = 0, card2 = 0, card3 = 0;
     filteredData.forEach(r => {
-      if (activePanel === "shortage") { card1 += Math.abs(parseInt(r.short_over_shift_pagi) < 0 ? parseInt(r.short_over_shift_pagi) : 0) + Math.abs(parseInt(r.short_over_shift_siang) < 0 ? parseInt(r.short_over_shift_siang) : 0); card2 += (parseInt(r.short_over_shift_pagi) > 0 ? parseInt(r.short_over_shift_pagi) : 0) + (parseInt(r.short_over_shift_siang) > 0 ? parseInt(r.short_over_shift_siang) : 0); }
+      if (activePanel === "shortage") { 
+        card1 += Math.abs(r.totalShort || 0); 
+        card2 += (r.totalOver || 0); 
+      }
       if (activePanel === "ecobag") card1 += r.total || 0;
       if (activePanel === "member") card1 += r.total || 0;
     });
     return { card1, card2, card3 };
   };
+  
   const gSum = getGlobalSummary();
 
   return (
@@ -194,6 +236,9 @@ export default function SupervisorDashboard() {
         .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
         .delay-100 { animation-delay: 100ms; }
         .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.6); }
+        
+        /* Mencegah background scroll saat modal terbuka */
+        body { overflow: ${activeModalData ? 'hidden' : 'auto'}; }
       `}</style>
 
       <aside className={`fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
@@ -207,7 +252,7 @@ export default function SupervisorDashboard() {
 
       <main className="flex-1 md:ml-64 min-w-0 p-6 anim-fade-in relative">
         
-        {/* HEADER GRADIENT ALA KASIR */}
+        {/* HEADER GRADIENT */}
         <header className="flex items-center justify-between bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] mb-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
           <div className="flex items-center gap-4 relative z-10"><button onClick={() => setSidebarOpen(true)} className="md:hidden text-2xl">☰</button><h2 className="font-black text-lg uppercase tracking-wide">{selectedKaryawan ? `Profil: ${selectedKaryawan.nama}` : activePanel === "dir" ? "Direktori Karyawan DPM" : `Panel ${activePanel}`}</h2></div>
@@ -247,18 +292,29 @@ export default function SupervisorDashboard() {
                 </div>
 
                 <div className="glass-card rounded-[2rem] shadow-xl overflow-hidden anim-pop-in">
-                  <div className="p-4 bg-white/40 border-b flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider"><span>{filteredData.length} Data Realtime</span></div>
+                  <div className="p-4 bg-white/40 border-b flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider"><span>{filteredData.length} Data Terangkum</span></div>
                   <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                     <table className="w-full text-left text-xs min-w-[500px]">
                       <thead className="bg-white/80 text-[#e20074] font-black border-b sticky top-0 uppercase tracking-wider text-[9px] z-10 backdrop-blur-md">
-                        {activePanel === "shortage" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Kasir</th><th className="p-4 text-center">POS</th><th className="p-4 text-right">Shift Pagi</th><th className="p-4 text-right">Shift Siang</th><th className="p-4">Periode</th></tr>)}
+                        {activePanel === "shortage" && (<tr><th className="p-4">Periode</th><th className="p-4">Nama Kasir</th><th className="p-4 text-center">Frekuensi</th><th className="p-4 text-right">Total Short</th><th className="p-4 text-right">Total Over</th></tr>)}
                         {activePanel === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4">Nama Kasir</th><th className="p-4 text-right">Large</th><th className="p-4 text-right">Medium</th><th className="p-4 text-right">Small</th><th className="p-4 text-right font-black">Total</th></tr>)}
                         {activePanel === "member" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Bulan</th><th className="p-4 text-right font-black">Total Member</th></tr>)}
                         {activePanel === "sakit" && (<tr><th className="p-4">Nama</th><th className="p-4">Mulai Absen</th><th className="p-4">Masuk Kembali</th><th className="p-4">Bulan</th><th className="p-4">Keterangan</th><th className="p-4">Diagnosa Dokter</th></tr>)}
                         {activePanel === "sp" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Karyawan</th><th className="p-4">Jenis Surat</th><th className="p-4">Kasus / Pelanggaran</th><th className="p-4">Bulan</th><th className="p-4">PIC Under</th></tr>)}
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
-                        {activePanel === "shortage" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{r.nama || r.nama_1}</td><td className="p-4 text-center"><span className="bg-gray-100 px-2 py-1 rounded-md text-[9px] font-bold">{r.pos}</span></td><td className={`p-4 text-right font-bold ${parseInt(r.short_over_shift_pagi)<0?'text-red-500':'text-green-600'}`}>{r.short_over_shift_pagi}</td><td className={`p-4 text-right font-bold ${parseInt(r.short_over_shift_siang)<0?'text-red-500':'text-green-600'}`}>{r.short_over_shift_siang}</td><td className="p-4 text-gray-400 font-bold">{r.periode}</td></tr>))}
+                        
+                        {/* UPDATE: TABLE SHORTAGE GLOBAL CLICKABLE */}
+                        {activePanel === "shortage" && filteredData.map((r, i) => (
+                          <tr key={i} onClick={() => setActiveModalData({ type: 'global_shortage', data: r })} className="hover:bg-pink-50/50 transition-colors cursor-pointer group">
+                            <td className="p-4 font-bold">{r.periode}</td>
+                            <td className="p-4 font-black group-hover:text-[#e20074] transition-colors">{r.nama}</td>
+                            <td className="p-4 text-center"><span className="bg-gray-100 px-2.5 py-1 rounded-md text-[10px] font-bold">{r.frekuensi}x</span></td>
+                            <td className="p-4 text-right text-red-600 font-black text-sm">{r.totalShort === 0 ? '-' : r.totalShort.toLocaleString("id-ID")}</td>
+                            <td className="p-4 text-right text-green-600 font-black text-sm">{r.totalOver === 0 ? '-' : '+' + r.totalOver.toLocaleString("id-ID")}</td>
+                          </tr>
+                        ))}
+
                         {activePanel === "ecobag" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.year_month || r.month}</td><td className="p-4 font-black">{r.staff_name}</td><td className="p-4 text-right text-red-500 font-bold">{r.bag_la}</td><td className="p-4 text-right text-orange-500 font-bold">{r.bag_me}</td><td className="p-4 text-right text-blue-500 font-bold">{r.bag_sm}</td><td className="p-4 text-right text-[#e20074] font-black">{r.total} Pcs</td></tr>))}
                         {activePanel === "member" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-[#e20074]">{r.total}</td></tr>))}
                         {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400 mt-0.5">{r.alamat_klinik}</p></td></tr>))}
@@ -306,6 +362,50 @@ export default function SupervisorDashboard() {
           </>
         )}
       </main>
+
+      {/* ========================================================= */}
+      {/* MODAL POP-UP GLOBAL SHORTAGE                              */}
+      {/* ========================================================= */}
+      {activeModalData?.type === 'global_shortage' && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+            <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center">
+              <h3 className="font-black text-sm uppercase tracking-wider">Detail Shortage {activeModalData.data.periode}</h3>
+              <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+            </div>
+            <div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-800 uppercase tracking-widest">
+              {activeModalData.data.nama}
+            </div>
+            <div className="p-5 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50/50">
+              {activeModalData.data.details.map((det, i) => {
+                const tPagi = det.shiftPagi;
+                const tSiang = det.shiftSiang;
+                return (
+                  <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-gray-400">
+                    <div className="flex justify-between font-bold text-gray-800 border-b pb-2">
+                      <span>{det.tanggal}</span>
+                      <span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">POS: {det.pos}</span>
+                    </div>
+                    <div className="flex justify-between pt-1">
+                      <span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Shift Pagi:</span>
+                      <span className={`font-black ${tPagi < 0 ? 'text-red-600' : tPagi > 0 ? 'text-green-600' : 'text-gray-400'}`}>{tPagi !== 0 ? tPagi.toLocaleString('id-ID') : '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Shift Siang:</span>
+                      <span className={`font-black ${tSiang < 0 ? 'text-red-600' : tSiang > 0 ? 'text-green-600' : 'text-gray-400'}`}>{tSiang !== 0 ? tSiang.toLocaleString('id-ID') : '-'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-5 bg-white border-t flex justify-between text-sm shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+              <span className="font-black text-red-600">Short: {activeModalData.data.totalShort.toLocaleString('id-ID')}</span>
+              <span className="font-black text-green-600">Over: +{activeModalData.data.totalOver.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }
