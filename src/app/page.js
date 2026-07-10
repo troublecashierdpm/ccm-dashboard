@@ -392,10 +392,10 @@ export default function App() {
             
             {/* --- KARAKTER MAKO CHAN --- */}
             <div 
-              className={`absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-32 cursor-pointer z-40 anim-floating`}
-              onClick={handleLogoClick}
-              title="Coba klik aku!"
-            >
+  className={`absolute -top-16 left-0 right-0 mx-auto w-32 h-32 cursor-pointer z-40 flex justify-center ${isFalling ? 'anim-fumble' : 'anim-floating'}`}
+  onClick={handleLogoClick}
+  title="Coba klik aku!"
+>
               {/* Telinga Kiri */}
               <div className="absolute top-1 left-2 w-10 h-10 bg-[#811051] rounded-[0.8rem] rotate-[-25deg] shadow-inner"></div>
               {/* Telinga Kanan */}
