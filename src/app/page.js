@@ -44,11 +44,12 @@ export default function App() {
     };
   }, [isPasswordFocused, isSuccess]);
 
-  // --- LOGIKA ANIMASI JATUH & DITANGKAP SAAT DIKLIK ---
+  // --- LOGIKA ANIMASI LOGO JATUH & DITANGKAP OLEH MAKO CHAN ---
   const handleLogoClick = () => {
-    if (isFalling || isSuccess) return;
+    if (isFalling || isSuccess || isPasswordFocused) return;
     setIsFalling(true);
-    setTimeout(() => setIsFalling(false), 1000); // Selesai animasi 1 detik
+    // Animasi jatuh dan tangkap berlangsung 1.2 detik
+    setTimeout(() => setIsFalling(false), 1200); 
   };
 
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function App() {
         return all;
       };
 
+      // 1. DATA MEMBER
       const memberData = await fetchUserRecords('member_per_day', 'nama');
       let totalMember = 0; let memberGroups = {};
       if (memberData && memberData.length > 0) {
@@ -84,6 +86,7 @@ export default function App() {
         details: Object.keys(group.dailyMap).map(tgl => ({ tgl, qty: group.dailyMap[tgl] })).sort((a,b) => (parseInt(b.tgl.split('-')[0])||0) - (parseInt(a.tgl.split('-')[0])||0))
       }));
 
+      // 2. DATA SHORTAGE
       const shortagePagi = await fetchUserRecords('shortage_per_day', 'nama');
       const shortageSiang = await fetchUserRecords('shortage_per_day', 'nama_1');
       let shortGroups = {}; let totalShortage = 0;
@@ -105,6 +108,7 @@ export default function App() {
         return group;
       });
 
+      // 3. DATA ECOBAG
       const ecobagData = await fetchUserRecords('ecobag_per_day', 'staff_name');
       let totalEcobag = 0; let ecobagList = [];
       if (ecobagData && ecobagData.length > 0) {
@@ -115,6 +119,7 @@ export default function App() {
         ecobagList.sort((a, b) => b.bulan.localeCompare(a.bulan)); 
       }
 
+      // 4. DATA SAKIT
       const sakitData = await fetchUserRecords('sakit_per_day', 'nama');
       let totalSakit = 0; let sakitGroups = {};
       if (sakitData && sakitData.length > 0) {
@@ -130,6 +135,7 @@ export default function App() {
         return group;
       });
 
+      // 5. DATA SP/BA
       const spbaData = await fetchUserRecords('sp_ba_per_day', 'nama');
       let totalSp = 0; let spGroups = {};
       if (spbaData && spbaData.length > 0) {
@@ -198,20 +204,6 @@ export default function App() {
     return fallbackAvatar;
   };
 
-  // Komponen Mako Chan Mini untuk Header Dashboard
-  const MakoChanMini = () => (
-    <div className="relative w-16 h-16 shrink-0 bg-[#9c1869] rounded-[2rem] shadow-xl border border-white/20 overflow-hidden flex flex-col items-center">
-      <div className="absolute -top-1 left-1.5 w-4 h-4 bg-[#7a0f4e] rounded-md rotate-[-20deg]"></div>
-      <div className="absolute -top-1 right-1.5 w-4 h-4 bg-[#7a0f4e] rounded-md rotate-[20deg]"></div>
-      <div className="absolute top-2 w-[110%] h-3 bg-[#111] z-10 flex items-center justify-center"><div className="bg-white px-1.5 py-0 rounded-full text-[5px] font-black text-black">MAKO</div></div>
-      <div className="absolute top-5 w-[85%] h-8 bg-white rounded-[1rem] flex justify-center z-0">
-        <div className="flex gap-2 mt-2"><div className="w-1.5 h-1.5 bg-gray-800 rounded-full"></div><div className="w-1.5 h-1.5 bg-gray-800 rounded-full"></div></div>
-        <div className="absolute top-2.5 left-1 w-2 h-1 bg-red-400/60 rounded-full"></div><div className="absolute top-2.5 right-1 w-2 h-1 bg-red-400/60 rounded-full"></div>
-        <div className="absolute top-4 w-3 h-2 bg-gray-800 rounded-b-full overflow-hidden flex justify-center items-end"><div className="w-2 h-1 bg-pink-400 rounded-t-full"></div></div>
-      </div>
-    </div>
-  );
-
   return (
     <>
       <style jsx global>{`
@@ -223,20 +215,44 @@ export default function App() {
           50% { transform: translateY(-10px); }
           100% { transform: translateY(0px); }
         }
-        @keyframes fumbleCatch {
-          0% { transform: translateY(0px) rotate(0deg); }
-          15% { transform: translateY(60px) rotate(-15deg) scale(0.9); }
-          30% { transform: translateY(70px) rotate(10deg) scale(0.9); }
-          50% { transform: translateY(-30px) rotate(-5deg) scale(1.05); }
-          75% { transform: translateY(10px) rotate(5deg) scale(0.95); }
-          100% { transform: translateY(0px) rotate(0deg) scale(1); }
+        
+        /* Animasi Jatuh & Ditangkap (Logo AEON) */
+        @keyframes logoDropCatch {
+          0% { transform: translateY(0) rotate(0deg); }
+          15% { transform: translateY(45px) rotate(-15deg); } /* Jatuh ke bawah */
+          40% { transform: translateY(45px) rotate(-5deg); }  /* Tersentak di bawah */
+          70% { transform: translateY(-10px) rotate(5deg); }  /* Dilempar ke atas dikit */
+          100% { transform: translateY(0) rotate(0deg); }
         }
+        
+        /* Animasi Tangan Menangkap Kiri */
+        @keyframes handCatchLeft {
+          0% { top: 5rem; left: -0.75rem; transform: rotate(-30deg); }
+          15% { top: 7rem; left: 0.5rem; transform: rotate(-60deg); } /* Tangan turun cepat */
+          40% { top: 7rem; left: 0.5rem; transform: rotate(-45deg); } /* Tangan menggenggam */
+          70% { top: 4.5rem; left: -0.5rem; transform: rotate(-20deg); } /* Tarik ke atas */
+          100% { top: 5rem; left: -0.75rem; transform: rotate(-30deg); }
+        }
+
+        /* Animasi Tangan Menangkap Kanan */
+        @keyframes handCatchRight {
+          0% { top: 5rem; right: -0.75rem; transform: rotate(30deg); }
+          15% { top: 7rem; right: 0.5rem; transform: rotate(60deg); }
+          40% { top: 7rem; right: 0.5rem; transform: rotate(45deg); }
+          70% { top: 4.5rem; right: -0.5rem; transform: rotate(20deg); }
+          100% { top: 5rem; right: -0.75rem; transform: rotate(30deg); }
+        }
+
         .anim-slide-up { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         .anim-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
         .anim-floating { animation: floating 3.5s ease-in-out infinite; }
-        .anim-fumble { animation: fumbleCatch 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
         
+        .anim-logo-drop { animation: logoDropCatch 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .anim-hand-catch-l { animation: handCatchLeft 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .anim-hand-catch-r { animation: handCatchRight 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        
+        /* Mata Senyum Kegirangan (> <) */
         .eye-happy {
           width: 0 !important; height: 0 !important;
           border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 6px solid #1f2937;
@@ -251,7 +267,9 @@ export default function App() {
 
       {isLoggedIn ? (
         <>
-          {/* HALAMAN UTAMA DASHBOARD KASIR */}
+          {/* ========================================================= */}
+          {/* HALAMAN UTAMA DASHBOARD KASIR (TETAP 100% PREMIUM & SAMA) */}
+          {/* ========================================================= */}
           <div className="min-h-screen bg-[#f8f9fc] font-sans text-[#1a1a1a] pb-12 overflow-x-hidden anim-fade-in relative z-0">
             
             <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] pt-14 pb-28 px-6 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] text-white relative overflow-hidden">
@@ -268,9 +286,18 @@ export default function App() {
               </div>
 
               <div className="flex items-start gap-5 relative z-10">
-                {/* Mini Mako Chan menggantikan AEON box di Dashboard */}
-                <MakoChanMini />
-                
+                {/* --- FOTO PROFIL KASIR ASLI DARI GOOGLE DRIVE --- */}
+                <div className="relative group shrink-0 bg-white/10 rounded-3xl p-1 shadow-2xl">
+                  <img 
+                    src={getPhotoUrl()} 
+                    onError={(e) => { e.currentTarget.src = fallbackAvatar; }} 
+                    referrerPolicy="no-referrer" 
+                    className="w-24 h-24 object-cover rounded-[1.2rem] border-2 border-white/40 bg-white/20 transition-transform duration-300 group-hover:scale-105" 
+                    alt="Foto Profil" 
+                  />
+                  <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-400 border-4 border-[#e20074] rounded-full shadow-lg z-10"></div>
+                </div>
+                {/* ------------------------------------------------ */}
                 <div className="flex-1 min-w-0 pt-1">
                   <h1 className="text-xl sm:text-2xl font-black drop-shadow-md leading-tight break-words pr-2">{user.nama}</h1>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -321,6 +348,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* TABEL RANGKUMAN */}
               {detailType && (
                 <div className="glass-card p-6 rounded-[2.5rem] mt-6 shadow-xl shadow-gray-200/50 border border-white/60 anim-pop-in">
                   <div className="flex justify-between items-center mb-5"><h4 className="font-black text-gray-800 text-sm uppercase tracking-wide">Tabel {detailType}</h4><button onClick={() => setDetailType(null)} className="bg-gray-100 hover:bg-gray-200 p-2.5 rounded-xl text-gray-500 transition-colors active:scale-90">✕</button></div>
@@ -364,9 +392,9 @@ export default function App() {
             
             {/* --- KARAKTER MAKO CHAN --- */}
             <div 
-              className={`absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-32 cursor-pointer z-40 ${isFalling ? 'anim-fumble' : 'anim-floating'}`}
+              className={`absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-32 cursor-pointer z-40 anim-floating`}
               onClick={handleLogoClick}
-              title="Gelitikin Mako Chan!"
+              title="Coba klik aku!"
             >
               {/* Telinga Kiri */}
               <div className="absolute top-1 left-2 w-10 h-10 bg-[#811051] rounded-[0.8rem] rotate-[-25deg] shadow-inner"></div>
@@ -409,22 +437,31 @@ export default function App() {
                   <div className={`absolute top-6 right-2 w-4 h-1.5 bg-red-400/70 rounded-full transition-all duration-300 ${isSuccess ? 'scale-125' : ''}`}></div>
 
                   {/* Mulut */}
-                  <div className={`absolute transition-all duration-300 ${isPasswordFocused ? 'top-6 w-2 h-2 border-b-2 border-gray-800 rounded-full' : isSuccess ? 'top-5 w-6 h-5 bg-[#d81b60] rounded-b-full' : 'top-6 w-5 h-4 bg-gray-800 rounded-b-full overflow-hidden flex justify-center items-end'}`}>
-                    {!isPasswordFocused && <div className={`w-3.5 bg-pink-400 rounded-t-full ${isSuccess ? 'h-3' : 'h-2'}`}></div>}
+                  <div className={`absolute transition-all duration-300 ${isPasswordFocused ? 'top-6 w-2 h-2 border-b-2 border-gray-800 rounded-full' : isSuccess || isFalling ? 'top-5 w-6 h-5 bg-[#d81b60] rounded-b-full' : 'top-6 w-5 h-4 bg-gray-800 rounded-b-full overflow-hidden flex justify-center items-end'}`}>
+                    {!isPasswordFocused && <div className={`w-3.5 bg-pink-400 rounded-t-full ${isSuccess || isFalling ? 'h-3' : 'h-2'}`}></div>}
                   </div>
                 </div>
 
                 {/* Ornamen Perut Emas */}
-                <div className="absolute bottom-1.5 flex gap-1.5 text-[#d4af37] text-[12px] font-serif font-black drop-shadow-md">
+                <div className="absolute bottom-1 flex gap-1.5 text-[#d4af37] text-[12px] font-serif font-black drop-shadow-md">
                    <span className="rotate-[-10deg]">|</span><span className="rotate-[-5deg]">|</span><span className="text-[14px] -mt-1">福</span><span className="rotate-[5deg]">|</span><span className="rotate-[10deg]">|</span>
                 </div>
               </div>
 
-              {/* Tangan Kiri Menutup Mata */}
-              <div className={`absolute w-8 h-9 bg-[#9c1869] border-t-2 border-l-2 border-[#ff6bb6] rounded-[1.5rem] transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] z-20 shadow-lg ${isPasswordFocused ? 'top-12 left-4 rotate-[45deg] scale-110' : 'top-[5rem] -left-3 rotate-[-30deg]'}`}></div>
+              {/* Kotak AEON (Dipegang oleh Mako Chan) - Terjatuh saat diklik */}
+              <div className={`absolute -bottom-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-[#e20074] rounded-[1rem] flex items-center justify-center shadow-lg border-2 border-white/20 z-30 ${isFalling ? 'anim-logo-drop' : ''}`}>
+                 <span className="text-white font-black text-sm tracking-tighter">AEON</span>
+              </div>
+
+              {/* Tangan Kiri */}
+              <div className={`absolute w-7 h-8 bg-[#9c1869] border-t-2 border-l-2 border-[#ff6bb6] rounded-[1.5rem] transition-all duration-500 z-40 shadow-lg 
+                ${isPasswordFocused ? 'top-12 left-4 rotate-[45deg] scale-110' : 
+                  isFalling ? 'anim-hand-catch-l' : 'top-[6rem] -left-2 rotate-[-20deg]'}`}></div>
               
-              {/* Tangan Kanan Menutup Mata */}
-              <div className={`absolute w-8 h-9 bg-[#9c1869] border-t-2 border-r-2 border-[#ff6bb6] rounded-[1.5rem] transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] z-20 shadow-lg ${isPasswordFocused ? 'top-12 right-4 -rotate-[45deg] scale-110' : 'top-[5rem] -right-3 rotate-[30deg]'}`}></div>
+              {/* Tangan Kanan */}
+              <div className={`absolute w-7 h-8 bg-[#9c1869] border-t-2 border-r-2 border-[#ff6bb6] rounded-[1.5rem] transition-all duration-500 z-40 shadow-lg 
+                ${isPasswordFocused ? 'top-12 right-4 -rotate-[45deg] scale-110' : 
+                  isFalling ? 'anim-hand-catch-r' : 'top-[6rem] -right-2 rotate-[20deg]'}`}></div>
             </div>
             
             <h2 className="text-2xl font-extrabold text-gray-900 mb-1.5 tracking-tight mt-6">Dashboard CCM DPM</h2>
