@@ -7,8 +7,10 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // State baru untuk mendeteksi apakah kursor sedang di kolom password
+  // State untuk interaksi animasi karakter
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isTicklish, setIsTicklish] = useState(false);
+  const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -18,6 +20,41 @@ export default function App() {
   
   const [detailType, setDetailType] = useState(null);
   const [activeModalData, setActiveModalData] = useState(null);
+
+  // --- LOGIKA MATA MENGIKUTI KURSOR / SENTUHAN ---
+  useEffect(() => {
+    const handleMove = (e) => {
+      // Jika sedang tutup mata, matikan sensor
+      if (isPasswordFocused) return; 
+
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+      if (clientX === undefined || clientY === undefined) return;
+
+      // Kalkulasi pergerakan mata (Maksimal bergeser 3px ke segala arah agar tidak lepas dari wajah)
+      const moveX = (clientX / window.innerWidth - 0.5) * 6; 
+      const moveY = (clientY / window.innerHeight - 0.5) * 6; 
+      
+      setEyePos({ x: moveX, y: moveY });
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('touchmove', handleMove);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('touchmove', handleMove);
+    };
+  }, [isPasswordFocused]);
+
+  // --- LOGIKA ANIMASI GELI SAAT DIKLIK ---
+  const handleLogoClick = () => {
+    if (isTicklish) return;
+    setIsTicklish(true);
+    // Kembalikan ke keadaan semula setelah animasi selesai (600ms)
+    setTimeout(() => setIsTicklish(false), 600);
+  };
 
   useEffect(() => {
     if (isLoggedIn && user) fetchDashboardData();
@@ -199,10 +236,19 @@ export default function App() {
           50% { transform: translateY(-10px); }
           100% { transform: translateY(0px); }
         }
+        @keyframes tickle {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          15% { transform: scale(1.15) rotate(-15deg); }
+          30% { transform: scale(1.15) rotate(15deg); }
+          45% { transform: scale(1.15) rotate(-15deg); }
+          60% { transform: scale(1.15) rotate(15deg); }
+          75% { transform: scale(1.15) rotate(-15deg); }
+        }
         .anim-slide-up { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         .anim-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
         .anim-floating { animation: floating 3.5s ease-in-out infinite; }
+        .anim-tickle { animation: tickle 0.6s ease-in-out; }
         .glass-card { 
           background: rgba(255, 255, 255, 0.85); 
           backdrop-filter: blur(12px); 
@@ -357,7 +403,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* MODAL POP-UP (MENGUNCI DI TENGAH LAYAR ANTI-SCROLL BUG) */}
+          {/* MODAL POP-UP */}
           {activeModalData?.type === 'member' && ( 
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
               <div className="bg-white w-full max-w-xs rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
@@ -526,19 +572,34 @@ export default function App() {
             {/* Karakter Animasi Login */}
             <div className="relative w-20 h-20 mx-auto mb-8 mt-2 anim-floating">
               
-              {/* Muka / Kepala */}
+              {/* Wajah / Kepala */}
               <div className={`absolute left-1/2 -translate-x-1/2 w-16 h-12 bg-pink-100 rounded-t-[2rem] flex flex-col items-center pt-2.5 z-0 transition-all duration-300 ease-in-out border-2 border-pink-200 ${isPasswordFocused ? '-top-5' : '-top-8'}`}>
-                {/* Mata */}
-                <div className="flex gap-3 mb-1.5">
-                  <div className={`w-2 h-2.5 bg-gray-800 rounded-full transition-all duration-300 ${isPasswordFocused ? 'h-0.5 mt-1 opacity-0' : 'opacity-100'}`}></div>
-                  <div className={`w-2 h-2.5 bg-gray-800 rounded-full transition-all duration-300 ${isPasswordFocused ? 'h-0.5 mt-1 opacity-0' : 'opacity-100'}`}></div>
+                
+                {/* Mata dengan efek Eye Tracking */}
+                <div className="flex gap-3 mb-1.5 relative">
+                  <div 
+                    style={{ transform: isPasswordFocused ? 'none' : `translate(${eyePos.x}px, ${eyePos.y}px)` }}
+                    className={`w-2 h-2.5 bg-gray-800 rounded-full transition-all duration-75 ${isPasswordFocused ? 'h-0.5 mt-1 opacity-0' : 'opacity-100'}`}
+                  ></div>
+                  <div 
+                    style={{ transform: isPasswordFocused ? 'none' : `translate(${eyePos.x}px, ${eyePos.y}px)` }}
+                    className={`w-2 h-2.5 bg-gray-800 rounded-full transition-all duration-75 ${isPasswordFocused ? 'h-0.5 mt-1 opacity-0' : 'opacity-100'}`}
+                  ></div>
                 </div>
-                {/* Mulut Senyum */}
-                <div className={`w-3.5 h-1.5 border-b-2 border-gray-800 rounded-full transition-all duration-300 ${isPasswordFocused ? 'scale-0' : 'scale-100'}`}></div>
+
+                {/* Mulut yang Bereaksi saat geli */}
+                <div className={`border-gray-800 rounded-full transition-all duration-300 ${
+                  isPasswordFocused ? 'scale-0' : 
+                  isTicklish ? 'w-3.5 h-3.5 bg-gray-800 border-0' : 'w-3.5 h-1.5 border-b-2'
+                }`}></div>
               </div>
 
-              {/* Kotak AEON */}
-              <div className="bg-[#e20074] w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/20 relative z-10">
+              {/* Kotak AEON (Sensor Geli) */}
+              <div 
+                className={`bg-[#e20074] w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/20 relative z-10 cursor-pointer ${isTicklish ? 'anim-tickle' : ''}`}
+                onClick={handleLogoClick}
+                title="Gelitikin aku!"
+              >
                  <span className="text-white font-black text-2xl tracking-tighter">AEON</span>
               </div>
 
