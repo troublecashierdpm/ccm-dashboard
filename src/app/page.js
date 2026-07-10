@@ -7,6 +7,9 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   
+  // State baru untuk mendeteksi apakah kursor sedang di kolom password
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
@@ -193,13 +196,13 @@ export default function App() {
         }
         @keyframes floating {
           0% { transform: translateY(0px); }
-          50% { transform: translateY(-12px); }
+          50% { transform: translateY(-10px); }
           100% { transform: translateY(0px); }
         }
         .anim-slide-up { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         .anim-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
-        .anim-floating { animation: floating 3s ease-in-out infinite; }
+        .anim-floating { animation: floating 3.5s ease-in-out infinite; }
         .glass-card { 
           background: rgba(255, 255, 255, 0.85); 
           backdrop-filter: blur(12px); 
@@ -295,6 +298,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* TABEL RANGKUMAN */}
               {detailType && (
                 <div className="glass-card p-6 rounded-[2.5rem] mt-6 shadow-xl shadow-gray-200/50 border border-white/60 anim-pop-in">
                   <div className="flex justify-between items-center mb-5">
@@ -514,14 +518,35 @@ export default function App() {
           )}
         </>
       ) : (
-        /* HALAMAN LOGIN BARU (MINIMALIS SESUAI GAMBAR) */
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f4f6f9] anim-fade-in">
+        /* HALAMAN LOGIN BARU (MINIMALIS DENGAN ANIMASI KARAKTER LUCU) */
+        <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f4f6f9] anim-fade-in overflow-hidden">
           
-          <div className="bg-white p-10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[380px] text-center anim-slide-up border border-gray-100">
+          <div className="bg-white px-10 pt-16 pb-10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[380px] text-center anim-slide-up border border-gray-100 relative">
             
-            {/* Logo AEON Mengambang */}
-            <div className="bg-[#e20074] w-20 h-20 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-pink-500/20 anim-floating">
-               <span className="text-white font-black text-2xl tracking-tighter">AEON</span>
+            {/* Karakter Animasi Login */}
+            <div className="relative w-20 h-20 mx-auto mb-8 mt-2 anim-floating">
+              
+              {/* Muka / Kepala */}
+              <div className={`absolute left-1/2 -translate-x-1/2 w-16 h-12 bg-pink-100 rounded-t-[2rem] flex flex-col items-center pt-2.5 z-0 transition-all duration-300 ease-in-out border-2 border-pink-200 ${isPasswordFocused ? '-top-5' : '-top-8'}`}>
+                {/* Mata */}
+                <div className="flex gap-3 mb-1.5">
+                  <div className={`w-2 h-2.5 bg-gray-800 rounded-full transition-all duration-300 ${isPasswordFocused ? 'h-0.5 mt-1 opacity-0' : 'opacity-100'}`}></div>
+                  <div className={`w-2 h-2.5 bg-gray-800 rounded-full transition-all duration-300 ${isPasswordFocused ? 'h-0.5 mt-1 opacity-0' : 'opacity-100'}`}></div>
+                </div>
+                {/* Mulut Senyum */}
+                <div className={`w-3.5 h-1.5 border-b-2 border-gray-800 rounded-full transition-all duration-300 ${isPasswordFocused ? 'scale-0' : 'scale-100'}`}></div>
+              </div>
+
+              {/* Kotak AEON */}
+              <div className="bg-[#e20074] w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/20 relative z-10">
+                 <span className="text-white font-black text-2xl tracking-tighter">AEON</span>
+              </div>
+
+              {/* Tangan Kiri */}
+              <div className={`absolute w-6 h-8 bg-pink-100 border-2 border-pink-200 rounded-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] z-20 ${isPasswordFocused ? '-top-5 left-1.5 rotate-[40deg]' : 'top-6 -left-3 rotate-[-20deg]'}`}></div>
+              
+              {/* Tangan Kanan */}
+              <div className={`absolute w-6 h-8 bg-pink-100 border-2 border-pink-200 rounded-full transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] z-20 ${isPasswordFocused ? '-top-5 right-1.5 -rotate-[40deg]' : 'top-6 -right-3 rotate-[20deg]'}`}></div>
             </div>
             
             <h2 className="text-2xl font-extrabold text-gray-900 mb-1.5 tracking-tight">Dashboard CCM DPM</h2>
@@ -533,21 +558,23 @@ export default function App() {
                 placeholder="NIK" 
                 value={nik} 
                 onChange={(e) => setNik(e.target.value)} 
-                className="w-full px-5 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all text-sm text-gray-900 font-semibold placeholder:text-gray-400 placeholder:font-medium" 
+                className="w-full px-5 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all text-sm text-gray-900 font-semibold placeholder:text-gray-400 placeholder:font-medium relative z-30" 
               />
               <input 
                 type="password" 
                 placeholder="ID Swipe" 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
-                className="w-full px-5 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all text-sm text-gray-900 font-semibold placeholder:text-gray-400 placeholder:font-medium" 
+                onFocus={() => setIsPasswordFocused(true)}
+                onBlur={() => setIsPasswordFocused(false)}
+                className="w-full px-5 py-3.5 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all text-sm text-gray-900 font-semibold placeholder:text-gray-400 placeholder:font-medium relative z-30" 
               />
             </div>
 
             <button 
               onClick={prosesLogin} 
               disabled={loading} 
-              className="mt-8 bg-[#e20074] hover:bg-[#c80066] text-white font-bold py-3.5 px-6 rounded-xl w-full shadow-lg shadow-pink-500/20 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wide"
+              className="mt-8 bg-[#e20074] hover:bg-[#c80066] text-white font-bold py-3.5 px-6 rounded-xl w-full shadow-lg shadow-pink-500/20 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wide relative z-30"
             >
               {loading ? (
                 <><svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> MEMVERIFIKASI...</>
