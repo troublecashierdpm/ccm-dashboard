@@ -43,7 +43,7 @@ export async function GET() {
       }
     }
 
-    // 3. SINKRONISASI SHORTAGE (Nama Tab di Google Sheets disesuaikan menjadi SHORTAGE)
+    // 3. SINKRONISASI SHORTAGE
     const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
@@ -93,24 +93,6 @@ export async function GET() {
         const { error } = await supabase.from('sp_ba_per_day').insert(formattedSpBa.slice(i, i + 2000));
         if (error) throw new Error(`Error SP/BA Baris ${i}: ` + error.message);
       }
-    }
-
-    // 7. SINKRONISASI DATA NIK (Kasir) - Opsi tambahan jika Anda juga ingin data NIK selalu terupdate otomatis
-    try {
-      const responseNik = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'NIK!A2:H' });
-      const rowsNik = responseNik.data.values;
-      if (rowsNik && rowsNik.length > 0) {
-        const formattedNik = rowsNik.filter(row => row[0] && String(row[0]).toUpperCase() !== 'NIK').map(row => ({
-          nik: row[0] || null, nama: row[1] || null, status: row[2] || null, file_id: row[3] || null, id_swipe: row[4] || null, under: row[5] || null, join_date: row[6] || null,
-        }));
-        // Hapus data NIK lama lalu masukkan yang baru agar sinkron
-        await supabase.from('nik').delete().neq('nik', '000000'); 
-        for (let i = 0; i < formattedNik.length; i += 2000) {
-          await supabase.from('nik').insert(formattedNik.slice(i, i + 2000));
-        }
-      }
-    } catch (e) {
-      console.log("Lewati sinkronisasi NIK jika tabel tidak sesuai");
     }
 
     return NextResponse.json({ success: true, message: "Sinkronisasi Seluruh Data + SP/BA Sukses! 🔥" });
