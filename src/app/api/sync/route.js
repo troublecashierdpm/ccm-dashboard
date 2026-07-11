@@ -1,3 +1,6 @@
+// KUNCI UTAMA: Mematikan sistem Cache Vercel agar selalu menarik data terbaru secara Real-Time!
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
@@ -41,7 +44,7 @@ export async function GET() {
     }
 
     // 3. SINKRONISASI SHORTAGE
-    const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE_PER_DAY!A2:J' });
+    const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
       const formattedShortage = rowsShortage.filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL').map(row => ({
