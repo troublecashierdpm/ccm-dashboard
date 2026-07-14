@@ -1,9 +1,16 @@
-// KUNCI UTAMA: Mematikan sistem Cache Vercel agar selalu menarik data terbaru secara Real-Time!
+// KUNCI UTAMA: Mematikan sistem Cache Vercel agar selalu menarik data terbaru secara Real-Time
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
+
+// FUNGSI BARU: "Mesin Cuci" angka untuk membersihkan Rp dan titik dari Google Sheets
+function cleanNum(val) {
+  if (!val) return "0";
+  let str = String(val).replace(/[^0-9-]/g, '');
+  return str || "0";
+}
 
 export async function GET() {
   try {
@@ -43,12 +50,21 @@ export async function GET() {
       }
     }
 
-    // 3. SINKRONISASI SHORTAGE
-    const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE!A2:J' });
+    // 3. SINKRONISASI SHORTAGE (Target dikembalikan ke SHORTAGE_PER_DAY & Angka dicuci bersih)
+    const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE_PER_DAY!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
       const formattedShortage = rowsShortage.filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL').map(row => ({
-        tanggal: row[0] || null, pos: parseInt(row[1]) || null, short_over_shift_pagi: row[2] || null, nik: row[3] || null, nama: row[4] || null, short_over_shift_siang: row[5] || null, nik_1: row[6] || null, nama_1: row[7] || null, total_short_over: row[8] || null, periode: row[9] || null
+        tanggal: row[0] || null, 
+        pos: parseInt(row[1]) || null, 
+        short_over_shift_pagi: cleanNum(row[2]), 
+        nik: row[3] || null, 
+        nama: row[4] || null, 
+        short_over_shift_siang: cleanNum(row[5]), 
+        nik_1: row[6] || null, 
+        nama_1: row[7] || null, 
+        total_short_over: cleanNum(row[8]), 
+        periode: row[9] || null
       }));
       for (let i = 0; i < formattedShortage.length; i += 2000) {
         const { error } = await supabase.from('shortage_per_day').insert(formattedShortage.slice(i, i + 2000));
@@ -95,7 +111,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ success: true, message: "Sinkronisasi Seluruh Data + SP/BA Sukses! 🔥" });
+    return NextResponse.json({ success: true, message: "Sinkronisasi 13.000+ Baris Data Sukses! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
