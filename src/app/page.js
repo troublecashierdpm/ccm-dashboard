@@ -182,6 +182,15 @@ let hourlySalesMap = {};
 });
  
 const allSalesDates = new Set([...Object.keys(memberSalesMap), ...Object.keys(hourlySalesMap)]);
+console.log('=== DEBUG SALES RATIO ===');
+console.log('Jumlah tanggal unik di Sales Member:', Object.keys(memberSalesMap).length);
+console.log('Jumlah tanggal unik di Sales Hourly:', Object.keys(hourlySalesMap).length);
+console.log('Jumlah tanggal gabungan (unik):', allSalesDates.size);
+console.log('Contoh 5 key tanggal dari Sales Member:', Object.keys(memberSalesMap).slice(0, 5));
+console.log('Contoh 5 key tanggal dari Sales Hourly:', Object.keys(hourlySalesMap).slice(0, 5));
+console.log('Contoh RAW row Sales Member (sebelum normalize):', (salesMemberData || []).slice(0, 3).map(r => r.tanggal));
+console.log('Contoh RAW row Sales Hourly (sebelum normalize):', (salesHourlyData || []).slice(0, 3).map(r => r.tanggal));
+console.log('=== END DEBUG ===');
 let salesPeriodeGroups = {};
 let totalMemberSalesAll = 0, totalHourlySalesAll = 0;
  
