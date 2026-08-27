@@ -110,7 +110,34 @@ export async function GET() {
         if (error) throw new Error(`Error SP/BA Baris ${i}: ` + error.message);
       }
     }
+    // 7. SINKRONISASI SALES MEMBER
+    const responseSalesMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Member!A2:E' });
+    const rowsSalesMember = responseSalesMember.data.values;
+    if (rowsSalesMember && rowsSalesMember.length > 0) {
+      const formattedSalesMember = rowsSalesMember.filter(row => row[0] && String(row[0]).toLowerCase() !== 'tanggal').map(row => ({
+        tanggal: row[0] || null, nama: row[1] || null, id_swipe: row[2] || null,
+        total_sales: parseFloat(cleanNum(row[3])) || 0, periode: row[4] || null
+      }));
+      for (let i = 0; i < formattedSalesMember.length; i += 2000) {
+        const { error } = await supabase.from('sales_member').insert(formattedSalesMember.slice(i, i + 2000));
+        if (error) throw new Error(`Error Sales Member Baris ${i}: ` + error.message);
+      }
+    }
 
+    // 8. SINKRONISASI SALES HOURLY
+    const responseSalesHourly = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Hourly!A2:F' });
+    const rowsSalesHourly = responseSalesHourly.data.values;
+    if (rowsSalesHourly && rowsSalesHourly.length > 0) {
+      const formattedSalesHourly = rowsSalesHourly.filter(row => row[0] && String(row[0]).toLowerCase() !== 'tanggal').map(row => ({
+        tanggal: row[0] || null, nama: row[1] || null, id_swipe: row[2] || null,
+        count_transaksi: parseInt(cleanNum(row[3])) || 0, total_sales: parseFloat(cleanNum(row[4])) || 0, periode: row[5] || null
+      }));
+      for (let i = 0; i < formattedSalesHourly.length; i += 2000) {
+        const { error } = await supabase.from('sales_hourly').insert(formattedSalesHourly.slice(i, i + 2000));
+        if (error) throw new Error(`Error Sales Hourly Baris ${i}: ` + error.message);
+      }
+    }
+    
     return NextResponse.json({ success: true, message: "Sinkronisasi 13.000+ Baris Data Sukses! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
