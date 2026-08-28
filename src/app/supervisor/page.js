@@ -116,6 +116,7 @@ setRawSalesHourly(shData || []);
 
   const handleKaryawanClick = (karyawan) => {
     setSelectedKaryawan(karyawan);
+    setActivePanel("emp_detail");
     setEmpMenu("shortage");
 
     const nama = karyawan.nama;
@@ -212,7 +213,7 @@ setEmpHistory({
   sp: Object.values(spGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
   sales: finalSalesGroupsEmp
 });
-
+  };
 
   const renderIndividualChart = () => {
     const canvas = document.getElementById("individualChartCanvas");
@@ -645,3 +646,6 @@ setEmpHistory({
           </div>
         </div>
       )}
+    </div>
+  );
+}
