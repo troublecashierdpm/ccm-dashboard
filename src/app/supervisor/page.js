@@ -645,7 +645,3 @@ setEmpHistory({
           </div>
         </div>
       )}
-      
-    </div>
-  );
-}
