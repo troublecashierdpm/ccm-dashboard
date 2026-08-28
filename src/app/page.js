@@ -152,30 +152,42 @@ const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [], s
       });
 
       // 6. DATA SALES RATIO (Sales Member vs Sales Hourly)
-const normalizeTgl = (val) => {
+const normalizeTgl = (val, order = 'DMY') => {
   if (!val) return null;
   let s = String(val).trim();
   s = s.split('T')[0].split(' ')[0]; // buang komponen waktu kalau ada
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // sudah ISO YYYY-MM-DD
-  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // DD/MM/YYYY
-  if (slash) { const [, d, m, y] = slash; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
-  const dash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/); // DD-MM-YYYY
-  if (dash) { const [, d, m, y] = dash; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+ 
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const [, a, b, y] = slash;
+    const [d, m] = order === 'MDY' ? [b, a] : [a, b]; // MDY: bulan duluan | DMY: hari duluan
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+  const dash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dash) {
+    const [, a, b, y] = dash;
+    const [d, m] = order === 'MDY' ? [b, a] : [a, b];
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
   return s; // fallback: biarkan apa adanya
 };
+
 const salesMemberData = await fetchUserRecords('sales_member', 'nama');
 const salesHourlyData = await fetchUserRecords('sales_hourly', 'nama');
  
 let memberSalesMap = {};
 (salesMemberData || []).forEach(row => {
-  const tgl = normalizeTgl(row.tanggal); if (!tgl) return;
+  const tgl = normalizeTgl(row.tanggal, 'DMY'); if (!tgl) return;
+
   if (!memberSalesMap[tgl]) memberSalesMap[tgl] = { sales: 0, periode: row.periode || '' };
   memberSalesMap[tgl].sales += parseFloat(row.total_sales) || 0;
 });
  
 let hourlySalesMap = {};
 (salesHourlyData || []).forEach(row => {
-  const tgl = normalizeTgl(row.tanggal); if (!tgl) return;
+  const tgl = normalizeTgl(row.tanggal, 'MDY'); if (!tgl) return;
+
   if (!hourlySalesMap[tgl]) hourlySalesMap[tgl] = { sales: 0, count: 0, periode: row.periode || '' };
   hourlySalesMap[tgl].sales += parseFloat(row.total_sales) || 0;
   hourlySalesMap[tgl].count += parseInt(row.count_transaksi) || 0;
