@@ -37,7 +37,33 @@ export async function GET() {
     const { error: rpcError } = await supabase.rpc('hapus_semua_data');
     if (rpcError) throw new Error("Gagal menyapu data: " + rpcError.message);
 
-    // 2. SINKRONISASI MEMBER
+    // 2. SINKRONISASI NIK (DIREKTORI STAFF)
+    // Kolom sheet NIK: A=NAMA, B=NIK, C=ID_SWIPE, D=STATUS, E=LEVEL, F=JOIN_DATE,
+    // G=PHOTO, H=FILE_ID, I=UNDER, J=ROLE, K=TRC_Under, L=EMAIL
+    const responseNik = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'NIK!A2:L' });
+    const rowsNik = responseNik.data.values;
+    if (rowsNik && rowsNik.length > 0) {
+      const formattedNik = rowsNik.filter(row => row[0] && String(row[0]).toUpperCase() !== 'NAMA').map(row => ({
+        nama: row[0] || null,
+        nik: row[1] || null,
+        id_swipe: row[2] || null,
+        status: row[3] || null,
+        level: row[4] || null,
+        join_date: row[5] || null,
+        photo: row[6] || null,
+        file_id: row[7] || null,
+        under: row[8] || null,
+        role: row[9] || null,
+        trc_under: row[10] || null,
+        email: row[11] || null
+      }));
+      for (let i = 0; i < formattedNik.length; i += 2000) {
+        const { error } = await supabase.from('nik').insert(formattedNik.slice(i, i + 2000));
+        if (error) throw new Error(`Error NIK Baris ${i}: ` + error.message);
+      }
+    }
+
+    // 3. SINKRONISASI MEMBER
     const responseMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'MEMBER_PER_DAY!A2:F' });
     const rowsMember = responseMember.data.values;
     if (rowsMember && rowsMember.length > 0) {
@@ -50,20 +76,20 @@ export async function GET() {
       }
     }
 
-    // 3. SINKRONISASI SHORTAGE (Target dikembalikan ke SHORTAGE_PER_DAY & Angka dicuci bersih)
+    // 4. SINKRONISASI SHORTAGE (Target dikembalikan ke SHORTAGE_PER_DAY & Angka dicuci bersih)
     const responseShortage = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'SHORTAGE_PER_DAY!A2:J' });
     const rowsShortage = responseShortage.data.values;
     if (rowsShortage && rowsShortage.length > 0) {
       const formattedShortage = rowsShortage.filter(row => row[1] && String(row[1]).toUpperCase() !== 'POS' && String(row[0]).toUpperCase() !== 'TANGGAL').map(row => ({
-        tanggal: row[0] || null, 
-        pos: parseInt(row[1]) || null, 
-        short_over_shift_pagi: cleanNum(row[2]), 
-        nik: row[3] || null, 
-        nama: row[4] || null, 
-        short_over_shift_siang: cleanNum(row[5]), 
-        nik_1: row[6] || null, 
-        nama_1: row[7] || null, 
-        total_short_over: cleanNum(row[8]), 
+        tanggal: row[0] || null,
+        pos: parseInt(row[1]) || null,
+        short_over_shift_pagi: cleanNum(row[2]),
+        nik: row[3] || null,
+        nama: row[4] || null,
+        short_over_shift_siang: cleanNum(row[5]),
+        nik_1: row[6] || null,
+        nama_1: row[7] || null,
+        total_short_over: cleanNum(row[8]),
         periode: row[9] || null
       }));
       for (let i = 0; i < formattedShortage.length; i += 2000) {
@@ -72,7 +98,7 @@ export async function GET() {
       }
     }
 
-    // 4. SINKRONISASI ECOBAG
+    // 5. SINKRONISASI ECOBAG
     const responseEcobag = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'ECOBAG!A2:H' });
     const rowsEcobag = responseEcobag.data.values;
     if (rowsEcobag && rowsEcobag.length > 0) {
@@ -85,7 +111,7 @@ export async function GET() {
       }
     }
 
-    // 5. SINKRONISASI DATA SAKIT
+    // 6. SINKRONISASI DATA SAKIT
     const responseSakit = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'DATA EMPLOYEE SAKIT!A2:I' });
     const rowsSakit = responseSakit.data.values;
     if (rowsSakit && rowsSakit.length > 0) {
@@ -98,7 +124,7 @@ export async function GET() {
       }
     }
 
-    // 6. SINKRONISASI SP/BA
+    // 7. SINKRONISASI SP/BA
     const responseSpBa = await sheets.spreadsheets.values.get({ spreadsheetId, range: "'SURAT PERNYATAAN & BERITA ACARA'!A2:I" });
     const rowsSpBa = responseSpBa.data.values;
     if (rowsSpBa && rowsSpBa.length > 0) {
@@ -110,7 +136,8 @@ export async function GET() {
         if (error) throw new Error(`Error SP/BA Baris ${i}: ` + error.message);
       }
     }
-    // 7. SINKRONISASI SALES MEMBER
+
+    // 8. SINKRONISASI SALES MEMBER
     const responseSalesMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Member!A2:E' });
     const rowsSalesMember = responseSalesMember.data.values;
     if (rowsSalesMember && rowsSalesMember.length > 0) {
@@ -124,7 +151,7 @@ export async function GET() {
       }
     }
 
-    // 8. SINKRONISASI SALES HOURLY
+    // 9. SINKRONISASI SALES HOURLY
     const responseSalesHourly = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Hourly!A2:F' });
     const rowsSalesHourly = responseSalesHourly.data.values;
     if (rowsSalesHourly && rowsSalesHourly.length > 0) {
@@ -137,7 +164,7 @@ export async function GET() {
         if (error) throw new Error(`Error Sales Hourly Baris ${i}: ` + error.message);
       }
     }
-    
+
     return NextResponse.json({ success: true, message: "Sinkronisasi 13.000+ Baris Data Sukses! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
