@@ -14,6 +14,9 @@ export default function SupervisorDashboard() {
   const [rawMember, setRawMember] = useState([]);
   const [rawSakit, setRawSakit] = useState([]);
   const [rawSpBa, setRawSpBa] = useState([]);
+  const [rawSalesMember, setRawSalesMember] = useState([]);
+  const [rawSalesHourly, setRawSalesHourly] = useState([]);
+
 
   // FILTER UNTUK PANEL GLOBAL (Shortage, Ecobag, dll)
   const [searchNama, setSearchNama] = useState("");
@@ -30,8 +33,9 @@ export default function SupervisorDashboard() {
 
   const [selectedKaryawan, setSelectedKaryawan] = useState(null);
   const [empMenu, setEmpMenu] = useState("shortage");
-  const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0 });
-  const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [] });
+  const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, salesRatio: null });
+  const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [], sales: [] });
+
 
   const [activeModalData, setActiveModalData] = useState(null);
 
@@ -72,26 +76,43 @@ export default function SupervisorDashboard() {
     setLoading(true);
     try {
       // Menjalankan semua penarikan data secara bersamaan agar cepat
-      const [nikData, shortData, ecoData, memData, sakData, spData] = await Promise.all([
-        fetchAllData("nik", "nama"),
-        fetchAllData("shortage_per_day"),
-        fetchAllData("ecobag_per_day"),
-        fetchAllData("member_per_day"),
-        fetchAllData("sakit_per_day"),
-        fetchAllData("sp_ba_per_day")
-      ]);
+      const [nikData, shortData, ecoData, memData, sakData, spData, smData, shData] = await Promise.all([
+  fetchAllData("nik", "nama"),
+  fetchAllData("shortage_per_day"),
+  fetchAllData("ecobag_per_day"),
+  fetchAllData("member_per_day"),
+  fetchAllData("sakit_per_day"),
+  fetchAllData("sp_ba_per_day"),
+  fetchAllData("sales_member"),
+  fetchAllData("sales_hourly")
+]);
+ 
+setAllKaryawan(nikData || []);
+setRawShortage(shortData || []);
+setRawEcobag(ecoData || []);
+setRawMember(memData || []);
+setRawSakit(sakData || []);
+setRawSpBa(spData || []);
+setRawSalesMember(smData || []);
+setRawSalesHourly(shData || []);
 
-      setAllKaryawan(nikData || []);
-      setRawShortage(shortData || []);
-      setRawEcobag(ecoData || []);
-      setRawMember(memData || []);
-      setRawSakit(sakData || []);
-      setRawSpBa(spData || []);
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
   };
+
+  const normalizeTgl = (val, order = 'DMY') => {
+  if (!val) return null;
+  let s = String(val).trim();
+  s = s.split('T')[0].split(' ')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) { const [, a, b, y] = slash; const [d, m] = order === 'MDY' ? [b, a] : [a, b]; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  const dash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dash) { const [, a, b, y] = dash; const [d, m] = order === 'MDY' ? [b, a] : [a, b]; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return s;
+};
 
   const handleKaryawanClick = (karyawan) => {
     setSelectedKaryawan(karyawan);
@@ -146,16 +167,52 @@ export default function SupervisorDashboard() {
       spGroups[r.bulan].details.push({ tanggal: r.tanggal, jenis: r.jenis_pelanggaran, remarks: r.remarks, surat: r.surat_pernyataan, under: r.pic_under });
     });
 
-    setEmpStats({ member: tMem, ecobag: tEco, shortage: tShort, sp: tSp, sakit: tSak });
-    setEmpHistory({
-      member: Object.values(mGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      shortage: Object.values(sGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      ecobag: eList.sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      sakit: Object.values(sakGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-      sp: Object.values(spGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan))
-    });
-    setActivePanel("emp_detail");
-  };
+    const smDataEmp = rawSalesMember.filter(r => r.nama === nama);
+const shDataEmp = rawSalesHourly.filter(r => r.nama === nama);
+let memberMapEmp = {};
+smDataEmp.forEach(r => {
+  const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
+  if (!memberMapEmp[tgl]) memberMapEmp[tgl] = { sales: 0, periode: r.periode || '' };
+  memberMapEmp[tgl].sales += parseFloat(r.total_sales) || 0;
+});
+let hourlyMapEmp = {};
+shDataEmp.forEach(r => {
+  const tgl = normalizeTgl(r.tanggal, 'MDY'); if (!tgl) return;
+  if (!hourlyMapEmp[tgl]) hourlyMapEmp[tgl] = { sales: 0, count: 0, periode: r.periode || '' };
+  hourlyMapEmp[tgl].sales += parseFloat(r.total_sales) || 0;
+  hourlyMapEmp[tgl].count += parseInt(r.count_transaksi) || 0;
+});
+const allTglEmp = new Set([...Object.keys(memberMapEmp), ...Object.keys(hourlyMapEmp)]);
+let salesGroupsEmp = {};
+allTglEmp.forEach(tgl => {
+  const m = memberMapEmp[tgl] || { sales: 0, periode: '' };
+  const h = hourlyMapEmp[tgl] || { sales: 0, count: 0, periode: '' };
+  const periode = m.periode || h.periode || 'Unknown';
+  if (!salesGroupsEmp[periode]) salesGroupsEmp[periode] = { bulan: periode, totalMemberSales: 0, totalHourlySales: 0, details: [] };
+  salesGroupsEmp[periode].totalMemberSales += m.sales;
+  salesGroupsEmp[periode].totalHourlySales += h.sales;
+  salesGroupsEmp[periode].details.push({ tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count });
+});
+const finalSalesGroupsEmp = Object.values(salesGroupsEmp).map(g => {
+  g.details.sort((a, b) => (b.tgl || '').localeCompare(a.tgl || ''));
+  g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
+  g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
+  return g;
+}).sort((a, b) => b.bulan.localeCompare(a.bulan));
+let totalMemberSalesEmp = 0, totalHourlySalesEmp = 0;
+Object.values(salesGroupsEmp).forEach(g => { totalMemberSalesEmp += g.totalMemberSales; totalHourlySalesEmp += g.totalHourlySales; });
+const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSalesEmp / totalHourlySalesEmp) * 1000) / 10 : null;
+
+    setEmpStats({ member: tMem, ecobag: tEco, shortage: tShort, sp: tSp, sakit: tSak, salesRatio: overallSalesRatioEmp });
+setEmpHistory({
+  member: Object.values(mGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
+  shortage: Object.values(sGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
+  ecobag: eList.sort((a,b)=>b.bulan.localeCompare(a.bulan)),
+  sakit: Object.values(sakGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
+  sp: Object.values(spGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
+  sales: finalSalesGroupsEmp
+});
+
 
   const renderIndividualChart = () => {
     const canvas = document.getElementById("individualChartCanvas");
@@ -230,12 +287,57 @@ export default function SupervisorDashboard() {
     
     if (activePanel === "ecobag") return rawEcobag.filter(r => (!filterBulan || r.year_month === filterBulan || r.month === filterBulan) && (!searchNama || (r.staff_name && r.staff_name.toLowerCase().includes(searchNama.toLowerCase()))) && ((showL && r.bag_la > 0) || (showM && r.bag_me > 0) || (showS && r.bag_sm > 0) || (!showL && !showM && !showS)) );
     
-    if (activePanel === "member") { const map = {}; rawMember.forEach(r => { if (filterBulan && r.bulan !== filterBulan) return; if (searchNama && !r.nama.toLowerCase().includes(searchNama.toLowerCase())) return; const key = r.nama + "||" + r.bulan; if (!map[key]) map[key] = { nama: r.nama, bulan: r.bulan, total: 0 }; map[key].total += parseInt(r.qty) || 0; }); return Object.values(map).sort((a,b)=>b.bulan.localeCompare(a.bulan)); }
+    if (activePanel === "member") { const map = {}; rawMember.forEach(r => { if (!r.nama) return; if (filterBulan && r.bulan !== filterBulan) return; if (searchNama && !r.nama.toLowerCase().includes(searchNama.toLowerCase())) return; const key = r.nama + "||" + r.bulan; if (!map[key]) map[key] = { nama: r.nama, bulan: r.bulan, total: 0 }; map[key].total += parseInt(r.qty) || 0; }); return Object.values(map).sort((a,b)=>(b.bulan||'').localeCompare(a.bulan||'')); }
     
-    if (activePanel === "sakit") return rawSakit.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.keterangan === filterTipe) && (!searchNama || r.nama.toLowerCase().includes(searchNama.toLowerCase())) );
+    if (activePanel === "sakit") return rawSakit.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.keterangan === filterTipe) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())) );
     
-    if (activePanel === "sp") return rawSpBa.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.surat_pernyataan === filterTipe) && (!searchNama || r.nama.toLowerCase().includes(searchNama.toLowerCase())) );
+    if (activePanel === "sp") return rawSpBa.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.surat_pernyataan === filterTipe) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())) );
     
+    if (activePanel === "sales") {
+  const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())));
+  const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())));
+ 
+  let memberMap = {};
+  mFiltered.forEach(r => {
+    if (!r.nama) return;
+    const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
+    const key = r.nama + '|' + tgl;
+    if (!memberMap[key]) memberMap[key] = { sales: 0, periode: r.periode || '' };
+    memberMap[key].sales += parseFloat(r.total_sales) || 0;
+  });
+  let hourlyMap = {};
+  hFiltered.forEach(r => {
+    if (!r.nama) return;
+    const tgl = normalizeTgl(r.tanggal, 'MDY'); if (!tgl) return;
+    const key = r.nama + '|' + tgl;
+    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, periode: r.periode || '' };
+    hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
+    hourlyMap[key].count += parseInt(r.count_transaksi) || 0;
+  });
+ 
+  const allKeys = new Set([...Object.keys(memberMap), ...Object.keys(hourlyMap)]);
+  let groups = {};
+  allKeys.forEach(key => {
+    const nama = key.split('|')[0];
+    const tgl = key.slice(nama.length + 1);
+    const m = memberMap[key] || { sales: 0, periode: '' };
+    const h = hourlyMap[key] || { sales: 0, count: 0, periode: '' };
+    const periode = m.periode || h.periode || 'Unknown';
+    const gKey = nama + '||' + periode;
+    if (!groups[gKey]) groups[gKey] = { nama, periode, totalMemberSales: 0, totalHourlySales: 0, details: [] };
+    groups[gKey].totalMemberSales += m.sales;
+    groups[gKey].totalHourlySales += h.sales;
+    groups[gKey].details.push({ tanggal: tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count });
+  });
+ 
+  return Object.values(groups).map(g => {
+    g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
+    g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
+    g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
+    return g;
+  }).sort((a, b) => b.periode.localeCompare(a.periode));
+}
+
     return [];
   };
   
@@ -250,6 +352,8 @@ export default function SupervisorDashboard() {
       }
       if (activePanel === "ecobag") card1 += r.total || 0;
       if (activePanel === "member") card1 += r.total || 0;
+      if (activePanel === "sales") { card1 += r.totalMemberSales || 0; card2 += r.totalHourlySales || 0; }
+
     });
     return { card1, card2, card3 };
   };
@@ -275,7 +379,7 @@ export default function SupervisorDashboard() {
       <aside className={`fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="bg-[#e20074] p-5 text-white flex items-center justify-between"><div className="flex items-center gap-2 font-black text-sm tracking-wider"><span className="bg-white text-[#e20074] px-2 py-1 rounded-lg font-black shadow-sm">AEON</span> TRC PANEL</div><button onClick={() => setSidebarOpen(false)} className="md:hidden text-white font-bold text-xl">✕</button></div>
         <nav className="p-4 space-y-2">
-          {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }].map(menu => (
+          {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sales", label: "Sales Ratio", icon: "💰" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }].map(menu => (
             <button key={menu.id} onClick={() => { setActivePanel(menu.id); setSelectedKaryawan(null); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wide transition-all ${activePanel === menu.id && !selectedKaryawan ? "bg-[#e20074] text-white shadow-lg shadow-pink-500/30" : "text-gray-500 hover:bg-pink-50 hover:text-[#e20074]"}`}><span>{menu.icon}</span> {menu.label}</button>
           ))}
         </nav>
@@ -369,7 +473,7 @@ export default function SupervisorDashboard() {
             {/* ========================================================= */}
             {/* PANEL LAINNYA (SHORTAGE, ECOBAG, DLL)                     */}
             {/* ========================================================= */}
-            {["shortage", "ecobag", "member", "sakit", "sp"].includes(activePanel) && !selectedKaryawan && (
+            {["shortage", "ecobag", "member", "sales", "sakit", "sp"].includes(activePanel) && !selectedKaryawan && (
               <div className="space-y-6 anim-slide-up">
                 <div className="glass-card p-5 rounded-[2rem] shadow-sm flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5 min-w-[140px] flex-1 sm:flex-none"><label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Cari Karyawan</label><input type="text" placeholder="Ketik nama..." value={searchNama} onChange={(e) => setSearchNama(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" /></div>
@@ -382,6 +486,7 @@ export default function SupervisorDashboard() {
                   <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-pink-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Baris</p><h3 className="text-2xl font-black mt-1 text-gray-800">{filteredData.length}</h3></div>
                   {activePanel === "shortage" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-red-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Short</p><h3 className="text-xl font-black text-red-600 mt-1">Rp {gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-green-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Over</p><h3 className="text-xl font-black text-green-600 mt-1">Rp {gSum.card2.toLocaleString("id-ID")}</h3></div></> )}
                   {(activePanel === "ecobag" || activePanel === "member") && ( <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-[#e20074] shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Kantong/Member</p><h3 className="text-2xl font-black text-[#e20074] mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div> )}
+                  {activePanel === "sales" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-pink-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Member</p><h3 className="text-lg font-black text-pink-600 mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-indigo-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Hourly</p><h3 className="text-lg font-black text-indigo-600 mt-1">{gSum.card2.toLocaleString("id-ID")}</h3></div></> )}
                 </div>
 
                 <div className="glass-card rounded-[2rem] shadow-xl overflow-hidden anim-pop-in">
@@ -393,7 +498,9 @@ export default function SupervisorDashboard() {
                         {activePanel === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4">Nama Kasir</th><th className="p-4 text-right">Large</th><th className="p-4 text-right">Medium</th><th className="p-4 text-right">Small</th><th className="p-4 text-right font-black">Total</th></tr>)}
                         {activePanel === "member" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Bulan</th><th className="p-4 text-right font-black">Total Member</th></tr>)}
                         {activePanel === "sakit" && (<tr><th className="p-4">Nama</th><th className="p-4">Mulai Absen</th><th className="p-4">Masuk Kembali</th><th className="p-4">Bulan</th><th className="p-4">Keterangan</th><th className="p-4">Diagnosa Dokter</th></tr>)}
+                        {activePanel === "sales" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Periode</th><th className="p-4 text-right">Sales Member</th><th className="p-4 text-right">Sales Hourly</th><th className="p-4 text-right">Selisih</th><th className="p-4 text-right">% Member</th></tr>)}
                         {activePanel === "sp" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Karyawan</th><th className="p-4">Jenis Surat</th><th className="p-4">Kasus / Pelanggaran</th><th className="p-4">Bulan</th><th className="p-4">PIC Under</th></tr>)}
+
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
                         
@@ -407,7 +514,18 @@ export default function SupervisorDashboard() {
                           </tr>
                         ))}
 
-                        {activePanel === "ecobag" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.year_month || r.month}</td><td className="p-4 font-black">{r.staff_name}</td><td className="p-4 text-right text-red-500 font-bold">{r.bag_la}</td><td className="p-4 text-right text-orange-500 font-bold">{r.bag_me}</td><td className="p-4 text-right text-blue-500 font-bold">{r.bag_sm}</td><td className="p-4 text-right text-[#e20074] font-black">{r.total} Pcs</td></tr>))}
+                        {activePanel === "sales" && filteredData.map((r, i) => (
+  <tr key={i} onClick={() => setActiveModalData({ type: 'global_sales', data: r })} className="hover:bg-indigo-50/50 transition-colors cursor-pointer group">
+    <td className="p-4 font-black group-hover:text-[#e20074] transition-colors">{r.nama}</td>
+    <td className="p-4 font-bold">{r.periode}</td>
+    <td className="p-4 text-right text-pink-600 font-bold">{r.totalMemberSales.toLocaleString("id-ID")}</td>
+    <td className="p-4 text-right text-indigo-600 font-bold">{r.totalHourlySales.toLocaleString("id-ID")}</td>
+    <td className="p-4 text-right text-orange-600 font-bold">{r.selisih.toLocaleString("id-ID")}</td>
+    <td className="p-4 text-right font-black text-purple-600">{r.ratio}%</td>
+  </tr>
+))}
+{activePanel === "ecobag" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors">
+<td className="p-4 font-bold">{r.year_month || r.month}</td><td className="p-4 font-black">{r.staff_name}</td><td className="p-4 text-right text-red-500 font-bold">{r.bag_la}</td><td className="p-4 text-right text-orange-500 font-bold">{r.bag_me}</td><td className="p-4 text-right text-blue-500 font-bold">{r.bag_sm}</td><td className="p-4 text-right text-[#e20074] font-black">{r.total} Pcs</td></tr>))}
                         {activePanel === "member" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-[#e20074]">{r.total}</td></tr>))}
                         {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400 mt-0.5">{r.alamat_klinik}</p></td></tr>))}
                         {activePanel === "sp" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{r.nama}</td><td className="p-4"><span className="bg-orange-50 text-orange-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.surat_pernyataan}</span></td><td className="p-4"><p className="font-bold text-gray-800">{r.jenis_pelanggaran}</p><p className="text-[10px] text-gray-500 font-medium mt-0.5">{r.remarks}</p></td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4 text-gray-500 font-black">{r.pic_under}</td></tr>))}
@@ -422,8 +540,7 @@ export default function SupervisorDashboard() {
             {activePanel === "emp_detail" && selectedKaryawan && (
               <div className="space-y-6 anim-pop-in">
                 <div className="flex flex-wrap gap-2 glass-card p-3 rounded-2xl shadow-sm">
-                  {[{ id: "shortage", label: "📊 Shortage", count: empStats.shortage }, { id: "ecobag", label: "🛍️ Ecobag", count: empStats.ecobag }, { id: "member", label: "💳 Member", count: empStats.member }, { id: "sp", label: "📄 SP/BA", count: empStats.sp }, { id: "sakit", label: "🏥 Sakit", count: empStats.sakit }].map(tab => (
-                    <button key={tab.id} onClick={() => setEmpMenu(tab.id)} className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${empMenu === tab.id ? "bg-[#e20074] text-white shadow-md shadow-pink-500/30 anim-pop-in" : "bg-white/50 text-gray-500 hover:bg-pink-50"}`}>{tab.label} <span className={`text-[10px] px-2 py-0.5 rounded-full ${empMenu === tab.id ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{tab.count}</span></button>
+                {[{ id: "shortage", label: "📊 Shortage", count: empStats.shortage }, { id: "ecobag", label: "🛍️ Ecobag", count: empStats.ecobag }, { id: "member", label: "💳 Member", count: empStats.member }, { id: "sales", label: "💰 Sales Ratio", count: (empStats.salesRatio !== null && empStats.salesRatio !== undefined) ? empStats.salesRatio + '%' : '-' }, { id: "sp", label: "📄 SP/BA", count: empStats.sp }, { id: "sakit", label: "🏥 Sakit", count: empStats.sakit }].map(tab => (                    <button key={tab.id} onClick={() => setEmpMenu(tab.id)} className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${empMenu === tab.id ? "bg-[#e20074] text-white shadow-md shadow-pink-500/30 anim-pop-in" : "bg-white/50 text-gray-500 hover:bg-pink-50"}`}>{tab.label} <span className={`text-[10px] px-2 py-0.5 rounded-full ${empMenu === tab.id ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{tab.count}</span></button>
                   ))}
                 </div>
 
@@ -436,6 +553,7 @@ export default function SupervisorDashboard() {
                         {empMenu === "shortage" && (<tr><th className="p-4">Bulan</th><th className="p-4 text-center">Freq</th><th className="p-4 text-right">Short Minus</th><th className="p-4 text-right">Over Plus</th></tr>)}
                         {empMenu === "member" && (<tr><th className="p-4">Bulan</th><th className="p-4 text-right">Total Akumulasi</th></tr>)}
                         {empMenu === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4 text-right">Size L</th><th className="p-4 text-right">Size M</th><th className="p-4 text-right">Size S</th><th className="p-4 text-right">Total</th></tr>)}
+                        {empMenu === "sales" && (<tr><th className="p-4">Periode</th><th className="p-4 text-right">Sales Member</th><th className="p-4 text-right">Sales Hourly</th><th className="p-4 text-right">Selisih</th><th className="p-4 text-right">% Member</th></tr>)}
                         {empMenu === "sakit" && (<tr><th className="p-4 w-24">Bulan</th><th className="p-4">Detail Absen Sakit Karyawan</th></tr>)}
                         {empMenu === "sp" && (<tr><th className="p-4 w-24">Bulan</th><th className="p-4">Riwayat Pelanggaran & Kasus</th></tr>)}
                       </thead>
@@ -443,6 +561,7 @@ export default function SupervisorDashboard() {
                         {empMenu === "shortage" && empHistory.shortage.map((h, i) => (<tr key={i} className="hover:bg-red-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-center text-gray-400 font-bold bg-gray-50/50">{h.frekuensi}x</td><td className="p-4 text-right text-red-600 font-black text-sm">{h.totalShort.toLocaleString("id-ID")}</td><td className="p-4 text-right text-green-600 font-black text-sm">+{h.totalOver.toLocaleString("id-ID")}</td></tr>))}
                         {empMenu === "member" && empHistory.member.map((h, i) => (<tr key={i} className="hover:bg-pink-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-[#e20074] font-black text-lg">{h.totalPerBulan} <span className="text-[10px] text-gray-500">Member</span></td></tr>))}
                         {empMenu === "ecobag" && empHistory.ecobag.map((h, i) => (<tr key={i} className="hover:bg-pink-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-red-500 font-bold">{h.la}</td><td className="p-4 text-right text-orange-500 font-bold">{h.me}</td><td className="p-4 text-right text-blue-500 font-bold">{h.sm}</td><td className="p-4 text-right text-[#e20074] font-black text-sm">{h.totalPerBulan} Pcs</td></tr>))}
+                        {empMenu === "sales" && empHistory.sales.map((h, i) => (<tr key={i} className="hover:bg-indigo-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-pink-600 font-bold">{h.totalMemberSales.toLocaleString("id-ID")}</td><td className="p-4 text-right text-indigo-600 font-bold">{h.totalHourlySales.toLocaleString("id-ID")}</td><td className="p-4 text-right text-orange-600 font-bold">{h.selisih.toLocaleString("id-ID")}</td><td className="p-4 text-right font-black text-purple-600">{h.ratio}%</td></tr>))}
                         {empMenu === "sakit" && empHistory.sakit.map((h, i) => ( <tr key={i}><td className="p-4 font-black border-r bg-white/40">{h.bulan}</td><td className="p-4 space-y-3 bg-white/20">{h.details.map((det, idx) => ( <div key={idx} className="p-4 border border-blue-100 rounded-2xl bg-white shadow-sm flex flex-col gap-1.5 border-l-[5px] border-l-blue-500 hover:shadow-md transition-shadow"><div className="flex justify-between font-bold text-gray-800 bg-gray-50 px-3 py-2 rounded-lg text-[10px]"><span>Libur: <span className="text-blue-600">{det.tglTidakMasuk}</span></span> <span>Masuk: <span className="text-green-600">{det.tglMulaiMasuk}</span></span></div><div><span className="text-[9px] bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">{det.keterangan}</span></div><p className="text-gray-700 mt-1"><span className="font-bold text-gray-900">Diagnosa:</span> {det.diagnosa}</p><p className="text-[10px] text-gray-400 italic font-bold border-t pt-1 border-dashed mt-1">Klinik: {det.klinik}</p></div> ))}</td></tr> ))}
                         {empMenu === "sp" && empHistory.sp.map((h, i) => ( <tr key={i}><td className="p-4 font-black border-r bg-white/40">{h.bulan}</td><td className="p-4 space-y-3 bg-white/20">{h.details.map((det, idx) => ( <div key={idx} className="p-4 border border-orange-100 rounded-2xl bg-white shadow-sm flex flex-col gap-1.5 border-l-[5px] border-l-orange-500 hover:shadow-md transition-shadow"><div className="flex justify-between items-center font-bold text-gray-800 border-b pb-2"><span className="text-[11px]">{det.tanggal}</span> <span className="text-[9px] bg-orange-100 text-orange-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">{det.surat}</span></div><p className="text-gray-700 mt-1"><span className="font-bold text-gray-900 block text-[9px] uppercase text-gray-400">Pelanggaran:</span> {det.jenis}</p><p className="text-gray-700 bg-gray-50 p-2.5 rounded-lg border"><span className="font-bold text-gray-900 block text-[9px] uppercase text-gray-400 mb-0.5">Remarks</span> {det.remarks}</p><p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mt-1 flex items-center gap-1.5"><span className="w-3 h-3 bg-orange-100 rounded-full inline-block"></span> PIC Under: {det.under}</p></div> ))}</td></tr> ))}
                       </tbody>
@@ -458,6 +577,35 @@ export default function SupervisorDashboard() {
       {/* ========================================================= */}
       {/* MODAL POP-UP GLOBAL SHORTAGE                              */}
       {/* ========================================================= */}
+      {activeModalData?.type === 'global_sales' && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+    <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-6 text-white flex justify-between items-center">
+        <h3 className="font-black text-sm uppercase tracking-wider">Detail Sales {activeModalData.data.periode}</h3>
+        <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+      </div>
+      <div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-800 uppercase tracking-widest">
+        {activeModalData.data.nama}
+      </div>
+      <div className="p-4 bg-gray-50 border-b grid grid-cols-2 gap-2">
+        <div className="bg-pink-50 p-3 rounded-2xl text-center border border-pink-100"><p className="text-[9px] text-pink-500 font-extrabold uppercase">Sales Member</p><p className="font-black text-sm text-pink-600 mt-1">{activeModalData.data.totalMemberSales.toLocaleString('id-ID')}</p></div>
+        <div className="bg-indigo-50 p-3 rounded-2xl text-center border border-indigo-100"><p className="text-[9px] text-indigo-500 font-extrabold uppercase">Sales Hourly</p><p className="font-black text-sm text-indigo-600 mt-1">{activeModalData.data.totalHourlySales.toLocaleString('id-ID')}</p></div>
+        <div className="bg-orange-50 p-3 rounded-2xl text-center border border-orange-100"><p className="text-[9px] text-orange-500 font-extrabold uppercase">Selisih</p><p className="font-black text-sm text-orange-600 mt-1">{activeModalData.data.selisih.toLocaleString('id-ID')}</p></div>
+        <div className="bg-purple-50 p-3 rounded-2xl text-center border border-purple-100"><p className="text-[9px] text-purple-500 font-extrabold uppercase">% Member</p><p className="font-black text-sm text-purple-600 mt-1">{activeModalData.data.ratio}%</p></div>
+      </div>
+      <div className="p-5 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50/50">
+        {activeModalData.data.details.map((det, i) => (
+          <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-1 border-l-[5px] border-l-indigo-400 hover:shadow-md transition-shadow">
+            <div className="flex justify-between font-bold text-gray-800 border-b pb-2"><span>{det.tanggal}</span><span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">{det.count}x Transaksi</span></div>
+            <div className="flex justify-between pt-1"><span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Member:</span><span className="font-black text-pink-600">{det.memberSales.toLocaleString('id-ID')}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Hourly:</span><span className="font-black text-indigo-600">{det.hourlySales.toLocaleString('id-ID')}</span></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
       {activeModalData?.type === 'global_shortage' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
