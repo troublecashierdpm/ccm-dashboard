@@ -344,6 +344,30 @@ setEmpHistory({
   
   const filteredData = getFilteredGlobalData();
 
+  // -------------------------------------------------------------
+  // DAFTAR PERIODE UNIK PER PANEL (UNTUK DROPDOWN FILTER PERIODE)
+  // -------------------------------------------------------------
+  const getPeriodeOptions = () => {
+    let values = [];
+    if (activePanel === "shortage") {
+      values = rawShortage.map(r => r.periode);
+    } else if (activePanel === "ecobag") {
+      values = rawEcobag.map(r => r.year_month || r.month);
+    } else if (activePanel === "member") {
+      values = rawMember.map(r => r.bulan);
+    } else if (activePanel === "sakit") {
+      values = rawSakit.map(r => r.bulan);
+    } else if (activePanel === "sp") {
+      values = rawSpBa.map(r => r.bulan);
+    } else if (activePanel === "sales") {
+      values = [...rawSalesMember.map(r => r.periode), ...rawSalesHourly.map(r => r.periode)];
+    }
+    return [...new Set(values.filter(v => v !== null && v !== undefined && String(v).trim() !== ""))]
+      .sort((a, b) => String(b).localeCompare(String(a)));
+  };
+
+  const periodeOptions = getPeriodeOptions();
+
   const getGlobalSummary = () => {
     let card1 = 0, card2 = 0, card3 = 0;
     filteredData.forEach(r => {
@@ -478,7 +502,13 @@ setEmpHistory({
               <div className="space-y-6 anim-slide-up">
                 <div className="glass-card p-5 rounded-[2rem] shadow-sm flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5 min-w-[140px] flex-1 sm:flex-none"><label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Cari Karyawan</label><input type="text" placeholder="Ketik nama..." value={searchNama} onChange={(e) => setSearchNama(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" /></div>
-                  <div className="flex flex-col gap-1.5 min-w-[120px]"><label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Periode</label><input type="text" placeholder="Contoh: 2025-10" value={filterBulan} onChange={(e) => setFilterBulan(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" /></div>
+                  <div className="flex flex-col gap-1.5 min-w-[140px]">
+                    <label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Periode</label>
+                    <select value={filterBulan} onChange={(e) => setFilterBulan(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400 cursor-pointer">
+                      <option value="">Semua Periode</option>
+                      {periodeOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
                   {["sakit", "sp"].includes(activePanel) && ( <div className="flex flex-col gap-1.5 min-w-[140px]"><label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Keterangan</label><input type="text" placeholder="Sakit, SP1, BA..." value={filterTipe} onChange={(e) => setFilterTipe(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" /></div> )}
                   <button onClick={() => { setSearchNama(""); setFilterBulan(""); setFilterTipe(""); }} className="bg-white/80 hover:bg-pink-50 hover:text-[#e20074] border px-5 py-3.5 rounded-xl text-xs font-bold transition shadow-sm">Reset</button>
                 </div>
