@@ -352,7 +352,7 @@ setEmpHistory({
       }
       if (activePanel === "ecobag") card1 += r.total || 0;
       if (activePanel === "member") card1 += r.total || 0;
-      if (activePanel === "sales") { card1 += r.totalMemberSales || 0; card2 += r.totalHourlySales || 0; }
+      if (activePanel === "sales") { card1 += r.totalMemberSales || 0; card2 += r.totalHourlySales || 0;
 
     });
     return { card1, card2, card3 };
