@@ -40,6 +40,14 @@ export async function GET() {
     // 2. SINKRONISASI NIK (DIREKTORI STAFF)
     // Kolom sheet NIK: A=NAMA, B=NIK, C=ID_SWIPE, D=STATUS, E=LEVEL, F=JOIN_DATE,
     // G=PHOTO, H=FILE_ID, I=UNDER, J=ROLE, K=TRC_Under, L=EMAIL
+    //
+    // PENTING: hapus dulu data NIK lama secara eksplisit di sini. Ini tidak
+    // mengandalkan RPC hapus_semua_data() di langkah 1, karena RPC tersebut
+    // kemungkinan tidak menyapu tabel "nik" — itulah yang menyebabkan data
+    // NIK terduplikasi setiap kali sync dijalankan.
+    const { error: delNikError } = await supabase.from('nik').delete().not('nama', 'is', null);
+    if (delNikError) throw new Error("Gagal menghapus data NIK lama: " + delNikError.message);
+
     const responseNik = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'NIK!A2:L' });
     const rowsNik = responseNik.data.values;
     if (rowsNik && rowsNik.length > 0) {
