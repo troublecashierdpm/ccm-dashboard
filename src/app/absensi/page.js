@@ -7,8 +7,11 @@ const ALLOWED_LOCATIONS = [
   { lat: -6.9826417, lon: 110.4152754 },
   { lat: -6.984346, lon: 110.413325 },
   { lat: -6.984115008522686, lon: 110.4136480045519 },
-  { lat: -6.982823, lon: 110.411941 }
+  { lat: -6.982823, lon: 110.411941 },
+  // ⚠️ SEMENTARA UNTUK TESTING - Kost Kinibalu, Tembalang. HAPUS baris ini sebelum go-live!
+  { lat: -7.0128072, lon: 110.4455698 }
 ];
+
 const MAX_DISTANCE = 200;
 
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
