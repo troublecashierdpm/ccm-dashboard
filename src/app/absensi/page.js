@@ -442,6 +442,10 @@ function getStatusBadgeClass(remarks) {
 
   function batalkanAbsen() {
     cleanupResources();
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
     setStep("home");
   }
 
