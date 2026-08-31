@@ -26,12 +26,22 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
 }
 
 export default function AbsensiPage() {
-  const [user, setUser] = useState(null);
+const [user, setUser] = useState(null);
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
+  const [currentTime, setCurrentTime] = useState("00:00");
+  useEffect(() => {
+    const tick = () => {
+        const now = new Date();
+        setCurrentTime(now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }));
+    };
+    tick();
+    const interval = setInterval(tick, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // step: 'home' | 'map' | 'camera'
   const [step, setStep] = useState("home");
@@ -1085,81 +1095,131 @@ if (step === "team") {
 }
   // STEP: HOME
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-8 rounded-b-[2.5rem] shadow-lg">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-[#f8fafc] pb-24">
+      <div className="bg-white px-6 py-6 rounded-b-[2rem] shadow-sm mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
-            <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
+            <p className="text-[10px] uppercase text-gray-400 font-bold">Absensi PPKK DPM</p>
+            <h2 className="text-lg font-extrabold text-gray-900">Halo, {user.nama}</h2>
+            <div className="flex items-center gap-1 text-[#e20074] text-[11px] font-extrabold mt-1">
+              <i className="fa-solid fa-clock"></i>
+              <span>{currentTime} WIB</span>
+            </div>
           </div>
-          <button onClick={logout} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold">Logout</button>
+          <div className="w-12 h-12 rounded-2xl bg-pink-50 flex items-center justify-center text-[#e20074] shadow-sm overflow-hidden">
+            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : <i className="fa-solid fa-user text-xl"></i>}
+          </div>
         </div>
-        <div className="bg-white/10 rounded-2xl p-4">
-          <p className="text-[10px] uppercase opacity-70 font-bold mb-1">Jadwal {user.tanggalHariIni}</p>
-          <h3 className="text-xl font-black">{user.isOff ? "Hari Ini Libur" : user.shiftCode}</h3>
+        <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white rounded-2xl p-4 shadow-lg">
+          <p className="text-[10px] uppercase opacity-90 font-bold tracking-wider mb-2">Jadwal Hari Ini</p>
+          <h3 className="text-xl font-black mb-1">{user.isOff ? "Hari Libur" : user.shiftCode}</h3>
           <p className="text-sm opacity-90">{user.shiftJam}</p>
         </div>
       </div>
 
-      <div className="p-6 space-y-3">
-        {toast && <div className="bg-green-100 text-green-700 font-bold text-sm p-3 rounded-xl text-center">{toast}</div>}
+      {toast && <div className="bg-green-100 text-green-700 font-bold text-sm p-3 rounded-xl text-center mb-4 mx-6">{toast}</div>}
 
-        {!user.isOff && (
-          <div className="flex gap-3">
-            <button onClick={() => startAttendanceFlow("Clock In")}
-              className="flex-1 py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg shadow-pink-200">
-              📷 Clock In
-            </button>
-            <button onClick={() => startAttendanceFlow("Clock Out")}
-              className="flex-1 py-4 bg-white border border-gray-200 text-gray-800 font-bold rounded-2xl shadow-sm">
-              📷 Clock Out
-            </button>
+      {!user.isOff && (
+        <div className="px-6 mb-4 grid grid-cols-2 gap-3">
+          <button onClick={() => startAttendanceFlow("Clock In")}
+            className="py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg shadow-pink-200 text-sm">
+            <i className="fa-solid fa-camera mr-2"></i>Clock In
+          </button>
+          <button onClick={() => startAttendanceFlow("Clock Out")}
+            className="py-4 bg-white border border-gray-200 text-gray-800 font-bold rounded-2xl shadow-sm text-sm">
+            <i className="fa-solid fa-camera mr-2"></i>Clock Out
+          </button>
+        </div>
+      )}
+
+      <div className="px-6 grid grid-cols-2 gap-3 mb-6">
+        <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+          <p className="text-[9px] text-gray-400 font-bold uppercase">Clock In</p>
+          <p className="font-black text-gray-800 text-sm">{user.actualIn}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
+          <p className="text-[9px] text-gray-400 font-bold uppercase">Clock Out</p>
+          <p className="font-black text-gray-800 text-sm">{user.actualOut}</p>
+        </div>
+      </div>
+
+      <div className="px-6 grid grid-cols-4 gap-4">
+        <button onClick={openLogView} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+          <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center shadow-sm">
+            <i className="fa-solid fa-clipboard-list text-xl"></i>
           </div>
-        )}
-
-                <div className="bg-white rounded-2xl p-4 shadow-sm flex justify-between text-sm">
-          <span className="text-gray-500 font-semibold">Clock In</span>
-          <span className="font-black text-gray-800">{user.actualIn}</span>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm flex justify-between text-sm">
-          <span className="text-gray-500 font-semibold">Clock Out</span>
-          <span className="font-black text-gray-800">{user.actualOut}</span>
-        </div>
-
-        <button onClick={openLogView}
-          className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
-          📋 Log Absensi Saya
+          <span className="text-[10px] font-bold text-gray-700 text-center">Log Absen</span>
         </button>
 
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => setStep("req-att")}
-            className="py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-xs">
-            🕐 Request Attendance
-          </button>
-          <button onClick={() => setStep("req-shift")}
-            className="py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-xs">
-            📅 Change Shift
-          </button>
-        </div>
-
-        <button onClick={openMyRequests}
-          className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
-          📂 My Requests
+        <button onClick={openMyRequests} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+          <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+            <i className="fa-solid fa-folder-open text-xl"></i>
+          </div>
+          <span className="text-[10px] font-bold text-gray-700 text-center">My Requests</span>
         </button>
- 
+
+        <button onClick={() => setStep("panduan")} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+          <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
+            <i className="fa-solid fa-book-open text-xl"></i>
+          </div>
+          <span className="text-[10px] font-bold text-gray-700 text-center">Buku Panduan</span>
+        </button>
+
         {user.isHeadDept && (
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button onClick={openApproval}
-              className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
-              ✅ Approvals
+          <>
+            <button onClick={openApproval} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+              <div className="w-14 h-14 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center shadow-sm">
+                <i className="fa-solid fa-check-double text-xl"></i>
+              </div>
+              <span className="text-[10px] font-bold text-gray-700 text-center">Approvals</span>
             </button>
-            <button onClick={() => openTeamMonitor()}
-              className="py-4 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm font-bold text-blue-700 text-xs">
-              👥 Team Monitor
+
+            <button onClick={() => openTeamMonitor()} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+              <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
+                <i className="fa-solid fa-users text-xl"></i>
+              </div>
+              <span className="text-[10px] font-bold text-gray-700 text-center">Team Monitor</span>
             </button>
-          </div>
+          </>
         )}
       </div>
+
+      <div className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 grid grid-cols-3 py-3 z-30">
+        <button onClick={() => setStep("home")} className="flex flex-col items-center text-[#e20074] text-[10px] font-bold">
+          <i className="fa-solid fa-house text-xl mb-1"></i>Home
+        </button>
+        <button onClick={() => setReqMenuOpen(true)} className="flex flex-col items-center text-gray-400 text-[10px] font-bold">
+          <i className="fa-solid fa-circle-plus text-3xl mb-1 text-[#e20074]"></i>Request
+        </button>
+        <button onClick={logout} className="flex flex-col items-center text-gray-400 text-[10px] font-bold">
+          <i className="fa-solid fa-arrow-right-from-bracket text-xl mb-1"></i>Logout
+        </button>
+      </div>
+
+      {reqMenuOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={() => setReqMenuOpen(false)} />
+          <div className="fixed bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 z-50 animate-[slideUp_0.3s_ease-out]">
+            <h3 className="font-extrabold text-gray-900 text-lg mb-4">Pilih Jenis Pengajuan</h3>
+            <button onClick={() => { setStep("req-att"); setReqMenuOpen(false); }}
+              className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-2xl mb-3 border border-gray-200 active:scale-98 transition-transform">
+              <i className="fa-solid fa-clock-rotate-left text-2xl text-[#e20074]"></i>
+              <div className="text-left">
+                <p className="font-extrabold text-sm text-gray-900">Request Attendance</p>
+                <p className="text-xs text-gray-500">Koreksi lupa absen jam masuk/pulang</p>
+              </div>
+            </button>
+            <button onClick={() => { setStep("req-shift"); setReqMenuOpen(false); }}
+              className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-200 active:scale-98 transition-transform">
+              <i className="fa-solid fa-calendar-day text-2xl text-[#e20074]"></i>
+              <div className="text-left">
+                <p className="font-extrabold text-sm text-gray-900">Change Shift</p>
+                <p className="text-xs text-gray-500">Perubahan jadwal shift dadakan</p>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
