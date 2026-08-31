@@ -56,6 +56,15 @@ const [reqAlasan, setReqAlasan] = useState("");
 const [reqSubmitting, setReqSubmitting] = useState(false);
 const [myRequests, setMyRequests] = useState(null);
 const [myRequestsLoading, setMyRequestsLoading] = useState(false);
+const [approvalList, setApprovalList] = useState(null);
+const [approvalLoading, setApprovalLoading] = useState(false);
+const [approvalFilter, setApprovalFilter] = useState("All");
+const [approvalSearch, setApprovalSearch] = useState("");
+const [approvalDetail, setApprovalDetail] = useState(null);
+const [teamList, setTeamList] = useState(null);
+const [teamLoading, setTeamLoading] = useState(false);
+const [teamDate, setTeamDate] = useState("");
+const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 
 
 
@@ -68,6 +77,81 @@ const [myRequestsLoading, setMyRequestsLoading] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
+async function openApproval() {
+  setStep("approval");
+  setApprovalLoading(true);
+  try {
+    const res = await fetch("/api/absensi/approval/pending");
+    const json = await res.json();
+    if (json.success) setApprovalList(json.data);
+    else alert(json.message);
+  } catch (err) {
+    alert("Gagal memuat: " + err.message);
+  }
+  setApprovalLoading(false);
+}
+ 
+function getFilteredApproval() {
+  if (!approvalList) return [];
+  return approvalList.filter(r => {
+    const jenis = r.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
+    const typeMatch = approvalFilter === "All" || approvalFilter === jenis;
+    const searchMatch = !approvalSearch ||
+      (r.nama + " " + r.nik).toLowerCase().includes(approvalSearch.toLowerCase());
+    return typeMatch && searchMatch;
+  });
+}
+ 
+async function eksekusiApproval(reqId, status) {
+  const msg = prompt(status === "Rejected" ? "Masukkan alasan penolakan (opsional):" : "Masukkan catatan persetujuan (opsional):");
+  if (msg === null) return;
+ 
+  try {
+    const res = await fetch("/api/absensi/approval/action", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reqId, actionStatus: status, adminMessage: msg })
+    });
+    const json = await res.json();
+    if (json.success) {
+      setApprovalList(prev => prev.filter(r => r.reqId !== reqId));
+      setApprovalDetail(null);
+      alert("Status berhasil diubah menjadi " + status);
+    } else alert("Gagal: " + json.message);
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+ 
+async function openTeamMonitor(dateVal) {
+  setStep("team");
+  setTeamLoading(true);
+  const tgl = dateVal || new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" });
+  setTeamDate(tgl);
+  try {
+    const res = await fetch(`/api/absensi/team-status?tanggal=${tgl}`);
+    const json = await res.json();
+    if (json.success) { setTeamList(json.data); setTeamStatusFilter("All"); }
+    else alert(json.message);
+  } catch (err) {
+    alert("Gagal memuat: " + err.message);
+  }
+  setTeamLoading(false);
+}
+ 
+function getFilteredTeam() {
+  if (!teamList) return [];
+  if (teamStatusFilter === "All") return teamList;
+  return teamList.filter(t => t.status === teamStatusFilter);
+}
+ 
+function statusBadgeClass(status) {
+  if (status === "Normal") return "bg-green-100 text-green-700";
+  if (status === "Late" || status === "Absent" || status === "Early" || status === "No Clock In") return "bg-red-100 text-red-700";
+  if (status === "Day Off") return "bg-gray-100 text-gray-500";
+  if (status === "Extra/Lembur") return "bg-blue-100 text-blue-700";
+  return "bg-gray-100 text-gray-500";
+}
+  
 // ============================================================
 // 2) FUNGSI-FUNGSI REQUEST — SISIPKAN sebelum "return" utama komponen:
  
@@ -859,7 +943,142 @@ function getStatusBadgeClass(remarks) {
       </div>
     );
   }
-
+if (step === "approval") {
+  const filtered = getFilteredApproval();
+  return (
+    <div className="min-h-screen bg-[#f8fafc] pb-10">
+      <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
+        <div className="flex items-center gap-4 mb-4">
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+          <h2 className="font-bold text-gray-800">Approval Dashboard</h2>
+        </div>
+        <div className="flex gap-2">
+          <select value={approvalFilter} onChange={(e) => setApprovalFilter(e.target.value)}
+            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+            <option value="All">Semua Jenis</option>
+            <option value="Attendance">Req Attendance</option>
+            <option value="Change Shift">Req Change Shift</option>
+          </select>
+          <input type="text" placeholder="Cari nama/NIK..." value={approvalSearch}
+            onChange={(e) => setApprovalSearch(e.target.value)}
+            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
+        </div>
+      </div>
+ 
+      <div className="p-5 space-y-3">
+        {approvalLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+        {!approvalLoading && filtered.length === 0 && (
+          <div className="text-center text-gray-400 text-sm py-10">Tidak ada request pending.</div>
+        )}
+        {!approvalLoading && filtered.map((r, i) => {
+          const jenis = r.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
+          const alasanTampil = r.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim();
+          return (
+            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
+                {r.photoUrl
+                  ? <img src={r.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
+                  : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-gray-800">{r.nama} <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">{jenis}</span></p>
+                  <p className="text-[10px] text-gray-400">{r.nik}</p>
+                </div>
+                <span className="text-[10px] text-gray-400">{r.submitTgl.split(" ")[0]}</span>
+              </div>
+              <div onClick={() => setApprovalDetail(r)} className="cursor-pointer text-xs space-y-1 mb-3">
+                <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
+                {jenis === "Change Shift"
+                  ? <p><span className="text-gray-500">Shift:</span> {r.shiftAwal} → <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
+                  : <p><span className="text-gray-500">Diajukan:</span> In ({r.jamIn}) | Out ({r.jamOut})</p>}
+                <p className="italic text-gray-600 mt-1">"{alasanTampil}"</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => eksekusiApproval(r.reqId, "Rejected")}
+                  className="flex-1 py-2.5 bg-gray-100 text-red-500 font-bold rounded-xl text-xs">Tolak</button>
+                <button onClick={() => eksekusiApproval(r.reqId, "Approved")}
+                  className="flex-1 py-2.5 bg-green-500 text-white font-bold rounded-xl text-xs">Setujui</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+ 
+      {approvalDetail && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setApprovalDetail(null)}>
+          <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-gray-800">{approvalDetail.nama} ({approvalDetail.nik})</h3>
+              <button onClick={() => setApprovalDetail(null)} className="text-gray-400 text-xl">✕</button>
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 mb-4">
+              <div className="flex justify-between"><span className="text-gray-500">Tgl Absen</span><strong>{approvalDetail.tglAbsen}</strong></div>
+              <div className="flex justify-between"><span className="text-gray-500">Shift Awal</span><strong>{approvalDetail.shiftAwal}</strong></div>
+              <div className="flex justify-between"><span className="text-gray-500">Aktual Tersimpan</span><strong>In ({approvalDetail.actualIn}) | Out ({approvalDetail.actualOut})</strong></div>
+              <div className="flex justify-between"><span className="text-gray-500">Alasan</span><span className="italic text-right max-w-[60%]">{approvalDetail.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim()}</span></div>
+            </div>
+            {approvalDetail.lampiranUrl && (
+              <img src={approvalDetail.lampiranUrl} className="w-full rounded-xl mb-4 bg-gray-100 max-h-60 object-cover" />
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Rejected")}
+                className="flex-1 py-3 bg-gray-100 text-red-500 font-bold rounded-xl">Tolak</button>
+              <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Approved")}
+                className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl">Setujui</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+ 
+if (step === "team") {
+  const filteredTeam = getFilteredTeam();
+  const statusOptions = ["All", "Normal", "Late", "Absent", "No Clock In", "Early", "Day Off", "Extra/Lembur"];
+  return (
+    <div className="min-h-screen bg-[#f8fafc] pb-10">
+      <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
+        <div className="flex items-center gap-4 mb-4">
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+          <h2 className="font-bold text-gray-800">Team Monitor</h2>
+        </div>
+        <div className="flex gap-2">
+          <input type="date" value={teamDate} onChange={(e) => openTeamMonitor(e.target.value)}
+            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
+          <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
+            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+            {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
+          </select>
+        </div>
+      </div>
+ 
+      <div className="p-5 space-y-3">
+        {teamLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+        {!teamLoading && filteredTeam.length === 0 && (
+          <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
+        )}
+        {!teamLoading && filteredTeam.map((t, i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
+              {t.photoUrl
+                ? <img src={t.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
+                : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
+              <div className="flex-1">
+                <p className="font-bold text-sm text-gray-800">{t.nama}</p>
+                <p className="text-[10px] text-gray-400">{t.nik}</p>
+              </div>
+              <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase ${statusBadgeClass(t.status)}`}>{t.status}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="bg-pink-50 text-[#e20074] font-bold px-2 py-1 rounded-md">{t.shift} ({t.jam})</span>
+              <span className="text-gray-500">In: <strong className="text-gray-800">{t.in}</strong> | Out: <strong className="text-gray-800">{t.out}</strong></span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
   // STEP: HOME
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -923,6 +1142,19 @@ function getStatusBadgeClass(remarks) {
           className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
           📂 My Requests
         </button>
+ 
+        {user.isHeadDept && (
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button onClick={openApproval}
+              className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
+              ✅ Approvals
+            </button>
+            <button onClick={() => openTeamMonitor()}
+              className="py-4 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm font-bold text-blue-700 text-xs">
+              👥 Team Monitor
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
