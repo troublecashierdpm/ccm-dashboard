@@ -38,6 +38,26 @@ export default function AbsensiPage() {
   const [tipeAbsen, setTipeAbsen] = useState("");
   const [gpsStatus, setGpsStatus] = useState({ text: "Mencari sinyal GPS...", ok: false, color: "gray" });
   const [submitting, setSubmitting] = useState(false);
+const [logData, setLogData] = useState(null);
+const [logMonthDate, setLogMonthDate] = useState(new Date());
+const [logLoading, setLogLoading] = useState(false);
+const [showStats, setShowStats] = useState(false);
+const [detailItem, setDetailItem] = useState(null);
+const [reqMenuOpen, setReqMenuOpen] = useState(false);
+const [reqTgl, setReqTgl] = useState("");
+const [reqData, setReqData] = useState(null); // hasil fetch request-data (shiftCode, expIn, expOut, actualIn, actualOut)
+const [reqCheckIn, setReqCheckIn] = useState(false);
+const [reqCheckOut, setReqCheckOut] = useState(false);
+const [reqJamIn, setReqJamIn] = useState("");
+const [reqJamOut, setReqJamOut] = useState("");
+const [reqShiftBaru, setReqShiftBaru] = useState("");
+const [reqShiftManual, setReqShiftManual] = useState("");
+const [reqAlasan, setReqAlasan] = useState("");
+const [reqSubmitting, setReqSubmitting] = useState(false);
+const [myRequests, setMyRequests] = useState(null);
+const [myRequestsLoading, setMyRequestsLoading] = useState(false);
+
+
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -47,6 +67,170 @@ export default function AbsensiPage() {
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+/ ============================================================
+// 2) FUNGSI-FUNGSI REQUEST — SISIPKAN sebelum "return" utama komponen:
+ 
+async function fetchRequestData(tgl) {
+  if (!tgl) return;
+  try {
+    const res = await fetch(`/api/absensi/request-data?nik=${user.nik}&tanggal=${tgl}`);
+    const json = await res.json();
+    if (json.success) setReqData(json);
+    else alert(json.message);
+  } catch (err) {
+    alert("Gagal cek data: " + err.message);
+  }
+}
+ 
+function resetReqAttForm() {
+  setReqTgl(""); setReqData(null); setReqCheckIn(false); setReqCheckOut(false);
+  setReqJamIn(""); setReqJamOut(""); setReqAlasan("");
+}
+ 
+function resetReqShiftForm() {
+  setReqTgl(""); setReqData(null); setReqShiftBaru(""); setReqShiftManual(""); setReqAlasan("");
+}
+ 
+async function submitReqAttendance() {
+  if (!reqTgl) { alert("Tanggal wajib diisi!"); return; }
+  if (!reqCheckIn && !reqCheckOut) { alert("Centang minimal satu pengajuan (Jam In atau Jam Out)!"); return; }
+  if (reqCheckIn && !reqJamIn) { alert("Jam Clock In Baru wajib diisi!"); return; }
+  if (reqCheckOut && !reqJamOut) { alert("Jam Clock Out Baru wajib diisi!"); return; }
+  if (!reqAlasan) { alert("Alasan wajib diisi!"); return; }
+ 
+  setReqSubmitting(true);
+  try {
+    const res = await fetch("/api/absensi/request", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nik: user.nik, nama: user.nama, tanggal: reqTgl,
+        shiftCodeReq: "-",
+        jamIn: reqCheckIn ? reqJamIn : "",
+        jamOut: reqCheckOut ? reqJamOut : "",
+        alasan: "[ATTENDANCE] " + reqAlasan
+      })
+    });
+    const json = await res.json();
+    setReqSubmitting(false);
+    if (json.success) {
+      alert("✅ Pengajuan Attendance berhasil dikirim!");
+      resetReqAttForm();
+      setStep("home");
+    } else alert("Gagal kirim: " + json.message);
+  } catch (err) {
+    setReqSubmitting(false);
+    alert("Error koneksi: " + err.message);
+  }
+}
+ 
+async function submitReqShift() {
+  const shiftFinal = reqShiftBaru === "MANUAL" ? reqShiftManual.trim().toUpperCase() : reqShiftBaru;
+  if (!reqTgl) { alert("Tanggal wajib diisi!"); return; }
+  if (!shiftFinal) { alert("Kode Shift Baru wajib diisi!"); return; }
+  if (!reqAlasan) { alert("Alasan wajib diisi!"); return; }
+ 
+  setReqSubmitting(true);
+  try {
+    const res = await fetch("/api/absensi/request", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nik: user.nik, nama: user.nama, tanggal: reqTgl,
+        shiftCodeReq: shiftFinal, jamIn: "", jamOut: "",
+        alasan: "[CHANGE SHIFT] " + reqAlasan
+      })
+    });
+    const json = await res.json();
+    setReqSubmitting(false);
+    if (json.success) {
+      alert("✅ Pengajuan Change Shift berhasil dikirim!");
+      resetReqShiftForm();
+      setStep("home");
+    } else alert("Gagal kirim: " + json.message);
+  } catch (err) {
+    setReqSubmitting(false);
+    alert("Error koneksi: " + err.message);
+  }
+}
+ 
+async function openMyRequests() {
+  setStep("my-requests");
+  setMyRequestsLoading(true);
+  try {
+    const res = await fetch(`/api/absensi/my-requests?nik=${user.nik}`);
+    const json = await res.json();
+    if (json.success) setMyRequests(json.data);
+    else alert(json.message);
+  } catch (err) {
+    alert("Koneksi terputus: " + err.message);
+  }
+  setMyRequestsLoading(false);
+}
+ 
+// Generate daftar kode shift utk dropdown (samakan dgn hitungJamKerja backend)
+function generateShiftOptions() {
+  const options = [{ value: "X", label: "X (OFF / Libur)" }];
+  const types = [
+    { type: "A", min: "00", dur: 9 }, { type: "B", min: "30", dur: 9 },
+    { type: "C", min: "00", dur: 8 }, { type: "D", min: "30", dur: 8 },
+    { type: "E", min: "00", dur: 6 }, { type: "F", min: "30", dur: 6 }
+  ];
+  const pad = (n) => (n < 10 ? "0" + n : "" + n);
+  types.forEach(t => {
+    for (let i = 1; i <= 24; i++) {
+      const letter = String.fromCharCode(64 + i);
+      const code = t.type + letter;
+      const startHour = i === 24 ? 0 : i;
+      const endHour = (startHour + t.dur) % 24;
+      const jam = `${pad(startHour)}:${t.min} - ${pad(endHour)}:${t.min}`;
+      options.push({ value: code, label: `${code} (${jam})` });
+    }
+  });
+  options.push({ value: "MANUAL", label: "Lainnya (Ketik Manual)" });
+  return options;
+}
+
+  // ============================================================
+// 2) FUNGSI FETCH LOG — SISIPKAN di mana saja sebelum "return" utama komponen:
+ 
+async function fetchLog(monthDate) {
+  setLogLoading(true);
+  const yyyy = monthDate.getFullYear();
+  const mm = String(monthDate.getMonth() + 1).padStart(2, "0");
+  try {
+    const res = await fetch(`/api/absensi/log?nik=${user.nik}&month=${yyyy}-${mm}`);
+    const json = await res.json();
+    if (json.success) setLogData(json);
+    else alert("Gagal memuat log: " + json.message);
+  } catch (err) {
+    alert("Koneksi terputus: " + err.message);
+  }
+  setLogLoading(false);
+}
+ 
+function openLogView() {
+  setLogMonthDate(new Date());
+  setStep("log");
+}
+ 
+function gantiBulanLog(delta) {
+  const newDate = new Date(logMonthDate.getFullYear(), logMonthDate.getMonth() + delta, 1);
+  setLogMonthDate(newDate);
+}
+ 
+// Muat ulang log setiap kali bulan berubah selagi berada di step "log"
+useEffect(() => {
+  if (step === "log" && user) fetchLog(logMonthDate);
+}, [step, logMonthDate]);
+ 
+function getStatusBadgeClass(remarks) {
+  if (!remarks) return "bg-gray-100 text-gray-500";
+  if (remarks === "Alpha" || remarks.indexOf("No Clock") !== -1) return "bg-red-100 text-red-600";
+  if (remarks === "Present" || remarks === "Normal" || remarks === "Perubahan Schedule") return "bg-green-100 text-green-600";
+  if (remarks === "OFF") return "bg-gray-100 text-gray-500";
+  if (remarks.indexOf("Late") !== -1 || remarks.indexOf("Early") !== -1) return "bg-orange-100 text-orange-600";
+  return "bg-gray-100 text-gray-500";
+}
 
   // ============ LOGIN ============
   async function handleLogin(e) {
@@ -399,6 +583,279 @@ export default function AbsensiPage() {
       </div>
     );
   }
+// ============================================================
+// 3) TAMBAHKAN BLOK RENDER INI — sisipkan SEBELUM baris "// STEP: HOME" / "return (" terakhir:
+ 
+if (step === "log") {
+  return (
+    <div className="min-h-screen bg-[#f8fafc] pb-10">
+      <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
+        <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+        <h2 className="font-bold text-gray-800">Log Absensi</h2>
+      </div>
+ 
+      <div className="bg-white mx-5 mt-4 p-3 rounded-2xl shadow-sm flex items-center justify-between">
+        <button onClick={() => gantiBulanLog(-1)} className="px-3 py-2 text-[#e20074] font-bold">‹</button>
+        <span className="font-bold text-gray-800 text-sm">{logData ? logData.month : "Memuat..."}</span>
+        <button onClick={() => gantiBulanLog(1)} className="px-3 py-2 text-[#e20074] font-bold">›</button>
+      </div>
+ 
+      <div className="text-center mt-3">
+        <button onClick={() => setShowStats(!showStats)} className="text-[11px] font-bold text-[#e20074] uppercase">
+          {showStats ? "Sembunyikan Statistik ▲" : "Lihat Statistik ▼"}
+        </button>
+      </div>
+ 
+      {showStats && logData && (
+        <div className="grid grid-cols-3 gap-2 mx-5 mt-3">
+          <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+            <p className="text-[9px] text-gray-400 font-bold uppercase">Present</p>
+            <h4 className="text-lg font-black text-green-600">{logData.stats.present}</h4>
+          </div>
+          <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+            <p className="text-[9px] text-gray-400 font-bold uppercase">Late</p>
+            <h4 className="text-lg font-black text-red-600">{logData.stats.late}</h4>
+          </div>
+          <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+            <p className="text-[9px] text-gray-400 font-bold uppercase">Early Out</p>
+            <h4 className="text-lg font-black text-orange-500">{logData.stats.early}</h4>
+          </div>
+          <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+            <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
+            <h4 className="text-lg font-black text-red-600">{logData.stats.absent}</h4>
+          </div>
+          <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-2">
+            <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
+            <h4 className="text-lg font-black text-amber-500">{logData.stats.noIn}</h4>
+          </div>
+        </div>
+      )}
+ 
+      <div className="px-5 mt-4 space-y-3">
+        {logLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+        {!logLoading && logData && logData.logs.map((item, i) => (
+          <div key={i} onClick={() => setDetailItem(item)}
+            className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:scale-[0.98] transition-transform">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-bold text-gray-800 text-sm">{item.date}</span>
+              <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase ${getStatusBadgeClass(item.remarks)}`}>
+                {item.remarks}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${item.isOff ? "bg-gray-100 text-gray-500" : "bg-pink-50 text-[#e20074]"}`}>
+                {item.shift} ({item.shiftJam})
+              </span>
+              <div className="flex gap-3 text-right">
+                <div>
+                  <p className="text-[8px] text-gray-400 uppercase font-bold">In</p>
+                  <p className={`text-xs font-black ${item.in === "-" ? "text-red-400" : "text-gray-800"}`}>{item.in}</p>
+                </div>
+                <div>
+                  <p className="text-[8px] text-gray-400 uppercase font-bold">Out</p>
+                  <p className={`text-xs font-black ${item.out === "-" ? "text-red-400" : "text-gray-800"}`}>{item.out}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+ if (step === "req-att") {
+  return (
+    <div className="min-h-screen bg-[#f8fafc] pb-10">
+      <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
+        <button onClick={() => { resetReqAttForm(); setStep("home"); }} className="text-xl text-[#e20074]">←</button>
+        <h2 className="font-bold text-gray-800">Request Attendance</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">Tanggal Lupa Absen</label>
+          <input type="date" value={reqTgl}
+            onChange={(e) => { setReqTgl(e.target.value); fetchRequestData(e.target.value); }}
+            className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm" />
+        </div>
+ 
+        {reqData && (
+          <div className="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-2xl text-xs space-y-2">
+            <p className="font-bold text-[#e20074] uppercase text-[10px]">Riwayat Tersimpan:</p>
+            <div className="flex justify-between"><span className="text-gray-500">Shift Jadwal</span><strong>{reqData.shiftCode}</strong></div>
+            <div className="flex justify-between"><span className="text-gray-500">Clock In</span><strong>{reqData.actualIn}</strong></div>
+            <div className="flex justify-between"><span className="text-gray-500">Clock Out</span><strong>{reqData.actualOut}</strong></div>
+          </div>
+        )}
+ 
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={reqCheckIn} onChange={(e) => setReqCheckIn(e.target.checked)} className="w-5 h-5 accent-[#e20074]" />
+            <span className="font-bold text-sm">Ajukan Jam Clock In Baru</span>
+          </label>
+          {reqCheckIn && <input type="time" value={reqJamIn} onChange={(e) => setReqJamIn(e.target.value)} className="w-full mt-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50" />}
+        </div>
+ 
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={reqCheckOut} onChange={(e) => setReqCheckOut(e.target.checked)} className="w-5 h-5 accent-[#e20074]" />
+            <span className="font-bold text-sm">Ajukan Jam Clock Out Baru</span>
+          </label>
+          {reqCheckOut && <input type="time" value={reqJamOut} onChange={(e) => setReqJamOut(e.target.value)} className="w-full mt-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50" />}
+        </div>
+ 
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">Alasan Request</label>
+          <textarea rows={3} value={reqAlasan} onChange={(e) => setReqAlasan(e.target.value)}
+            placeholder="Contoh: Lupa absen pulang..."
+            className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm" />
+        </div>
+ 
+        <button onClick={submitReqAttendance} disabled={reqSubmitting}
+          className="w-full py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">
+          {reqSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
+        </button>
+      </div>
+    </div>
+  );
+}
+ 
+if (step === "req-shift") {
+  const shiftOptions = generateShiftOptions();
+  return (
+    <div className="min-h-screen bg-[#f8fafc] pb-10">
+      <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
+        <button onClick={() => { resetReqShiftForm(); setStep("home"); }} className="text-xl text-[#e20074]">←</button>
+        <h2 className="font-bold text-gray-800">Request Change Shift</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">Tanggal Jadwal</label>
+          <input type="date" value={reqTgl}
+            onChange={(e) => { setReqTgl(e.target.value); fetchRequestData(e.target.value); }}
+            className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm" />
+        </div>
+ 
+        {reqData && (
+          <div className="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-2xl text-xs space-y-2">
+            <p className="font-bold text-[#e20074] uppercase text-[10px]">Jadwal Saat Ini:</p>
+            <div className="flex justify-between"><span className="text-gray-500">Kode Shift</span><strong>{reqData.shiftCode}</strong></div>
+            <div className="flex justify-between"><span className="text-gray-500">Clock In</span><strong>{reqData.actualIn}</strong></div>
+            <div className="flex justify-between"><span className="text-gray-500">Clock Out</span><strong>{reqData.actualOut}</strong></div>
+          </div>
+        )}
+ 
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">Kode Shift Baru</label>
+          <select value={reqShiftBaru} onChange={(e) => setReqShiftBaru(e.target.value)}
+            className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm">
+            <option value="" disabled>-- Pilih Shift Baru --</option>
+            {shiftOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+ 
+        {reqShiftBaru === "MANUAL" && (
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Ketik Kode Shift Manual</label>
+            <input type="text" value={reqShiftManual} onChange={(e) => setReqShiftManual(e.target.value.toUpperCase())}
+              placeholder="Contoh: AA, BB, CC"
+              className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm uppercase" />
+          </div>
+        )}
+ 
+        <div>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">Alasan Request</label>
+          <textarea rows={3} value={reqAlasan} onChange={(e) => setReqAlasan(e.target.value)}
+            placeholder="Contoh: Tukar shift dengan teman..."
+            className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm" />
+        </div>
+ 
+        <button onClick={submitReqShift} disabled={reqSubmitting}
+          className="w-full py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">
+          {reqSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
+        </button>
+      </div>
+    </div>
+  );
+}
+ 
+if (step === "my-requests") {
+  return (
+    <div className="min-h-screen bg-[#f8fafc] pb-10">
+      <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
+        <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+        <h2 className="font-bold text-gray-800">My Requests</h2>
+      </div>
+      <div className="p-5 space-y-3">
+        {myRequestsLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+        {!myRequestsLoading && myRequests && myRequests.length === 0 && (
+          <div className="text-center text-gray-400 text-sm py-10">Belum ada pengajuan.</div>
+        )}
+        {!myRequestsLoading && myRequests && myRequests.map((r, i) => {
+          const jenis = r.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
+          const alasanTampil = r.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim();
+          const badge = r.statusReq === "Approved" ? "bg-green-100 text-green-700"
+            : r.statusReq === "Rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700";
+          return (
+            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
+                <span className="text-[10px] font-black bg-blue-500 text-white px-2 py-1 rounded-md uppercase">{jenis}</span>
+                <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase ${badge}`}>{r.statusReq}</span>
+              </div>
+              <div className="text-xs space-y-1">
+                <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
+                {jenis === "Change Shift"
+                  ? <p><span className="text-gray-500">Shift Baru:</span> <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
+                  : <p><span className="text-gray-500">Jam Diajukan:</span> In ({r.jamIn}) | Out ({r.jamOut})</p>}
+                <p className="italic text-gray-600 mt-2">"{alasanTampil}"</p>
+                {r.catatanAdmin && r.catatanAdmin !== "-" && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase">Catatan Admin</span>
+                    <p className="text-gray-700">{r.catatanAdmin}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+      {/* MODAL DETAIL HARIAN */}
+      {detailItem && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setDetailItem(null)}>
+          <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-gray-800">{detailItem.fullDate}</h3>
+              <button onClick={() => setDetailItem(null)} className="text-gray-400 text-xl">✕</button>
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-4 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Shift</span><span className="font-bold">{detailItem.isOff ? "Day Off" : `${detailItem.shift} (${detailItem.shiftJam})`}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Durasi Kerja</span><span className="font-bold">{detailItem.totalHours}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Late In</span><span className="font-bold text-red-600">{detailItem.lateIn}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Early Out</span><span className="font-bold text-orange-500">{detailItem.earlyOut}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Remarks</span><span className={`font-black px-2 py-1 rounded text-[10px] ${getStatusBadgeClass(detailItem.remarks)}`}>{detailItem.remarks}</span></div>
+            </div>
+            {(detailItem.fotoIn || detailItem.fotoOut) && (
+              <div className="flex gap-3">
+                {detailItem.fotoIn && (
+                  <div className="flex-1">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Foto In</p>
+                    <img src={detailItem.fotoIn} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
+                  </div>
+                )}
+                {detailItem.fotoOut && (
+                  <div className="flex-1">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Foto Out</p>
+                    <img src={detailItem.fotoOut} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
   // STEP: HOME
   return (
@@ -434,7 +891,7 @@ export default function AbsensiPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl p-4 shadow-sm flex justify-between text-sm">
+                <div className="bg-white rounded-2xl p-4 shadow-sm flex justify-between text-sm">
           <span className="text-gray-500 font-semibold">Clock In</span>
           <span className="font-black text-gray-800">{user.actualIn}</span>
         </div>
@@ -442,7 +899,30 @@ export default function AbsensiPage() {
           <span className="text-gray-500 font-semibold">Clock Out</span>
           <span className="font-black text-gray-800">{user.actualOut}</span>
         </div>
+ 
+        <button onClick={openLogView}
+          className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
+          📋 Log Absensi Saya
+        </button>
+ 
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => setStep("req-att")}
+            className="py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-xs">
+            🕐 Request Attendance
+          </button>
+          <button onClick={() => setStep("req-shift")}
+            className="py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-xs">
+            📅 Change Shift
+          </button>
+        </div>
+ 
+        <button onClick={openMyRequests}
+          className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
+          📂 My Requests
+        </button>
       </div>
     </div>
   );
 }
+
+
