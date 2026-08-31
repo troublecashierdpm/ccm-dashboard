@@ -554,7 +554,7 @@ function getStatusBadgeClass(remarks) {
       ctx.fillStyle = "rgba(255,255,255,0.82)";
       ctx.fillText(dateStr, padX, startY + fsTime + lineGap);
 
-      const label = tipeAbsen ? `${tipeAbsen}  Â·  ${user.nama}` : user.nama;
+      const label = tipeAbsen ? `${tipeAbsen}  Â�  ${user.nama}` : user.nama;
       ctx.font = `bold ${fsName}px Arial, sans-serif`;
       ctx.fillStyle = "#fce7f3";
       ctx.textAlign = "right";
@@ -691,7 +691,7 @@ function getStatusBadgeClass(remarks) {
         <div className="w-full p-8 flex justify-center bg-gradient-to-t from-black/80 to-transparent z-20">
           <button onClick={captureAndSubmit} disabled={submitting}
             className="w-full py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">
-            {submitting ? "Mengirim..." : "ðŸ“· Submit Absen"}
+            {submitting ? "Mengirim..." : "ðŸ“� Submit Absen"}
           </button>
         </div>
       </div>
