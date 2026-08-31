@@ -1,4 +1,4 @@
-// src/app/absensi/page.js
+﻿// src/app/absensi/page.js
 "use client";
 import { useState, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
@@ -8,7 +8,7 @@ const ALLOWED_LOCATIONS = [
   { lat: -6.984346, lon: 110.413325 },
   { lat: -6.984115008522686, lon: 110.4136480045519 },
   { lat: -6.982823, lon: 110.411941 },
-  // ⚠️ SEMENTARA UNTUK TESTING - Kost Kinibalu, Tembalang. HAPUS baris ini sebelum go-live!
+  // âš ï¸ SEMENTARA UNTUK TESTING - Kost Kinibalu, Tembalang. HAPUS baris ini sebelum go-live!
   { lat: -7.0128072, lon: 110.4455698 }
 ];
 
@@ -148,6 +148,22 @@ async function openTeamMonitor(dateVal) {
   setTeamLoading(false);
 }
  
+async function openKasirDetail(nik) {
+  setStep("log");
+  setLogLoading(true);
+  const yyyy = logMonthDate.getFullYear();
+  const mm = String(logMonthDate.getMonth() + 1).padStart(2, "0");
+  try {
+    const res = await fetch(`/api/absensi/log?nik=${nik}&month=${yyyy}-${mm}`);
+    const json = await res.json();
+    if (json.success) setLogData(json);
+    else alert("Gagal memuat log: " + json.message);
+  } catch (err) {
+    alert("Koneksi terputus: " + err.message);
+  }
+  setLogLoading(false);
+}
+
 function getFilteredTeam() {
   if (!teamList) return [];
   if (teamStatusFilter === "All") return teamList;
@@ -163,7 +179,7 @@ function statusBadgeClass(status) {
 }
   
 // ============================================================
-// 2) FUNGSI-FUNGSI REQUEST — SISIPKAN sebelum "return" utama komponen:
+// 2) FUNGSI-FUNGSI REQUEST â€” SISIPKAN sebelum "return" utama komponen:
  
 async function fetchRequestData(tgl) {
   if (!tgl) return;
@@ -208,7 +224,7 @@ async function submitReqAttendance() {
     const json = await res.json();
     setReqSubmitting(false);
     if (json.success) {
-      alert("✅ Pengajuan Attendance berhasil dikirim!");
+      alert("âœ… Pengajuan Attendance berhasil dikirim!");
       resetReqAttForm();
       setStep("home");
     } else alert("Gagal kirim: " + json.message);
@@ -237,7 +253,7 @@ async function submitReqShift() {
     const json = await res.json();
     setReqSubmitting(false);
     if (json.success) {
-      alert("✅ Pengajuan Change Shift berhasil dikirim!");
+      alert("âœ… Pengajuan Change Shift berhasil dikirim!");
       resetReqShiftForm();
       setStep("home");
     } else alert("Gagal kirim: " + json.message);
@@ -285,7 +301,7 @@ function generateShiftOptions() {
 }
 
   // ============================================================
-// 2) FUNGSI FETCH LOG — SISIPKAN di mana saja sebelum "return" utama komponen:
+// 2) FUNGSI FETCH LOG â€” SISIPKAN di mana saja sebelum "return" utama komponen:
  
 async function fetchLog(monthDate) {
   setLogLoading(true);
@@ -368,11 +384,11 @@ function getStatusBadgeClass(remarks) {
   // ============ STEP 1: PETA / GPS ============
   function startAttendanceFlow(tipe) {
     if (tipe === "Clock In" && user.actualIn !== "-" && user.actualIn !== "") {
-      alert("🚨 GAGAL PENCET:\n\nAnda SUDAH melakukan Clock In pada jam " + user.actualIn);
+      alert("ðŸš¨ GAGAL PENCET:\n\nAnda SUDAH melakukan Clock In pada jam " + user.actualIn);
       return;
     }
     if (tipe === "Clock Out" && user.actualOut !== "-" && user.actualOut !== "") {
-      alert("🚨 GAGAL PENCET:\n\nAnda SUDAH melakukan Clock Out pada jam " + user.actualOut);
+      alert("ðŸš¨ GAGAL PENCET:\n\nAnda SUDAH melakukan Clock Out pada jam " + user.actualOut);
       return;
     }
     setTipeAbsen(tipe);
@@ -538,7 +554,7 @@ function getStatusBadgeClass(remarks) {
       ctx.fillStyle = "rgba(255,255,255,0.82)";
       ctx.fillText(dateStr, padX, startY + fsTime + lineGap);
 
-      const label = tipeAbsen ? `${tipeAbsen}  ·  ${user.nama}` : user.nama;
+      const label = tipeAbsen ? `${tipeAbsen}  Â·  ${user.nama}` : user.nama;
       ctx.font = `bold ${fsName}px Arial, sans-serif`;
       ctx.fillStyle = "#fce7f3";
       ctx.textAlign = "right";
@@ -594,7 +610,7 @@ function getStatusBadgeClass(remarks) {
           actualIn: json.tipe === "Clock In" ? json.waktu : prev.actualIn,
           actualOut: json.tipe === "Clock Out" ? json.waktu : prev.actualOut
         }));
-        setToast(`✅ ${json.tipe} Berhasil pada ${json.waktu}`);
+        setToast(`âœ… ${json.tipe} Berhasil pada ${json.waktu}`);
         setTimeout(() => setToast(""), 4000);
       } else {
         alert("Gagal Absen: " + json.message);
@@ -612,7 +628,7 @@ function getStatusBadgeClass(remarks) {
       <div className="min-h-screen flex items-center justify-center bg-[#fffcfd] p-6">
         <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8">
           <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
-            <span className="text-white text-2xl">🕐</span>
+            <span className="text-white text-2xl">ðŸ•</span>
           </div>
           <h1 className="text-xl font-extrabold text-center text-gray-900 mb-1">Absensi PPKK DPM</h1>
           <p className="text-xs text-center text-gray-400 mb-8">Silakan login dengan NIK & Password</p>
@@ -637,7 +653,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen relative bg-black flex flex-col">
         <div className="w-full z-20 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white p-5 flex items-center gap-4">
-          <button onClick={batalkanAbsen} className="text-xl">←</button>
+          <button onClick={batalkanAbsen} className="text-xl">â†</button>
           <h2 className="font-bold">Step 1: Lokasi ({tipeAbsen})</h2>
         </div>
         <div ref={mapRef} className="flex-1 w-full" />
@@ -650,7 +666,7 @@ function getStatusBadgeClass(remarks) {
           </div>
           <button onClick={goToCamera} disabled={!gpsStatus.ok}
             className={`w-full py-4 rounded-2xl font-bold text-white ${gpsStatus.ok ? "bg-[#e20074]" : "bg-gray-300"}`}>
-            Lanjut Ambil Foto →
+            Lanjut Ambil Foto â†’
           </button>
         </div>
       </div>
@@ -662,7 +678,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-black flex flex-col">
         <div className="w-full z-20 bg-black/50 text-white p-5 flex items-center gap-4">
-          <button onClick={kembaliKeMap} className="text-xl">←</button>
+          <button onClick={kembaliKeMap} className="text-xl">â†</button>
           <h2 className="font-bold">Step 2: Foto ({tipeAbsen})</h2>
         </div>
         <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden">
@@ -675,7 +691,7 @@ function getStatusBadgeClass(remarks) {
         <div className="w-full p-8 flex justify-center bg-gradient-to-t from-black/80 to-transparent z-20">
           <button onClick={captureAndSubmit} disabled={submitting}
             className="w-full py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">
-            {submitting ? "Mengirim..." : "📷 Submit Absen"}
+            {submitting ? "Mengirim..." : "ðŸ“· Submit Absen"}
           </button>
         </div>
       </div>
@@ -687,19 +703,19 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">â†</button>
           <h2 className="font-bold text-gray-800">Log Absensi</h2>
         </div>
 
         <div className="bg-white mx-5 mt-4 p-3 rounded-2xl shadow-sm flex items-center justify-between">
-          <button onClick={() => gantiBulanLog(-1)} className="px-3 py-2 text-[#e20074] font-bold">‹</button>
+          <button onClick={() => gantiBulanLog(-1)} className="px-3 py-2 text-[#e20074] font-bold">â€¹</button>
           <span className="font-bold text-gray-800 text-sm">{logData ? logData.month : "Memuat..."}</span>
-          <button onClick={() => gantiBulanLog(1)} className="px-3 py-2 text-[#e20074] font-bold">›</button>
+          <button onClick={() => gantiBulanLog(1)} className="px-3 py-2 text-[#e20074] font-bold">â€º</button>
         </div>
 
         <div className="text-center mt-3">
           <button onClick={() => setShowStats(!showStats)} className="text-[11px] font-bold text-[#e20074] uppercase">
-            {showStats ? "Sembunyikan Statistik ▲" : "Lihat Statistik ▼"}
+            {showStats ? "Sembunyikan Statistik â–²" : "Lihat Statistik â–¼"}
           </button>
         </div>
 
@@ -764,7 +780,7 @@ function getStatusBadgeClass(remarks) {
             <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-gray-800">{detailItem.fullDate}</h3>
-                <button onClick={() => setDetailItem(null)} className="text-gray-400 text-xl">✕</button>
+                <button onClick={() => setDetailItem(null)} className="text-gray-400 text-xl">âœ•</button>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-4 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">Shift</span><span className="font-bold">{detailItem.isOff ? "Day Off" : `${detailItem.shift} (${detailItem.shiftJam})`}</span></div>
@@ -801,7 +817,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => { resetReqAttForm(); setStep("home"); }} className="text-xl text-[#e20074]">←</button>
+          <button onClick={() => { resetReqAttForm(); setStep("home"); }} className="text-xl text-[#e20074]">â†</button>
           <h2 className="font-bold text-gray-800">Request Attendance</h2>
         </div>
         <div className="p-5 space-y-4">
@@ -859,7 +875,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => { resetReqShiftForm(); setStep("home"); }} className="text-xl text-[#e20074]">←</button>
+          <button onClick={() => { resetReqShiftForm(); setStep("home"); }} className="text-xl text-[#e20074]">â†</button>
           <h2 className="font-bold text-gray-800">Request Change Shift</h2>
         </div>
         <div className="p-5 space-y-4">
@@ -918,7 +934,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">â†</button>
           <h2 className="font-bold text-gray-800">My Requests</h2>
         </div>
         <div className="p-5 space-y-3">
@@ -963,7 +979,7 @@ if (step === "approval") {
     <div className="min-h-screen bg-[#f8fafc] pb-10">
       <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
         <div className="flex items-center gap-4 mb-4">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">â†</button>
           <h2 className="font-bold text-gray-800">Approval Dashboard</h2>
         </div>
         <div className="flex gap-2">
@@ -992,7 +1008,7 @@ if (step === "approval") {
               <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
                 {r.photoUrl
                   ? <img src={r.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
-                  : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
+                  : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">ðŸ‘¤</div>}
                 <div className="flex-1">
                   <p className="font-bold text-sm text-gray-800">{r.nama} <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">{jenis}</span></p>
                   <p className="text-[10px] text-gray-400">{r.nik}</p>
@@ -1002,7 +1018,7 @@ if (step === "approval") {
               <div onClick={() => setApprovalDetail(r)} className="cursor-pointer text-xs space-y-1 mb-3">
                 <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
                 {jenis === "Change Shift"
-                  ? <p><span className="text-gray-500">Shift:</span> {r.shiftAwal} → <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
+                  ? <p><span className="text-gray-500">Shift:</span> {r.shiftAwal} â†’ <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
                   : <p><span className="text-gray-500">Diajukan:</span> In ({r.jamIn}) | Out ({r.jamOut})</p>}
                 <p className="italic text-gray-600 mt-1">"{alasanTampil}"</p>
               </div>
@@ -1022,7 +1038,7 @@ if (step === "approval") {
           <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-800">{approvalDetail.nama} ({approvalDetail.nik})</h3>
-              <button onClick={() => setApprovalDetail(null)} className="text-gray-400 text-xl">✕</button>
+              <button onClick={() => setApprovalDetail(null)} className="text-gray-400 text-xl">âœ•</button>
             </div>
             <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 mb-4">
               <div className="flex justify-between"><span className="text-gray-500">Tgl Absen</span><strong>{approvalDetail.tglAbsen}</strong></div>
@@ -1053,7 +1069,7 @@ if (step === "team") {
     <div className="min-h-screen bg-[#f8fafc] pb-10">
       <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
         <div className="flex items-center gap-4 mb-4">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">â†</button>
           <h2 className="font-bold text-gray-800">Team Monitor</h2>
         </div>
         <div className="flex gap-2">
@@ -1072,11 +1088,11 @@ if (step === "team") {
           <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
         )}
         {!teamLoading && filteredTeam.map((t, i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+          <div key={i} onClick={() => openKasirDetail(t.nik)} className="cursor-pointer bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
               {t.photoUrl
                 ? <img src={t.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
-                : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
+                : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">ðŸ‘¤</div>}
               <div className="flex-1">
                 <p className="font-bold text-sm text-gray-800">{t.nama}</p>
                 <p className="text-[10px] text-gray-400">{t.nik}</p>
@@ -1223,3 +1239,4 @@ if (step === "team") {
     </div>
   );
 }
+
