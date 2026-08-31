@@ -625,13 +625,13 @@ function getStatusBadgeClass(remarks) {
   // STEP: MAP
   if (step === "map") {
     return (
-      <div className="min-h-screen relative bg-black">
-        <div className="absolute top-0 left-0 w-full z-20 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white p-5 flex items-center gap-4">
+      <div className="min-h-screen relative bg-black flex flex-col">
+        <div className="w-full z-20 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white p-5 flex items-center gap-4">
           <button onClick={batalkanAbsen} className="text-xl">←</button>
           <h2 className="font-bold">Step 1: Lokasi ({tipeAbsen})</h2>
         </div>
-        <div ref={mapRef} style={{ height: "100vh", width: "100%" }} />
-        <div className="fixed bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl z-20">
+        <div ref={mapRef} className="flex-1 w-full" />
+        <div className="w-full bg-white rounded-t-3xl p-6 shadow-2xl z-20">
           <div className={`p-3 rounded-xl text-center text-sm font-bold mb-4 ${
             gpsStatus.color === "green" ? "bg-green-100 text-green-700" :
             gpsStatus.color === "red" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
@@ -650,19 +650,19 @@ function getStatusBadgeClass(remarks) {
   // STEP: CAMERA
   if (step === "camera") {
     return (
-      <div className="min-h-screen bg-black relative">
-        <div className="absolute top-0 left-0 w-full z-20 bg-black/50 text-white p-5 flex items-center gap-4">
+      <div className="min-h-screen bg-black flex flex-col">
+        <div className="w-full z-20 bg-black/50 text-white p-5 flex items-center gap-4">
           <button onClick={kembaliKeMap} className="text-xl">←</button>
           <h2 className="font-bold">Step 2: Foto ({tipeAbsen})</h2>
         </div>
-        <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
+        <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden">
           <video ref={videoRef} autoPlay playsInline
             style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div style={{ width: 220, height: 320, border: "4px dashed rgba(255,255,255,0.9)", borderRadius: "50% 50% 40% 40%", boxShadow: "0 0 0 2000px rgba(0,0,0,0.6)" }} />
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 w-full p-8 flex justify-center bg-gradient-to-t from-black/80 to-transparent z-20">
+        <div className="w-full p-8 flex justify-center bg-gradient-to-t from-black/80 to-transparent z-20">
           <button onClick={captureAndSubmit} disabled={submitting}
             className="w-full py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">
             {submitting ? "Mengirim..." : "📷 Submit Absen"}
