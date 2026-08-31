@@ -1162,21 +1162,21 @@ if (step === "team") {
       <div className="px-6 grid grid-cols-4 gap-4">
         <button onClick={openLogView} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
           <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center shadow-sm">
-            <i className="fa-solid fa-clipboard-list text-xl"></i>
+            <i className="fa-solid fa-list-ul text-xl"></i>
           </div>
           <span className="text-[10px] font-bold text-gray-700 text-center">Log Absen</span>
         </button>
 
         <button onClick={openMyRequests} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
           <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
-            <i className="fa-solid fa-folder-open text-xl"></i>
+            <i className="fa-solid fa-file-invoice text-xl"></i>
           </div>
           <span className="text-[10px] font-bold text-gray-700 text-center">My Requests</span>
         </button>
 
         <button onClick={() => setStep("panduan")} className="flex flex-col items-center gap-2 active:scale-95 transition-transform">
           <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
-            <i className="fa-solid fa-book-open text-xl"></i>
+            <i className="fa-solid fa-book text-xl"></i>
           </div>
           <span className="text-[10px] font-bold text-gray-700 text-center">Buku Panduan</span>
         </button>
