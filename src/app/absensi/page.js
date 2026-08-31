@@ -660,6 +660,7 @@ if (step === "log") {
           </div>
         ))}
       </div>
+
  if (step === "req-att") {
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-10">
