@@ -628,7 +628,7 @@ function getStatusBadgeClass(remarks) {
       <div className="min-h-screen flex items-center justify-center bg-[#fffcfd] p-6">
         <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8">
           <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
-            <span className="text-white text-2xl">ðŸ•</span>
+            <i className="fa-solid fa-fingerprint text-white text-3xl"></i>
           </div>
           <h1 className="text-xl font-extrabold text-center text-gray-900 mb-1">Absensi PPKK DPM</h1>
           <p className="text-xs text-center text-gray-400 mb-8">Silakan login dengan NIK & Password</p>
