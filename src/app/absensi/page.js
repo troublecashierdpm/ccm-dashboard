@@ -8,7 +8,7 @@ const ALLOWED_LOCATIONS = [
   { lat: -6.984346, lon: 110.413325 },
   { lat: -6.984115008522686, lon: 110.4136480045519 },
   { lat: -6.982823, lon: 110.411941 },
-  // ΓÜá∩╕Å SEMENTARA UNTUK TESTING - Kost Kinibalu, Tembalang. HAPUS baris ini sebelum go-live!
+  // ⚠️ SEMENTARA UNTUK TESTING - Kost Kinibalu, Tembalang. HAPUS baris ini sebelum go-live!
   { lat: -7.0128072, lon: 110.4455698 }
 ];
 
@@ -153,7 +153,7 @@ function statusBadgeClass(status) {
 }
   
 // ============================================================
-// 2) FUNGSI-FUNGSI REQUEST ΓÇö SISIPKAN sebelum "return" utama komponen:
+// 2) FUNGSI-FUNGSI REQUEST — SISIPKAN sebelum "return" utama komponen:
  
 async function fetchRequestData(tgl) {
   if (!tgl) return;
@@ -198,7 +198,7 @@ async function submitReqAttendance() {
     const json = await res.json();
     setReqSubmitting(false);
     if (json.success) {
-      alert("Γ£à Pengajuan Attendance berhasil dikirim!");
+      alert("✅ Pengajuan Attendance berhasil dikirim!");
       resetReqAttForm();
       setStep("home");
     } else alert("Gagal kirim: " + json.message);
@@ -227,7 +227,7 @@ async function submitReqShift() {
     const json = await res.json();
     setReqSubmitting(false);
     if (json.success) {
-      alert("Γ£à Pengajuan Change Shift berhasil dikirim!");
+      alert("✅ Pengajuan Change Shift berhasil dikirim!");
       resetReqShiftForm();
       setStep("home");
     } else alert("Gagal kirim: " + json.message);
@@ -275,7 +275,7 @@ function generateShiftOptions() {
 }
 
   // ============================================================
-// 2) FUNGSI FETCH LOG ΓÇö SISIPKAN di mana saja sebelum "return" utama komponen:
+// 2) FUNGSI FETCH LOG — SISIPKAN di mana saja sebelum "return" utama komponen:
  
 async function fetchLog(monthDate) {
   setLogLoading(true);
@@ -358,11 +358,11 @@ function getStatusBadgeClass(remarks) {
   // ============ STEP 1: PETA / GPS ============
   function startAttendanceFlow(tipe) {
     if (tipe === "Clock In" && user.actualIn !== "-" && user.actualIn !== "") {
-      alert("≡ƒÜ¿ GAGAL PENCET:\n\nAnda SUDAH melakukan Clock In pada jam " + user.actualIn);
+      alert("🚨 GAGAL PENCET:\n\nAnda SUDAH melakukan Clock In pada jam " + user.actualIn);
       return;
     }
     if (tipe === "Clock Out" && user.actualOut !== "-" && user.actualOut !== "") {
-      alert("≡ƒÜ¿ GAGAL PENCET:\n\nAnda SUDAH melakukan Clock Out pada jam " + user.actualOut);
+      alert("🚨 GAGAL PENCET:\n\nAnda SUDAH melakukan Clock Out pada jam " + user.actualOut);
       return;
     }
     setTipeAbsen(tipe);
@@ -524,7 +524,7 @@ function getStatusBadgeClass(remarks) {
       ctx.fillStyle = "rgba(255,255,255,0.82)";
       ctx.fillText(dateStr, padX, startY + fsTime + lineGap);
 
-      const label = tipeAbsen ? `${tipeAbsen}  ┬╖  ${user.nama}` : user.nama;
+      const label = tipeAbsen ? `${tipeAbsen}  ·  ${user.nama}` : user.nama;
       ctx.font = `bold ${fsName}px Arial, sans-serif`;
       ctx.fillStyle = "#fce7f3";
       ctx.textAlign = "right";
@@ -580,7 +580,7 @@ function getStatusBadgeClass(remarks) {
           actualIn: json.tipe === "Clock In" ? json.waktu : prev.actualIn,
           actualOut: json.tipe === "Clock Out" ? json.waktu : prev.actualOut
         }));
-        setToast(`Γ£à ${json.tipe} Berhasil pada ${json.waktu}`);
+        setToast(`✅ ${json.tipe} Berhasil pada ${json.waktu}`);
         setTimeout(() => setToast(""), 4000);
       } else {
         alert("Gagal Absen: " + json.message);
@@ -598,7 +598,7 @@ function getStatusBadgeClass(remarks) {
       <div className="min-h-screen flex items-center justify-center bg-[#fffcfd] p-6">
         <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8">
           <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
-            <span className="text-white text-2xl">≡ƒòÉ</span>
+            <span className="text-white text-2xl">🕐</span>
           </div>
           <h1 className="text-xl font-extrabold text-center text-gray-900 mb-1">Absensi PPKK DPM</h1>
           <p className="text-xs text-center text-gray-400 mb-8">Silakan login dengan NIK & Password</p>
@@ -623,7 +623,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen relative bg-black">
         <div className="absolute top-0 left-0 w-full z-20 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white p-5 flex items-center gap-4">
-          <button onClick={batalkanAbsen} className="text-xl">ΓåÉ</button>
+          <button onClick={batalkanAbsen} className="text-xl">←</button>
           <h2 className="font-bold">Step 1: Lokasi ({tipeAbsen})</h2>
         </div>
         <div ref={mapRef} style={{ height: "100vh", width: "100%" }} />
@@ -636,7 +636,7 @@ function getStatusBadgeClass(remarks) {
           </div>
           <button onClick={goToCamera} disabled={!gpsStatus.ok}
             className={`w-full py-4 rounded-2xl font-bold text-white ${gpsStatus.ok ? "bg-[#e20074]" : "bg-gray-300"}`}>
-            Lanjut Ambil Foto ΓåÆ
+            Lanjut Ambil Foto →
           </button>
         </div>
       </div>
@@ -648,7 +648,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-black relative">
         <div className="absolute top-0 left-0 w-full z-20 bg-black/50 text-white p-5 flex items-center gap-4">
-          <button onClick={kembaliKeMap} className="text-xl">ΓåÉ</button>
+          <button onClick={kembaliKeMap} className="text-xl">←</button>
           <h2 className="font-bold">Step 2: Foto ({tipeAbsen})</h2>
         </div>
         <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
@@ -661,7 +661,7 @@ function getStatusBadgeClass(remarks) {
         <div className="fixed bottom-0 left-0 w-full p-8 flex justify-center bg-gradient-to-t from-black/80 to-transparent z-20">
           <button onClick={captureAndSubmit} disabled={submitting}
             className="w-full py-4 bg-blue-500 text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">
-            {submitting ? "Mengirim..." : "≡ƒô╖ Submit Absen"}
+            {submitting ? "Mengirim..." : "📷 Submit Absen"}
           </button>
         </div>
       </div>
@@ -673,19 +673,19 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">ΓåÉ</button>
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
           <h2 className="font-bold text-gray-800">Log Absensi</h2>
         </div>
 
         <div className="bg-white mx-5 mt-4 p-3 rounded-2xl shadow-sm flex items-center justify-between">
-          <button onClick={() => gantiBulanLog(-1)} className="px-3 py-2 text-[#e20074] font-bold">ΓÇ╣</button>
+          <button onClick={() => gantiBulanLog(-1)} className="px-3 py-2 text-[#e20074] font-bold">‹</button>
           <span className="font-bold text-gray-800 text-sm">{logData ? logData.month : "Memuat..."}</span>
-          <button onClick={() => gantiBulanLog(1)} className="px-3 py-2 text-[#e20074] font-bold">ΓÇ║</button>
+          <button onClick={() => gantiBulanLog(1)} className="px-3 py-2 text-[#e20074] font-bold">›</button>
         </div>
 
         <div className="text-center mt-3">
           <button onClick={() => setShowStats(!showStats)} className="text-[11px] font-bold text-[#e20074] uppercase">
-            {showStats ? "Sembunyikan Statistik Γû▓" : "Lihat Statistik Γû╝"}
+            {showStats ? "Sembunyikan Statistik ▲" : "Lihat Statistik ▼"}
           </button>
         </div>
 
@@ -750,7 +750,7 @@ function getStatusBadgeClass(remarks) {
             <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-gray-800">{detailItem.fullDate}</h3>
-                <button onClick={() => setDetailItem(null)} className="text-gray-400 text-xl">Γ£ò</button>
+                <button onClick={() => setDetailItem(null)} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-4 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">Shift</span><span className="font-bold">{detailItem.isOff ? "Day Off" : `${detailItem.shift} (${detailItem.shiftJam})`}</span></div>
@@ -787,7 +787,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => { resetReqAttForm(); setStep("home"); }} className="text-xl text-[#e20074]">ΓåÉ</button>
+          <button onClick={() => { resetReqAttForm(); setStep("home"); }} className="text-xl text-[#e20074]">←</button>
           <h2 className="font-bold text-gray-800">Request Attendance</h2>
         </div>
         <div className="p-5 space-y-4">
@@ -845,7 +845,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => { resetReqShiftForm(); setStep("home"); }} className="text-xl text-[#e20074]">ΓåÉ</button>
+          <button onClick={() => { resetReqShiftForm(); setStep("home"); }} className="text-xl text-[#e20074]">←</button>
           <h2 className="font-bold text-gray-800">Request Change Shift</h2>
         </div>
         <div className="p-5 space-y-4">
@@ -904,7 +904,7 @@ function getStatusBadgeClass(remarks) {
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">ΓåÉ</button>
+          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
           <h2 className="font-bold text-gray-800">My Requests</h2>
         </div>
         <div className="p-5 space-y-3">
@@ -943,142 +943,146 @@ function getStatusBadgeClass(remarks) {
       </div>
     );
   }
-if (step === "approval") {
-  const filtered = getFilteredApproval();
-  return (
-    <div className="min-h-screen bg-[#f8fafc] pb-10">
-      <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
-        <div className="flex items-center gap-4 mb-4">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">ΓåÉ</button>
-          <h2 className="font-bold text-gray-800">Approval Dashboard</h2>
+
+  // STEP: APPROVAL DASHBOARD
+  if (step === "approval") {
+    const filtered = getFilteredApproval();
+    return (
+      <div className="min-h-screen bg-[#f8fafc] pb-10">
+        <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+            <h2 className="font-bold text-gray-800">Approval Dashboard</h2>
+          </div>
+          <div className="flex gap-2">
+            <select value={approvalFilter} onChange={(e) => setApprovalFilter(e.target.value)}
+              className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+              <option value="All">Semua Jenis</option>
+              <option value="Attendance">Req Attendance</option>
+              <option value="Change Shift">Req Change Shift</option>
+            </select>
+            <input type="text" placeholder="Cari nama/NIK..." value={approvalSearch}
+              onChange={(e) => setApprovalSearch(e.target.value)}
+              className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
+          </div>
         </div>
-        <div className="flex gap-2">
-          <select value={approvalFilter} onChange={(e) => setApprovalFilter(e.target.value)}
-            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
-            <option value="All">Semua Jenis</option>
-            <option value="Attendance">Req Attendance</option>
-            <option value="Change Shift">Req Change Shift</option>
-          </select>
-          <input type="text" placeholder="Cari nama/NIK..." value={approvalSearch}
-            onChange={(e) => setApprovalSearch(e.target.value)}
-            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
+
+        <div className="p-5 space-y-3">
+          {approvalLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+          {!approvalLoading && filtered.length === 0 && (
+            <div className="text-center text-gray-400 text-sm py-10">Tidak ada request pending.</div>
+          )}
+          {!approvalLoading && filtered.map((r, i) => {
+            const jenis = r.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
+            const alasanTampil = r.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim();
+            return (
+              <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+                <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
+                  {r.photoUrl
+                    ? <img src={r.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
+                    : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-gray-800">{r.nama} <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">{jenis}</span></p>
+                    <p className="text-[10px] text-gray-400">{r.nik}</p>
+                  </div>
+                  <span className="text-[10px] text-gray-400">{r.submitTgl.split(" ")[0]}</span>
+                </div>
+                <div onClick={() => setApprovalDetail(r)} className="cursor-pointer text-xs space-y-1 mb-3">
+                  <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
+                  {jenis === "Change Shift"
+                    ? <p><span className="text-gray-500">Shift:</span> {r.shiftAwal} → <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
+                    : <p><span className="text-gray-500">Diajukan:</span> In ({r.jamIn}) | Out ({r.jamOut})</p>}
+                  <p className="italic text-gray-600 mt-1">"{alasanTampil}"</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => eksekusiApproval(r.reqId, "Rejected")}
+                    className="flex-1 py-2.5 bg-gray-100 text-red-500 font-bold rounded-xl text-xs">Tolak</button>
+                  <button onClick={() => eksekusiApproval(r.reqId, "Approved")}
+                    className="flex-1 py-2.5 bg-green-500 text-white font-bold rounded-xl text-xs">Setujui</button>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
- 
-      <div className="p-5 space-y-3">
-        {approvalLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
-        {!approvalLoading && filtered.length === 0 && (
-          <div className="text-center text-gray-400 text-sm py-10">Tidak ada request pending.</div>
+
+        {approvalDetail && (
+          <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setApprovalDetail(null)}>
+            <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-800">{approvalDetail.nama} ({approvalDetail.nik})</h3>
+                <button onClick={() => setApprovalDetail(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 mb-4">
+                <div className="flex justify-between"><span className="text-gray-500">Tgl Absen</span><strong>{approvalDetail.tglAbsen}</strong></div>
+                <div className="flex justify-between"><span className="text-gray-500">Shift Awal</span><strong>{approvalDetail.shiftAwal}</strong></div>
+                <div className="flex justify-between"><span className="text-gray-500">Aktual Tersimpan</span><strong>In ({approvalDetail.actualIn}) | Out ({approvalDetail.actualOut})</strong></div>
+                <div className="flex justify-between"><span className="text-gray-500">Alasan</span><span className="italic text-right max-w-[60%]">{approvalDetail.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim()}</span></div>
+              </div>
+              {approvalDetail.lampiranUrl && (
+                <img src={approvalDetail.lampiranUrl} className="w-full rounded-xl mb-4 bg-gray-100 max-h-60 object-cover" />
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Rejected")}
+                  className="flex-1 py-3 bg-gray-100 text-red-500 font-bold rounded-xl">Tolak</button>
+                <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Approved")}
+                  className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl">Setujui</button>
+              </div>
+            </div>
+          </div>
         )}
-        {!approvalLoading && filtered.map((r, i) => {
-          const jenis = r.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
-          const alasanTampil = r.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim();
-          return (
+      </div>
+    );
+  }
+
+  // STEP: TEAM MONITOR
+  if (step === "team") {
+    const filteredTeam = getFilteredTeam();
+    const statusOptions = ["All", "Normal", "Late", "Absent", "No Clock In", "Early", "Day Off", "Extra/Lembur"];
+    return (
+      <div className="min-h-screen bg-[#f8fafc] pb-10">
+        <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+            <h2 className="font-bold text-gray-800">Team Monitor</h2>
+          </div>
+          <div className="flex gap-2">
+            <input type="date" value={teamDate} onChange={(e) => openTeamMonitor(e.target.value)}
+              className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
+            <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
+              className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+              {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-3">
+          {teamLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+          {!teamLoading && filteredTeam.length === 0 && (
+            <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
+          )}
+          {!teamLoading && filteredTeam.map((t, i) => (
             <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
-                {r.photoUrl
-                  ? <img src={r.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
-                  : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">≡ƒæñ</div>}
+                {t.photoUrl
+                  ? <img src={t.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
+                  : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
                 <div className="flex-1">
-                  <p className="font-bold text-sm text-gray-800">{r.nama} <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">{jenis}</span></p>
-                  <p className="text-[10px] text-gray-400">{r.nik}</p>
+                  <p className="font-bold text-sm text-gray-800">{t.nama}</p>
+                  <p className="text-[10px] text-gray-400">{t.nik}</p>
                 </div>
-                <span className="text-[10px] text-gray-400">{r.submitTgl.split(" ")[0]}</span>
+                <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase ${statusBadgeClass(t.status)}`}>{t.status}</span>
               </div>
-              <div onClick={() => setApprovalDetail(r)} className="cursor-pointer text-xs space-y-1 mb-3">
-                <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
-                {jenis === "Change Shift"
-                  ? <p><span className="text-gray-500">Shift:</span> {r.shiftAwal} ΓåÆ <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
-                  : <p><span className="text-gray-500">Diajukan:</span> In ({r.jamIn}) | Out ({r.jamOut})</p>}
-                <p className="italic text-gray-600 mt-1">"{alasanTampil}"</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => eksekusiApproval(r.reqId, "Rejected")}
-                  className="flex-1 py-2.5 bg-gray-100 text-red-500 font-bold rounded-xl text-xs">Tolak</button>
-                <button onClick={() => eksekusiApproval(r.reqId, "Approved")}
-                  className="flex-1 py-2.5 bg-green-500 text-white font-bold rounded-xl text-xs">Setujui</button>
+              <div className="flex justify-between items-center text-xs">
+                <span className="bg-pink-50 text-[#e20074] font-bold px-2 py-1 rounded-md">{t.shift} ({t.jam})</span>
+                <span className="text-gray-500">In: <strong className="text-gray-800">{t.in}</strong> | Out: <strong className="text-gray-800">{t.out}</strong></span>
               </div>
             </div>
-          );
-        })}
-      </div>
- 
-      {approvalDetail && (
-        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setApprovalDetail(null)}>
-          <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-800">{approvalDetail.nama} ({approvalDetail.nik})</h3>
-              <button onClick={() => setApprovalDetail(null)} className="text-gray-400 text-xl">Γ£ò</button>
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 mb-4">
-              <div className="flex justify-between"><span className="text-gray-500">Tgl Absen</span><strong>{approvalDetail.tglAbsen}</strong></div>
-              <div className="flex justify-between"><span className="text-gray-500">Shift Awal</span><strong>{approvalDetail.shiftAwal}</strong></div>
-              <div className="flex justify-between"><span className="text-gray-500">Aktual Tersimpan</span><strong>In ({approvalDetail.actualIn}) | Out ({approvalDetail.actualOut})</strong></div>
-              <div className="flex justify-between"><span className="text-gray-500">Alasan</span><span className="italic text-right max-w-[60%]">{approvalDetail.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim()}</span></div>
-            </div>
-            {approvalDetail.lampiranUrl && (
-              <img src={approvalDetail.lampiranUrl} className="w-full rounded-xl mb-4 bg-gray-100 max-h-60 object-cover" />
-            )}
-            <div className="flex gap-2">
-              <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Rejected")}
-                className="flex-1 py-3 bg-gray-100 text-red-500 font-bold rounded-xl">Tolak</button>
-              <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Approved")}
-                className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl">Setujui</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
- 
-if (step === "team") {
-  const filteredTeam = getFilteredTeam();
-  const statusOptions = ["All", "Normal", "Late", "Absent", "No Clock In", "Early", "Day Off", "Extra/Lembur"];
-  return (
-    <div className="min-h-screen bg-[#f8fafc] pb-10">
-      <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
-        <div className="flex items-center gap-4 mb-4">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">ΓåÉ</button>
-          <h2 className="font-bold text-gray-800">Team Monitor</h2>
-        </div>
-        <div className="flex gap-2">
-          <input type="date" value={teamDate} onChange={(e) => openTeamMonitor(e.target.value)}
-            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
-          <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
-            className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
-            {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
-          </select>
+          ))}
         </div>
       </div>
- 
-      <div className="p-5 space-y-3">
-        {teamLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
-        {!teamLoading && filteredTeam.length === 0 && (
-          <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
-        )}
-        {!teamLoading && filteredTeam.map((t, i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
-              {t.photoUrl
-                ? <img src={t.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
-                : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">≡ƒæñ</div>}
-              <div className="flex-1">
-                <p className="font-bold text-sm text-gray-800">{t.nama}</p>
-                <p className="text-[10px] text-gray-400">{t.nik}</p>
-              </div>
-              <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase ${statusBadgeClass(t.status)}`}>{t.status}</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="bg-pink-50 text-[#e20074] font-bold px-2 py-1 rounded-md">{t.shift} ({t.jam})</span>
-              <span className="text-gray-500">In: <strong className="text-gray-800">{t.in}</strong> | Out: <strong className="text-gray-800">{t.out}</strong></span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+    );
+  }
+
   // STEP: HOME
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -1104,11 +1108,11 @@ if (step === "team") {
           <div className="flex gap-3">
             <button onClick={() => startAttendanceFlow("Clock In")}
               className="flex-1 py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg shadow-pink-200">
-              ≡ƒô╖ Clock In
+              📷 Clock In
             </button>
             <button onClick={() => startAttendanceFlow("Clock Out")}
               className="flex-1 py-4 bg-white border border-gray-200 text-gray-800 font-bold rounded-2xl shadow-sm">
-              ≡ƒô╖ Clock Out
+              📷 Clock Out
             </button>
           </div>
         )}
@@ -1124,34 +1128,34 @@ if (step === "team") {
 
         <button onClick={openLogView}
           className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
-          ≡ƒôï Log Absensi Saya
+          📋 Log Absensi Saya
         </button>
 
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => setStep("req-att")}
             className="py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-xs">
-            ≡ƒòÉ Request Attendance
+            🕐 Request Attendance
           </button>
           <button onClick={() => setStep("req-shift")}
             className="py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-xs">
-            ≡ƒôà Change Shift
+            📅 Change Shift
           </button>
         </div>
 
         <button onClick={openMyRequests}
           className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
-          ≡ƒôé My Requests
+          📂 My Requests
         </button>
- 
+
         {user.isHeadDept && (
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button onClick={openApproval}
               className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
-              Γ£à Approvals
+              ✅ Approvals
             </button>
             <button onClick={() => openTeamMonitor()}
               className="py-4 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm font-bold text-blue-700 text-xs">
-              ≡ƒæÑ Team Monitor
+              👥 Team Monitor
             </button>
           </div>
         )}
