@@ -3,6 +3,21 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Chart from "chart.js/auto";
 
+// ==================================================================
+// NORMALISASI NAMA: kunci pembanding SELALU uppercase & rapat spasi,
+// supaya "HUSNITA FEBIANA" dan "Husnita Febiana" dikenali sebagai
+// orang yang sama, dan perubahan ID Swipe (mis. Ahmad Irfandi:
+// 8001593 -> 8002017) tidak lagi memecah data orang yang sama
+// menjadi 2 baris/nama terpisah saat dibandingkan Sales Member vs
+// Sales Hourly.
+// ==================================================================
+function normName(s) {
+  return String(s || "").trim().toUpperCase().replace(/\s+/g, " ");
+}
+function toTitleCase(s) {
+  return String(s || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function SupervisorDashboard() {
   const [activePanel, setActivePanel] = useState("dir"); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,6 +41,9 @@ export default function SupervisorDashboard() {
   const [showM, setShowM] = useState(true);
   const [showS, setShowS] = useState(true);
 
+  // SORT UNTUK HEADER TABEL PANEL GLOBAL (klik header total = ascending/descending)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "desc" });
+
   // FILTER KHUSUS DIREKTORI STAFF
   const [dirSearch, setDirSearch] = useState("");
   const [dirStatus, setDirStatus] = useState("");
@@ -48,6 +66,11 @@ export default function SupervisorDashboard() {
       renderIndividualChart();
     }
   }, [selectedKaryawan, empMenu]);
+
+  // Reset sort setiap kali pindah panel, supaya sort dari panel lain tidak terbawa
+  useEffect(() => {
+    setSortConfig({ key: null, direction: "desc" });
+  }, [activePanel]);
 
   // LOGIKA BARU: TARIK SEMUA DATA TANPA BATAS 1000 BARIS (PAGINATION LOOP)
   const fetchAllData = async (table, orderByCol = null) => {
@@ -120,7 +143,8 @@ setRawSalesHourly(shData || []);
     setEmpMenu("shortage");
 
     const nama = karyawan.nama;
-    const mData = rawMember.filter(r => r.nama === nama);
+    const namaKey = normName(nama);
+    const mData = rawMember.filter(r => normName(r.nama) === namaKey);
     let tMem = 0; let mGroups = {};
     mData.forEach(r => {
       tMem += parseInt(r.qty) || 0;
@@ -129,8 +153,8 @@ setRawSalesHourly(shData || []);
       mGroups[r.bulan].details.push({ tgl: r.tanggal, qty: r.qty });
     });
 
-    const sPagi = rawShortage.filter(r => r.nama === nama);
-    const sSiang = rawShortage.filter(r => r.nama_1 === nama);
+    const sPagi = rawShortage.filter(r => normName(r.nama) === namaKey);
+    const sSiang = rawShortage.filter(r => normName(r.nama_1) === namaKey);
     let tShort = 0; let sGroups = {};
     const processS = (arr, isPagi) => {
       arr.forEach(r => {
@@ -145,14 +169,14 @@ setRawSalesHourly(shData || []);
     };
     processS(sPagi, true); processS(sSiang, false);
 
-    const eData = rawEcobag.filter(r => r.staff_name === nama);
+    const eData = rawEcobag.filter(r => normName(r.staff_name) === namaKey);
     let tEco = 0; let eList = [];
     eData.forEach(r => {
       tEco += parseInt(r.total) || 0;
       eList.push({ bulan: r.year_month || r.month, la: r.bag_la, me: r.bag_me, sm: r.bag_sm, totalPerBulan: r.total });
     });
 
-    const sakData = rawSakit.filter(r => r.nama === nama);
+    const sakData = rawSakit.filter(r => normName(r.nama) === namaKey);
     let tSak = sakData.length; let sakGroups = {};
     sakData.forEach(r => {
       if (!sakGroups[r.bulan]) sakGroups[r.bulan] = { bulan: r.bulan, totalPerBulan: 0, details: [] };
@@ -160,7 +184,7 @@ setRawSalesHourly(shData || []);
       sakGroups[r.bulan].details.push({ tglTidakMasuk: r.tgl_tidak_masuk, tglMulaiMasuk: r.tgl_mulai_masuk, keterangan: r.keterangan, diagnosa: r.reason_diagnosa, klinik: r.alamat_klinik });
     });
 
-    const spData = rawSpBa.filter(r => r.nama === nama);
+    const spData = rawSpBa.filter(r => normName(r.nama) === namaKey);
     let tSp = spData.length; let spGroups = {};
     spData.forEach(r => {
       if (!spGroups[r.bulan]) spGroups[r.bulan] = { bulan: r.bulan, totalPerBulan: 0, details: [] };
@@ -168,8 +192,8 @@ setRawSalesHourly(shData || []);
       spGroups[r.bulan].details.push({ tanggal: r.tanggal, jenis: r.jenis_pelanggaran, remarks: r.remarks, surat: r.surat_pernyataan, under: r.pic_under });
     });
 
-    const smDataEmp = rawSalesMember.filter(r => r.nama === nama);
-const shDataEmp = rawSalesHourly.filter(r => r.nama === nama);
+    const smDataEmp = rawSalesMember.filter(r => normName(r.nama) === namaKey);
+const shDataEmp = rawSalesHourly.filter(r => normName(r.nama) === namaKey);
 let memberMapEmp = {};
 smDataEmp.forEach(r => {
   const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
@@ -244,6 +268,18 @@ setEmpHistory({
   };
 
   // -------------------------------------------------------------
+  // PETA NAMA RESMI: ejaan yang ditampilkan SELALU diambil dari
+  // Direktori Staff (tabel nik) sebagai sumber kebenaran, supaya
+  // "HUSNITA FEBIANA" dan "Husnita Febiana" tampil seragam di semua
+  // panel walau data mentah di sheet lain beda kapitalisasi/spasi.
+  // -------------------------------------------------------------
+  const namaCanonicalMap = {};
+  allKaryawan.forEach(k => {
+    if (k.nama) namaCanonicalMap[normName(k.nama)] = k.nama;
+  });
+  const resolveNama = (raw) => namaCanonicalMap[normName(raw)] || toTitleCase(raw);
+
+  // -------------------------------------------------------------
   // LOGIKA DIREKTORI STAFF: PENGELOMPOKAN & FILTER
   // -------------------------------------------------------------
   const uniqueUnders = [...new Set(allKaryawan.map(k => k.under || "OTHERS"))].sort();
@@ -266,10 +302,11 @@ setEmpHistory({
       const map = {};
       rawShortage.forEach(r => {
         if (filterBulan && r.periode !== filterBulan) return;
-        const namaKasir = r.nama || r.nama_1 || "Unknown";
+        const namaKasirRaw = r.nama || r.nama_1 || "Unknown";
+        const namaKasir = resolveNama(namaKasirRaw);
         if (searchNama && !namaKasir.toLowerCase().includes(searchNama.toLowerCase())) return;
         
-        const key = namaKasir + "||" + r.periode;
+        const key = normName(namaKasirRaw) + "||" + r.periode;
         if (!map[key]) map[key] = { nama: namaKasir, periode: r.periode, totalShort: 0, totalOver: 0, frekuensi: 0, details: [] };
         
         const nomPagi = parseInt(r.short_over_shift_pagi) || 0;
@@ -286,32 +323,37 @@ setEmpHistory({
       return Object.values(map).sort((a,b) => b.periode.localeCompare(a.periode));
     }
     
-    if (activePanel === "ecobag") return rawEcobag.filter(r => (!filterBulan || r.year_month === filterBulan || r.month === filterBulan) && (!searchNama || (r.staff_name && r.staff_name.toLowerCase().includes(searchNama.toLowerCase()))) && ((showL && r.bag_la > 0) || (showM && r.bag_me > 0) || (showS && r.bag_sm > 0) || (!showL && !showM && !showS)) );
+    if (activePanel === "ecobag") return rawEcobag.filter(r => (!filterBulan || r.year_month === filterBulan || r.month === filterBulan) && (!searchNama || resolveNama(r.staff_name).toLowerCase().includes(searchNama.toLowerCase())) && ((showL && r.bag_la > 0) || (showM && r.bag_me > 0) || (showS && r.bag_sm > 0) || (!showL && !showM && !showS)) );
     
-    if (activePanel === "member") { const map = {}; rawMember.forEach(r => { if (!r.nama) return; if (filterBulan && r.bulan !== filterBulan) return; if (searchNama && !r.nama.toLowerCase().includes(searchNama.toLowerCase())) return; const key = r.nama + "||" + r.bulan; if (!map[key]) map[key] = { nama: r.nama, bulan: r.bulan, total: 0 }; map[key].total += parseInt(r.qty) || 0; }); return Object.values(map).sort((a,b)=>(b.bulan||'').localeCompare(a.bulan||'')); }
+    if (activePanel === "member") { const map = {}; rawMember.forEach(r => { if (!r.nama) return; if (filterBulan && r.bulan !== filterBulan) return; const namaResolved = resolveNama(r.nama); if (searchNama && !namaResolved.toLowerCase().includes(searchNama.toLowerCase())) return; const key = normName(r.nama) + "||" + r.bulan; if (!map[key]) map[key] = { nama: namaResolved, bulan: r.bulan, total: 0 }; map[key].total += parseInt(r.qty) || 0; }); return Object.values(map).sort((a,b)=>(b.bulan||'').localeCompare(a.bulan||'')); }
     
-    if (activePanel === "sakit") return rawSakit.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.keterangan === filterTipe) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())) );
+    if (activePanel === "sakit") return rawSakit.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.keterangan === filterTipe) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())) );
     
-    if (activePanel === "sp") return rawSpBa.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.surat_pernyataan === filterTipe) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())) );
+    if (activePanel === "sp") return rawSpBa.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.surat_pernyataan === filterTipe) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())) );
     
     if (activePanel === "sales") {
-  const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())));
-  const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || (r.nama || '').toLowerCase().includes(searchNama.toLowerCase())));
+  const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
+  const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
  
+  // PENTING: kunci digabung berdasarkan NAMA YANG DINORMALISASI
+  // (uppercase + trim), bukan teks nama mentah dan bukan ID Swipe.
+  // Ini mencegah orang yang sama pecah jadi 2 baris ketika ID Swipe-nya
+  // berubah (mis. Ahmad Irfandi: 8001593 -> 8002017) atau ketika ejaan
+  // nama di sheet berbeda kapitalisasi (HUSNITA FEBIANA vs Husnita Febiana).
   let memberMap = {};
   mFiltered.forEach(r => {
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
-    const key = r.nama + '|' + tgl;
-    if (!memberMap[key]) memberMap[key] = { sales: 0, periode: r.periode || '' };
+    const key = normName(r.nama) + '|' + tgl;
+    if (!memberMap[key]) memberMap[key] = { sales: 0, periode: r.periode || '', namaRaw: r.nama };
     memberMap[key].sales += parseFloat(r.total_sales) || 0;
   });
   let hourlyMap = {};
   hFiltered.forEach(r => {
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'MDY'); if (!tgl) return;
-    const key = r.nama + '|' + tgl;
-    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, periode: r.periode || '' };
+    const key = normName(r.nama) + '|' + tgl;
+    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, periode: r.periode || '', namaRaw: r.nama };
     hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
     hourlyMap[key].count += parseInt(r.count_transaksi) || 0;
   });
@@ -319,13 +361,14 @@ setEmpHistory({
   const allKeys = new Set([...Object.keys(memberMap), ...Object.keys(hourlyMap)]);
   let groups = {};
   allKeys.forEach(key => {
-    const nama = key.split('|')[0];
-    const tgl = key.slice(nama.length + 1);
-    const m = memberMap[key] || { sales: 0, periode: '' };
-    const h = hourlyMap[key] || { sales: 0, count: 0, periode: '' };
+    const namaKeyPart = key.slice(0, key.lastIndexOf('|'));
+    const tgl = key.slice(namaKeyPart.length + 1);
+    const m = memberMap[key] || { sales: 0, periode: '', namaRaw: '' };
+    const h = hourlyMap[key] || { sales: 0, count: 0, periode: '', namaRaw: '' };
     const periode = m.periode || h.periode || 'Unknown';
-    const gKey = nama + '||' + periode;
-    if (!groups[gKey]) groups[gKey] = { nama, periode, totalMemberSales: 0, totalHourlySales: 0, details: [] };
+    const namaResolved = resolveNama(m.namaRaw || h.namaRaw);
+    const gKey = namaKeyPart + '||' + periode;
+    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, totalHourlySales: 0, details: [] };
     groups[gKey].totalMemberSales += m.sales;
     groups[gKey].totalHourlySales += h.sales;
     groups[gKey].details.push({ tanggal: tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count });
@@ -343,6 +386,34 @@ setEmpHistory({
   };
   
   const filteredData = getFilteredGlobalData();
+
+  // -------------------------------------------------------------
+  // SORT ASCENDING/DESCENDING: klik header kolom total untuk urutkan
+  // -------------------------------------------------------------
+  const handleSort = (key) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "desc" };
+    });
+  };
+
+  const sortIndicator = (key) => {
+    if (sortConfig.key !== key) return "";
+    return sortConfig.direction === "asc" ? " ▲" : " ▼";
+  };
+
+  const sortedData = (() => {
+    if (!sortConfig.key) return filteredData;
+    const arr = [...filteredData];
+    arr.sort((a, b) => {
+      const va = parseFloat(a[sortConfig.key]) || 0;
+      const vb = parseFloat(b[sortConfig.key]) || 0;
+      return sortConfig.direction === "asc" ? va - vb : vb - va;
+    });
+    return arr;
+  })();
 
   // -------------------------------------------------------------
   // DAFTAR PERIODE UNIK PER PANEL (UNTUK DROPDOWN FILTER PERIODE)
@@ -528,17 +599,17 @@ setEmpHistory({
                   <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                     <table className="w-full text-left text-xs min-w-[500px]">
                       <thead className="bg-white/80 text-[#e20074] font-black border-b sticky top-0 uppercase tracking-wider text-[9px] z-10 backdrop-blur-md">
-                        {activePanel === "shortage" && (<tr><th className="p-4">Periode</th><th className="p-4">Nama Kasir</th><th className="p-4 text-center">Frekuensi</th><th className="p-4 text-right">Total Short</th><th className="p-4 text-right">Total Over</th></tr>)}
-                        {activePanel === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4">Nama Kasir</th><th className="p-4 text-right">Large</th><th className="p-4 text-right">Medium</th><th className="p-4 text-right">Small</th><th className="p-4 text-right font-black">Total</th></tr>)}
-                        {activePanel === "member" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Bulan</th><th className="p-4 text-right font-black">Total Member</th></tr>)}
+                        {activePanel === "shortage" && (<tr><th className="p-4">Periode</th><th className="p-4">Nama Kasir</th><th className="p-4 text-center">Frekuensi</th><th className="p-4 text-right cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('totalShort')}>Total Short{sortIndicator('totalShort')}</th><th className="p-4 text-right cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('totalOver')}>Total Over{sortIndicator('totalOver')}</th></tr>)}
+                        {activePanel === "ecobag" && (<tr><th className="p-4">Bulan</th><th className="p-4">Nama Kasir</th><th className="p-4 text-right">Large</th><th className="p-4 text-right">Medium</th><th className="p-4 text-right">Small</th><th className="p-4 text-right font-black cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('total')}>Total{sortIndicator('total')}</th></tr>)}
+                        {activePanel === "member" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Bulan</th><th className="p-4 text-right font-black cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('total')}>Total Member{sortIndicator('total')}</th></tr>)}
                         {activePanel === "sakit" && (<tr><th className="p-4">Nama</th><th className="p-4">Mulai Absen</th><th className="p-4">Masuk Kembali</th><th className="p-4">Bulan</th><th className="p-4">Keterangan</th><th className="p-4">Diagnosa Dokter</th></tr>)}
-                        {activePanel === "sales" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Periode</th><th className="p-4 text-right">Sales Member</th><th className="p-4 text-right">Sales Hourly</th><th className="p-4 text-right">Selisih</th><th className="p-4 text-right">% Member</th></tr>)}
+                        {activePanel === "sales" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Periode</th><th className="p-4 text-right">Sales Member</th><th className="p-4 text-right">Sales Hourly</th><th className="p-4 text-right">Selisih</th><th className="p-4 text-right cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('ratio')}>% Member{sortIndicator('ratio')}</th></tr>)}
                         {activePanel === "sp" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Karyawan</th><th className="p-4">Jenis Surat</th><th className="p-4">Kasus / Pelanggaran</th><th className="p-4">Bulan</th><th className="p-4">PIC Under</th></tr>)}
 
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
                         
-                        {activePanel === "shortage" && filteredData.map((r, i) => (
+                        {activePanel === "shortage" && sortedData.map((r, i) => (
                           <tr key={i} onClick={() => setActiveModalData({ type: 'global_shortage', data: r })} className="hover:bg-pink-50/50 transition-colors cursor-pointer group">
                             <td className="p-4 font-bold">{r.periode}</td>
                             <td className="p-4 font-black group-hover:text-[#e20074] transition-colors">{r.nama}</td>
@@ -548,7 +619,7 @@ setEmpHistory({
                           </tr>
                         ))}
 
-                        {activePanel === "sales" && filteredData.map((r, i) => (
+                        {activePanel === "sales" && sortedData.map((r, i) => (
   <tr key={i} onClick={() => setActiveModalData({ type: 'global_sales', data: r })} className="hover:bg-indigo-50/50 transition-colors cursor-pointer group">
     <td className="p-4 font-black group-hover:text-[#e20074] transition-colors">{r.nama}</td>
     <td className="p-4 font-bold">{r.periode}</td>
@@ -558,11 +629,11 @@ setEmpHistory({
     <td className="p-4 text-right font-black text-purple-600">{r.ratio}%</td>
   </tr>
 ))}
-{activePanel === "ecobag" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors">
-<td className="p-4 font-bold">{r.year_month || r.month}</td><td className="p-4 font-black">{r.staff_name}</td><td className="p-4 text-right text-red-500 font-bold">{r.bag_la}</td><td className="p-4 text-right text-orange-500 font-bold">{r.bag_me}</td><td className="p-4 text-right text-blue-500 font-bold">{r.bag_sm}</td><td className="p-4 text-right text-[#e20074] font-black">{r.total} Pcs</td></tr>))}
-                        {activePanel === "member" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-[#e20074]">{r.total}</td></tr>))}
-                        {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400 mt-0.5">{r.alamat_klinik}</p></td></tr>))}
-                        {activePanel === "sp" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{r.nama}</td><td className="p-4"><span className="bg-orange-50 text-orange-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.surat_pernyataan}</span></td><td className="p-4"><p className="font-bold text-gray-800">{r.jenis_pelanggaran}</p><p className="text-[10px] text-gray-500 font-medium mt-0.5">{r.remarks}</p></td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4 text-gray-500 font-black">{r.pic_under}</td></tr>))}
+{activePanel === "ecobag" && sortedData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors">
+<td className="p-4 font-bold">{r.year_month || r.month}</td><td className="p-4 font-black">{resolveNama(r.staff_name)}</td><td className="p-4 text-right text-red-500 font-bold">{r.bag_la}</td><td className="p-4 text-right text-orange-500 font-bold">{r.bag_me}</td><td className="p-4 text-right text-blue-500 font-bold">{r.bag_sm}</td><td className="p-4 text-right text-[#e20074] font-black">{r.total} Pcs</td></tr>))}
+                        {activePanel === "member" && sortedData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-[#e20074]">{r.total}</td></tr>))}
+                        {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{resolveNama(r.nama)}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400 mt-0.5">{r.alamat_klinik}</p></td></tr>))}
+                        {activePanel === "sp" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{resolveNama(r.nama)}</td><td className="p-4"><span className="bg-orange-50 text-orange-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.surat_pernyataan}</span></td><td className="p-4"><p className="font-bold text-gray-800">{r.jenis_pelanggaran}</p><p className="text-[10px] text-gray-500 font-medium mt-0.5">{r.remarks}</p></td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4 text-gray-500 font-black">{r.pic_under}</td></tr>))}
                         {filteredData.length === 0 && (<tr><td colSpan="10" className="p-10 text-center text-gray-400 font-bold">Belum ada data terfilter yang cocok di Supabase.</td></tr>)}
                       </tbody>
                     </table>
