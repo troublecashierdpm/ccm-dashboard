@@ -516,6 +516,7 @@ async function handleReverseSyncAbsensi() {
         {/* HEADER GRADIENT */}
         <header className="flex items-center justify-between bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] mb-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+          // GANTI JADI (tambah tombol reverse sync, selalu muncul di kanan header):
           <div className="flex items-center gap-4 relative z-10"><button onClick={() => setSidebarOpen(true)} className="md:hidden text-2xl">☰</button><h2 className="font-black text-lg uppercase tracking-wide">{selectedKaryawan ? `Profil: ${selectedKaryawan.nama}` : activePanel === "dir" ? "Direktori Karyawan DPM" : `Panel ${activePanel}`}</h2></div>
           <div className="flex items-center gap-2 relative z-10">
             <button onClick={handleReverseSyncAbsensi} disabled={syncingAbsensi}
