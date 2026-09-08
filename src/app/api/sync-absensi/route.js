@@ -106,6 +106,74 @@ export async function GET() {
       }
     }
 
+    // GANTI JADI (sisipkan step 5 SEBELUM baris "return NextResponse.json"):
+ 
+    // 5. SINKRONISASI DATA_REQUEST (migrasi request lama dari sheet + request baru
+    // yang mungkin masih disubmit lewat sheet). Dedupe by req_id supaya AMAN
+    // dijalankan berkali-kali tanpa bikin duplikat. Request yang dibuat langsung
+    // dari form /absensi (lewat /api/absensi/request) TIDAK akan ke-skip karena
+    // req_id-nya beda format ("REQ-<timestamp>" dari kedua sisi, tetap unik).
+    const responseRequest = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Data_Request!A1:M' });
+    const rowsRequestAll = responseRequest.data.values;
+    if (rowsRequestAll && rowsRequestAll.length > 1) {
+      const headerRow = rowsRequestAll[0];
+      // Deteksi format lama/baru, sama seperti logika isShiftBaruFormat di Code.gs
+      const isShiftBaruFormat = headerRow.length > 5 && String(headerRow[5]).indexOf("Shift") !== -1;
+      const dataRows = rowsRequestAll.slice(1);
+ 
+      // Ambil req_id yang sudah ada supaya tidak dobel setiap kali sync ulang
+      const { data: existingReq } = await supabase.from('absensi_request').select('req_id');
+      const existingIds = new Set((existingReq || []).map(r => r.req_id));
+ 
+      const cleanVal = (v) => (v !== undefined && v !== null ? String(v).replace(/^'/, '').trim() : '');
+ 
+      const formattedRequest = dataRows
+        .map(row => {
+          const reqId = cleanVal(row[0]);
+          if (!reqId || existingIds.has(reqId)) return null; // kosong atau sudah pernah di-sync
+ 
+          if (isShiftBaruFormat) {
+            return {
+              req_id: reqId,
+              waktu_submit: cleanVal(row[1]),
+              nik: cleanVal(row[2]),
+              nama: row[3] || null,
+              tanggal_absen: ddmmyyyyToIso(row[4]),
+              shift_baru: row[5] || '-',
+              jam_in_baru: cleanVal(row[6]) || '-',
+              jam_out_baru: cleanVal(row[7]) || '-',
+              alasan: row[8] || '',
+              status: row[9] || 'Pending',
+              tanggal_action: cleanVal(row[10]) || '-',
+              foto_lampiran: row[11] || null,
+              catatan_admin: row[12] || '-'
+            };
+          }
+          // Format lama: tidak ada kolom "Kode Shift Baru"
+          return {
+            req_id: reqId,
+            waktu_submit: cleanVal(row[1]),
+            nik: cleanVal(row[2]),
+            nama: row[3] || null,
+            tanggal_absen: ddmmyyyyToIso(row[4]),
+            shift_baru: '-',
+            jam_in_baru: cleanVal(row[5]) || '-',
+            jam_out_baru: cleanVal(row[6]) || '-',
+            alasan: row[7] || '',
+            status: row[8] || 'Pending',
+            tanggal_action: cleanVal(row[9]) || '-',
+            foto_lampiran: row[10] || null,
+            catatan_admin: row[11] || '-'
+          };
+        })
+        .filter(r => r && r.req_id && r.nik && r.tanggal_absen);
+ 
+      for (let i = 0; i < formattedRequest.length; i += 2000) {
+        const { error } = await supabase.from('absensi_request').insert(formattedRequest.slice(i, i + 2000));
+        if (error) throw new Error(`Error Data_Request Baris ${i}: ` + error.message);
+      }
+    }
+ 
     return NextResponse.json({ success: true, message: "Sinkronisasi data Absensi PPKK Sukses! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi absensi:", error);
