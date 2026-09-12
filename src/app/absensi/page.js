@@ -65,6 +65,7 @@ const [teamList, setTeamList] = useState(null);
 const [teamLoading, setTeamLoading] = useState(false);
 const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
+const [syncingAbsensi, setSyncingAbsensi] = useState(false);
 
 
 
@@ -77,6 +78,29 @@ const [teamStatusFilter, setTeamStatusFilter] = useState("All");
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
+  async function handleReverseSyncAbsensi() {
+  const konfirmasi = confirm(
+    "⚠️ PERHATIAN!\n\nIni akan MENIMPA seluruh isi sheet Master_Schedule, Log_Absensi, dan Data_Request " +
+    "dengan data TERBARU dari Supabase (bukan digabung, tapi ditimpa total).\n\n" +
+    "Pastikan tidak ada yang sedang mengedit sheet-nya secara manual saat ini.\n\nLanjutkan?"
+  );
+  if (!konfirmasi) return;
+ 
+  setSyncingAbsensi(true);
+  try {
+    const res = await fetch('/api/sync-absensi/reverse', { method: 'POST' });
+    const json = await res.json();
+    if (json.success) {
+      alert("✅ " + json.message);
+    } else {
+      alert("❌ Gagal sync: " + (json.message || "Unknown error"));
+    }
+  } catch (err) {
+    alert("❌ Error koneksi: " + err.message);
+  }
+  setSyncingAbsensi(false);
+}
+  
 async function openApproval() {
   setStep("approval");
   setApprovalLoading(true);
@@ -1156,6 +1180,10 @@ function getStatusBadgeClass(remarks) {
             <button onClick={() => openTeamMonitor()}
               className="py-4 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm font-bold text-blue-700 text-xs">
               👥 Team Monitor
+            </button>
+            <button onClick={handleReverseSyncAbsensi} disabled={syncingAbsensi}
+              className="col-span-2 py-4 bg-orange-50 border border-orange-200 rounded-2xl shadow-sm font-bold text-orange-700 text-xs disabled:opacity-50">
+              {syncingAbsensi ? "⏳ Menyinkronkan..." : "🔄 Sync Absensi → Sheet"}
             </button>
           </div>
         )}
