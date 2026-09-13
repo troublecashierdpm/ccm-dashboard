@@ -173,6 +173,25 @@ export async function GET() {
       }
     }
 
+    // 10. SINKRONISASI PWP KASIR
+    const responsePwp = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'PWP KASIR!A2:G' });
+    const rowsPwp = responsePwp.data.values;
+    if (rowsPwp && rowsPwp.length > 0) {
+      const formattedPwp = rowsPwp.filter(row => row[0] && String(row[0]).toUpperCase() !== 'TGL').map(row => ({
+        tanggal: row[0] || null,
+        nama: row[1] || null,
+        status: row[2] || null,
+        sku_produk: row[3] || null,
+        nama_barang: row[4] || null,
+        qty: parseInt(cleanNum(row[5])) || 0,
+        periode: row[6] || null
+      }));
+      for (let i = 0; i < formattedPwp.length; i += 2000) {
+        const { error } = await supabase.from('pwp_kasir').insert(formattedPwp.slice(i, i + 2000));
+        if (error) throw new Error(`Error PWP Kasir Baris ${i}: ` + error.message);
+      }
+    }
+ 
     return NextResponse.json({ success: true, message: "Sinkronisasi 13.000+ Baris Data Sukses! 🔥" });
   } catch (error) {
     console.error("Error sinkronisasi:", error);
