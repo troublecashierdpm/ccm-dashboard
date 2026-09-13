@@ -31,6 +31,7 @@ export default function SupervisorDashboard() {
   const [rawSpBa, setRawSpBa] = useState([]);
   const [rawSalesMember, setRawSalesMember] = useState([]);
   const [rawSalesHourly, setRawSalesHourly] = useState([]);
+  const [rawPwp, setRawPwp] = useState([]);
 
 
   // FILTER UNTUK PANEL GLOBAL (Shortage, Ecobag, dll)
@@ -51,8 +52,8 @@ export default function SupervisorDashboard() {
 
   const [selectedKaryawan, setSelectedKaryawan] = useState(null);
   const [empMenu, setEmpMenu] = useState("shortage");
-  const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, salesRatio: null });
-  const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [], sales: [] });
+  const [empStats, setEmpStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, salesRatio: null, pwp: 0 });
+  const [empHistory, setEmpHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [], sales: [], pwp: [] });
 
 
   const [activeModalData, setActiveModalData] = useState(null);
@@ -99,7 +100,7 @@ export default function SupervisorDashboard() {
     setLoading(true);
     try {
       // Menjalankan semua penarikan data secara bersamaan agar cepat
-      const [nikData, shortData, ecoData, memData, sakData, spData, smData, shData] = await Promise.all([
+      const [nikData, shortData, ecoData, memData, sakData, spData, smData, shData, pwpData] = await Promise.all([
   fetchAllData("nik", "nama"),
   fetchAllData("shortage_per_day"),
   fetchAllData("ecobag_per_day"),
@@ -107,7 +108,8 @@ export default function SupervisorDashboard() {
   fetchAllData("sakit_per_day"),
   fetchAllData("sp_ba_per_day"),
   fetchAllData("sales_member"),
-  fetchAllData("sales_hourly")
+  fetchAllData("sales_hourly"),
+  fetchAllData("pwp_kasir")
 ]);
  
 setAllKaryawan(nikData || []);
@@ -118,6 +120,7 @@ setRawSakit(sakData || []);
 setRawSpBa(spData || []);
 setRawSalesMember(smData || []);
 setRawSalesHourly(shData || []);
+setRawPwp(pwpData || []);
 
     } catch (err) {
       console.error(err);
@@ -228,14 +231,27 @@ let totalMemberSalesEmp = 0, totalHourlySalesEmp = 0;
 Object.values(salesGroupsEmp).forEach(g => { totalMemberSalesEmp += g.totalMemberSales; totalHourlySalesEmp += g.totalHourlySales; });
 const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSalesEmp / totalHourlySalesEmp) * 1000) / 10 : null;
 
-    setEmpStats({ member: tMem, ecobag: tEco, shortage: tShort, sp: tSp, sakit: tSak, salesRatio: overallSalesRatioEmp });
-setEmpHistory({
+    const pwpDataEmp = rawPwp.filter(r => normName(r.nama) === namaKey);
+    let pwpGroupsEmp = {};
+    pwpDataEmp.forEach(r => {
+      const periode = r.periode || 'Unknown';
+      const qty = parseInt(r.qty) || 0;
+      if (!pwpGroupsEmp[periode]) pwpGroupsEmp[periode] = { bulan: periode, totalPerBulan: 0, details: [] };
+      pwpGroupsEmp[periode].totalPerBulan += qty;
+      pwpGroupsEmp[periode].details.push({ tanggal: r.tanggal, sku: r.sku_produk, produk: r.nama_barang, qty });
+    });
+    const finalPwpGroupsEmp = Object.values(pwpGroupsEmp).sort((a, b) => b.bulan.localeCompare(a.bulan));
+    const totalPwpEmp = pwpDataEmp.reduce((s, r) => s + (parseInt(r.qty) || 0), 0);
+    
+    setEmpStats({ member: tMem, ecobag: tEco, shortage: tShort, sp: tSp, sakit: tSak, salesRatio: overallSalesRatioEmp, pwp: totalPwpEmp });
+    setEmpHistory({
   member: Object.values(mGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
   shortage: Object.values(sGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
   ecobag: eList.sort((a,b)=>b.bulan.localeCompare(a.bulan)),
   sakit: Object.values(sakGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
   sp: Object.values(spGroups).sort((a,b)=>b.bulan.localeCompare(a.bulan)),
-  sales: finalSalesGroupsEmp
+  sales: finalSalesGroupsEmp,
+  pwp: finalPwpGroupsEmp
 });
   };
 
@@ -382,6 +398,22 @@ setEmpHistory({
   }).sort((a, b) => b.periode.localeCompare(a.periode));
 }
 
+    if (activePanel === "pwp") {
+      const map = {};
+      rawPwp.forEach(r => {
+        if (!r.nama) return;
+        if (filterBulan && r.periode !== filterBulan) return;
+        const namaResolved = resolveNama(r.nama);
+        if (searchNama && !namaResolved.toLowerCase().includes(searchNama.toLowerCase())) return;
+        const key = normName(r.nama) + "||" + r.periode;
+        if (!map[key]) map[key] = { nama: namaResolved, periode: r.periode, totalQty: 0, details: [] };
+        const qty = parseInt(r.qty) || 0;
+        map[key].totalQty += qty;
+        map[key].details.push({ tanggal: r.tanggal, sku: r.sku_produk, produk: r.nama_barang, qty });
+      });
+      return Object.values(map).sort((a, b) => (b.periode || '').localeCompare(a.periode || ''));
+    }
+ 
     return [];
   };
   
@@ -432,6 +464,8 @@ setEmpHistory({
       values = rawSpBa.map(r => r.bulan);
     } else if (activePanel === "sales") {
       values = [...rawSalesMember.map(r => r.periode), ...rawSalesHourly.map(r => r.periode)];
+    } else if (activePanel === "pwp") {
+      values = rawPwp.map(r => r.periode);
     }
     return [...new Set(values.filter(v => v !== null && v !== undefined && String(v).trim() !== ""))]
       .sort((a, b) => String(b).localeCompare(String(a)));
@@ -449,7 +483,8 @@ setEmpHistory({
       if (activePanel === "ecobag") card1 += r.total || 0;
       if (activePanel === "member") card1 += r.total || 0;
       if (activePanel === "sales") { card1 += r.totalMemberSales || 0; card2 += r.totalHourlySales || 0; }
-
+      if (activePanel === "pwp") card1 += r.totalQty || 0;
+ 
     });
     if (activePanel === "sales") {
       card3 = card2 > 0 ? Math.round((card1 / card2) * 1000) / 10 : 0;
@@ -478,7 +513,7 @@ setEmpHistory({
       <aside className={`fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="bg-[#e20074] p-5 text-white flex items-center justify-between"><div className="flex items-center gap-2 font-black text-sm tracking-wider"><span className="bg-white text-[#e20074] px-2 py-1 rounded-lg font-black shadow-sm">AEON</span> TRC PANEL</div><button onClick={() => setSidebarOpen(false)} className="md:hidden text-white font-bold text-xl">✕</button></div>
         <nav className="p-4 space-y-2">
-          {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sales", label: "Sales Ratio", icon: "💰" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }].map(menu => (
+          {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sales", label: "Sales Ratio", icon: "💰" }, { id: "pwp", label: "PWP Kasir", icon: "🎯" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }].map(menu => (
             <button key={menu.id} onClick={() => { setActivePanel(menu.id); setSelectedKaryawan(null); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wide transition-all ${activePanel === menu.id && !selectedKaryawan ? "bg-[#e20074] text-white shadow-lg shadow-pink-500/30" : "text-gray-500 hover:bg-pink-50 hover:text-[#e20074]"}`}><span>{menu.icon}</span> {menu.label}</button>
           ))}
         </nav>
@@ -572,7 +607,7 @@ setEmpHistory({
             {/* ========================================================= */}
             {/* PANEL LAINNYA (SHORTAGE, ECOBAG, DLL)                     */}
             {/* ========================================================= */}
-            {["shortage", "ecobag", "member", "sales", "sakit", "sp"].includes(activePanel) && !selectedKaryawan && (
+            {["shortage", "ecobag", "member", "sales", "pwp", "sakit", "sp"].includes(activePanel) && !selectedKaryawan && (
               <div className="space-y-6 anim-slide-up">
                 <div className="glass-card p-5 rounded-[2rem] shadow-sm flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5 min-w-[140px] flex-1 sm:flex-none"><label className="text-[9px] font-black tracking-wider uppercase text-gray-400">Cari Karyawan</label><input type="text" placeholder="Ketik nama..." value={searchNama} onChange={(e) => setSearchNama(e.target.value)} className="p-3.5 border border-white/60 rounded-xl bg-white/50 outline-none text-xs font-bold focus:ring-2 focus:ring-pink-400" /></div>
@@ -592,6 +627,7 @@ setEmpHistory({
                   {activePanel === "shortage" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-red-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Short</p><h3 className="text-xl font-black text-red-600 mt-1">Rp {gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-green-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Over</p><h3 className="text-xl font-black text-green-600 mt-1">Rp {gSum.card2.toLocaleString("id-ID")}</h3></div></> )}
                   {(activePanel === "ecobag" || activePanel === "member") && ( <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-[#e20074] shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Kantong/Member</p><h3 className="text-2xl font-black text-[#e20074] mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div> )}
                   {activePanel === "sales" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-pink-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Member</p><h3 className="text-lg font-black text-pink-600 mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-indigo-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Hourly</p><h3 className="text-lg font-black text-indigo-600 mt-1">{gSum.card2.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-purple-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">% Kontribusi Member</p><h3 className="text-lg font-black text-purple-600 mt-1">{gSum.card3}%</h3></div></> )}
+                  {activePanel === "pwp" && ( <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-teal-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Qty PWP</p><h3 className="text-2xl font-black text-teal-600 mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div> )}
                 </div>
 
                 <div className="glass-card rounded-[2rem] shadow-xl overflow-hidden anim-pop-in">
@@ -605,7 +641,8 @@ setEmpHistory({
                         {activePanel === "sakit" && (<tr><th className="p-4">Nama</th><th className="p-4">Mulai Absen</th><th className="p-4">Masuk Kembali</th><th className="p-4">Bulan</th><th className="p-4">Keterangan</th><th className="p-4">Diagnosa Dokter</th></tr>)}
                         {activePanel === "sales" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Periode</th><th className="p-4 text-right">Sales Member</th><th className="p-4 text-right">Sales Hourly</th><th className="p-4 text-right">Selisih</th><th className="p-4 text-right cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('ratio')}>% Member{sortIndicator('ratio')}</th></tr>)}
                         {activePanel === "sp" && (<tr><th className="p-4">Tanggal</th><th className="p-4">Nama Karyawan</th><th className="p-4">Jenis Surat</th><th className="p-4">Kasus / Pelanggaran</th><th className="p-4">Bulan</th><th className="p-4">PIC Under</th></tr>)}
-
+                        {activePanel === "pwp" && (<tr><th className="p-4">Nama Kasir</th><th className="p-4">Periode</th><th className="p-4 text-right cursor-pointer select-none hover:text-pink-800" onClick={() => handleSort('totalQty')}>Total Qty{sortIndicator('totalQty')}</th></tr>)}
+ 
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
                         
@@ -634,6 +671,13 @@ setEmpHistory({
                         {activePanel === "member" && sortedData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{r.nama}</td><td className="p-4 font-bold">{r.bulan}</td><td className="p-4 text-right font-black text-lg text-[#e20074]">{r.total}</td></tr>))}
                         {activePanel === "sakit" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-black">{resolveNama(r.nama)}</td><td className="p-4 font-bold">{r.tgl_tidak_masuk}</td><td className="p-4 font-bold">{r.tgl_mulai_masuk}</td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4"><span className="bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.keterangan}</span></td><td className="p-4 font-bold text-gray-600">{r.reason_diagnosa} <p className="text-[10px] italic font-normal text-gray-400 mt-0.5">{r.alamat_klinik}</p></td></tr>))}
                         {activePanel === "sp" && filteredData.map((r, i) => (<tr key={i} className="hover:bg-pink-50/50 transition-colors"><td className="p-4 font-bold">{r.tanggal}</td><td className="p-4 font-black">{resolveNama(r.nama)}</td><td className="p-4"><span className="bg-orange-50 text-orange-600 font-black px-2.5 py-1 rounded-md text-[9px] uppercase">{r.surat_pernyataan}</span></td><td className="p-4"><p className="font-bold text-gray-800">{r.jenis_pelanggaran}</p><p className="text-[10px] text-gray-500 font-medium mt-0.5">{r.remarks}</p></td><td className="p-4 text-gray-400 font-bold">{r.bulan}</td><td className="p-4 text-gray-500 font-black">{r.pic_under}</td></tr>))}
+                        {activePanel === "pwp" && sortedData.map((r, i) => (
+                          <tr key={i} onClick={() => setActiveModalData({ type: 'global_pwp', data: r })} className="hover:bg-teal-50/50 transition-colors cursor-pointer group">
+                            <td className="p-4 font-black group-hover:text-teal-600 transition-colors">{r.nama}</td>
+                            <td className="p-4 font-bold">{r.periode}</td>
+                            <td className="p-4 text-right font-black text-teal-600 text-lg">{r.totalQty}</td>
+                          </tr>
+                        ))}
                         {filteredData.length === 0 && (<tr><td colSpan="10" className="p-10 text-center text-gray-400 font-bold">Belum ada data terfilter yang cocok di Supabase.</td></tr>)}
                       </tbody>
                     </table>
@@ -645,7 +689,7 @@ setEmpHistory({
             {activePanel === "emp_detail" && selectedKaryawan && (
               <div className="space-y-6 anim-pop-in">
                 <div className="flex flex-wrap gap-2 glass-card p-3 rounded-2xl shadow-sm">
-                {[{ id: "shortage", label: "📊 Shortage", count: empStats.shortage }, { id: "ecobag", label: "🛍️ Ecobag", count: empStats.ecobag }, { id: "member", label: "💳 Member", count: empStats.member }, { id: "sales", label: "💰 Sales Ratio", count: (empStats.salesRatio !== null && empStats.salesRatio !== undefined) ? empStats.salesRatio + '%' : '-' }, { id: "sp", label: "📄 SP/BA", count: empStats.sp }, { id: "sakit", label: "🏥 Sakit", count: empStats.sakit }].map(tab => (                    <button key={tab.id} onClick={() => setEmpMenu(tab.id)} className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${empMenu === tab.id ? "bg-[#e20074] text-white shadow-md shadow-pink-500/30 anim-pop-in" : "bg-white/50 text-gray-500 hover:bg-pink-50"}`}>{tab.label} <span className={`text-[10px] px-2 py-0.5 rounded-full ${empMenu === tab.id ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{tab.count}</span></button>
+                {[{ id: "shortage", label: "📊 Shortage", count: empStats.shortage }, { id: "ecobag", label: "🛍️ Ecobag", count: empStats.ecobag }, { id: "member", label: "💳 Member", count: empStats.member }, { id: "sales", label: "💰 Sales Ratio", count: (empStats.salesRatio !== null && empStats.salesRatio !== undefined) ? empStats.salesRatio + '%' : '-' }, { id: "pwp", label: "🎯 PWP Kasir", count: empStats.pwp }, { id: "sp", label: "📄 SP/BA", count: empStats.sp }, { id: "sakit", label: "🏥 Sakit", count: empStats.sakit }].map(tab => (                    <button key={tab.id} onClick={() => setEmpMenu(tab.id)} className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${empMenu === tab.id ? "bg-[#e20074] text-white shadow-md shadow-pink-500/30 anim-pop-in" : "bg-white/50 text-gray-500 hover:bg-pink-50"}`}>{tab.label} <span className={`text-[10px] px-2 py-0.5 rounded-full ${empMenu === tab.id ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{tab.count}</span></button>
                   ))}
                 </div>
 
@@ -661,12 +705,14 @@ setEmpHistory({
                         {empMenu === "sales" && (<tr><th className="p-4">Periode</th><th className="p-4 text-right">Sales Member</th><th className="p-4 text-right">Sales Hourly</th><th className="p-4 text-right">Selisih</th><th className="p-4 text-right">% Member</th></tr>)}
                         {empMenu === "sakit" && (<tr><th className="p-4 w-24">Bulan</th><th className="p-4">Detail Absen Sakit Karyawan</th></tr>)}
                         {empMenu === "sp" && (<tr><th className="p-4 w-24">Bulan</th><th className="p-4">Riwayat Pelanggaran & Kasus</th></tr>)}
+                        {empMenu === "pwp" && (<tr><th className="p-4">Periode</th><th className="p-4 text-right">Total Qty</th></tr>)}
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
                         {empMenu === "shortage" && empHistory.shortage.map((h, i) => (<tr key={i} className="hover:bg-red-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-center text-gray-400 font-bold bg-gray-50/50">{h.frekuensi}x</td><td className="p-4 text-right text-red-600 font-black text-sm">{h.totalShort.toLocaleString("id-ID")}</td><td className="p-4 text-right text-green-600 font-black text-sm">+{h.totalOver.toLocaleString("id-ID")}</td></tr>))}
                         {empMenu === "member" && empHistory.member.map((h, i) => (<tr key={i} className="hover:bg-pink-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-[#e20074] font-black text-lg">{h.totalPerBulan} <span className="text-[10px] text-gray-500">Member</span></td></tr>))}
                         {empMenu === "ecobag" && empHistory.ecobag.map((h, i) => (<tr key={i} className="hover:bg-pink-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-red-500 font-bold">{h.la}</td><td className="p-4 text-right text-orange-500 font-bold">{h.me}</td><td className="p-4 text-right text-blue-500 font-bold">{h.sm}</td><td className="p-4 text-right text-[#e20074] font-black text-sm">{h.totalPerBulan} Pcs</td></tr>))}
                         {empMenu === "sales" && empHistory.sales.map((h, i) => (<tr key={i} onClick={() => setActiveModalData({ type: 'global_sales', data: { ...h, periode: h.bulan, nama: selectedKaryawan?.nama || '' } })} className="hover:bg-indigo-50/40 transition-colors cursor-pointer"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-pink-600 font-bold">{h.totalMemberSales.toLocaleString("id-ID")}</td><td className="p-4 text-right text-indigo-600 font-bold">{h.totalHourlySales.toLocaleString("id-ID")}</td><td className="p-4 text-right text-orange-600 font-bold">{h.selisih.toLocaleString("id-ID")}</td><td className="p-4 text-right font-black text-purple-600">{h.ratio}%</td></tr>))}
+                        {empMenu === "pwp" && empHistory.pwp.map((h, i) => (<tr key={i} onClick={() => setActiveModalData({ type: 'global_pwp', data: { periode: h.bulan, nama: selectedKaryawan?.nama || '', totalQty: h.totalPerBulan, details: h.details } })} className="hover:bg-teal-50/40 transition-colors cursor-pointer"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right font-black text-teal-600 text-lg">{h.totalPerBulan} <span className="text-[10px] text-gray-500">Pcs</span></td></tr>))}
                         {empMenu === "sakit" && empHistory.sakit.map((h, i) => ( <tr key={i}><td className="p-4 font-black border-r bg-white/40">{h.bulan}</td><td className="p-4 space-y-3 bg-white/20">{h.details.map((det, idx) => ( <div key={idx} className="p-4 border border-blue-100 rounded-2xl bg-white shadow-sm flex flex-col gap-1.5 border-l-[5px] border-l-blue-500 hover:shadow-md transition-shadow"><div className="flex justify-between font-bold text-gray-800 bg-gray-50 px-3 py-2 rounded-lg text-[10px]"><span>Libur: <span className="text-blue-600">{det.tglTidakMasuk}</span></span> <span>Masuk: <span className="text-green-600">{det.tglMulaiMasuk}</span></span></div><div><span className="text-[9px] bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">{det.keterangan}</span></div><p className="text-gray-700 mt-1"><span className="font-bold text-gray-900">Diagnosa:</span> {det.diagnosa}</p><p className="text-[10px] text-gray-400 italic font-bold border-t pt-1 border-dashed mt-1">Klinik: {det.klinik}</p></div> ))}</td></tr> ))}
                         {empMenu === "sp" && empHistory.sp.map((h, i) => ( <tr key={i}><td className="p-4 font-black border-r bg-white/40">{h.bulan}</td><td className="p-4 space-y-3 bg-white/20">{h.details.map((det, idx) => ( <div key={idx} className="p-4 border border-orange-100 rounded-2xl bg-white shadow-sm flex flex-col gap-1.5 border-l-[5px] border-l-orange-500 hover:shadow-md transition-shadow"><div className="flex justify-between items-center font-bold text-gray-800 border-b pb-2"><span className="text-[11px]">{det.tanggal}</span> <span className="text-[9px] bg-orange-100 text-orange-800 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">{det.surat}</span></div><p className="text-gray-700 mt-1"><span className="font-bold text-gray-900 block text-[9px] uppercase text-gray-400">Pelanggaran:</span> {det.jenis}</p><p className="text-gray-700 bg-gray-50 p-2.5 rounded-lg border"><span className="font-bold text-gray-900 block text-[9px] uppercase text-gray-400 mb-0.5">Remarks</span> {det.remarks}</p><p className="text-[9px] font-black text-gray-500 uppercase tracking-wider mt-1 flex items-center gap-1.5"><span className="w-3 h-3 bg-orange-100 rounded-full inline-block"></span> PIC Under: {det.under}</p></div> ))}</td></tr> ))}
                       </tbody>
@@ -678,6 +724,33 @@ setEmpHistory({
           </>
         )}
       </main>
+
+{activeModalData?.type === 'global_pwp' && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+    <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 p-6 text-white flex justify-between items-center">
+        <h3 className="font-black text-sm uppercase tracking-wider">Detail PWP Kasir {activeModalData.data.periode}</h3>
+        <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+      </div>
+      <div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-800 uppercase tracking-widest">
+        {activeModalData.data.nama}
+      </div>
+      <div className="p-5 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50/50">
+        {activeModalData.data.details.map((det, i) => (
+          <div key={i} className="p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-[11px] hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-bold text-gray-600">{det.tanggal}</span>
+              <span className="font-black text-teal-600 bg-teal-50 px-2.5 py-1 rounded-lg">{det.qty}x</span>
+            </div>
+            <p className="text-gray-800 font-semibold">{det.produk}</p>
+            <p className="text-[9px] text-gray-400">SKU: {det.sku}</p>
+          </div>
+        ))}
+      </div>
+      <div className="p-5 bg-white text-center font-black text-teal-600 border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL: {activeModalData.data.totalQty} Pcs</div>
+    </div>
+  </div>
+)}
 
       {/* ========================================================= */}
       {/* MODAL POP-UP GLOBAL SHORTAGE                              */}
