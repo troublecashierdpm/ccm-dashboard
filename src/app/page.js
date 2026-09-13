@@ -16,8 +16,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
-  const [stats, setStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-', salesRatio: null });
-const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [], sales: [] });
+  const [stats, setStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-', salesRatio: null, pwp: 0 });
+  const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [], sales: [], pwp: [] });
   
   const [detailType, setDetailType] = useState(null);
   const [activeModalData, setActiveModalData] = useState(null);
@@ -235,9 +235,27 @@ const finalSalesHistory = Object.values(salesPeriodeGroups).sort((a, b) => b.per
 });
  
 const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSalesAll / totalHourlySalesAll) * 1000) / 10 : null;
+
+// X. DATA PWP KASIR
+const pwpData = await fetchUserRecords('pwp_kasir', 'nama');
+let totalPwp = 0; let pwpGroups = {};
+if (pwpData && pwpData.length > 0) {
+  pwpData.forEach(row => {
+    const periode = row.periode || 'Unknown';
+    const qty = parseInt(row.qty) || 0;
+    totalPwp += qty;
+    if (!pwpGroups[periode]) pwpGroups[periode] = { bulan: periode, totalPerBulan: 0, details: [] };
+    pwpGroups[periode].totalPerBulan += qty;
+    pwpGroups[periode].details.push({ tanggal: row.tanggal || '-', sku: row.sku_produk || '-', produk: row.nama_barang || '-', qty });
+  });
+}
+const finalPwpHistory = Object.values(pwpGroups).sort((a, b) => b.bulan.localeCompare(a.bulan)).map(group => {
+  group.details.sort((a, b) => (parseInt(b.tanggal.split('-')[0]) || 0) - (parseInt(a.tanggal.split('-')[0]) || 0));
+  return group;
+});
       
-      setStats({ member: totalMember, shortage: totalShortage, ecobag: totalEcobag, sakit: totalSakit, sp: totalSp, audit: '-', salesRatio: overallSalesRatio });
-      setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag: ecobagList, sakit: finalSakitHistory, sp: finalSpHistory, sales: finalSalesHistory });
+      setStats({ member: totalMember, shortage: totalShortage, ecobag: totalEcobag, sakit: totalSakit, sp: totalSp, audit: '-', salesRatio: overallSalesRatio, pwp: totalPwp });
+setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag: ecobagList, sakit: finalSakitHistory, sp: finalSpHistory, sales: finalSalesHistory, pwp: finalPwpHistory });
 
     } catch (err) {
       console.error("Gagal menarik data:", err);
@@ -420,7 +438,7 @@ const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSales
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3 anim-slide-up delay-100">
+              <div className="grid grid-cols-5 gap-2 anim-slide-up delay-100">
                 <div onClick={() => setDetailType(detailType === 'shortage' ? null : 'shortage')} className="glass-card py-5 rounded-[1.5rem] text-center border-t-[3px] border-t-red-400 cursor-pointer active:scale-90 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-red-500/10 border border-white/50 group">
                   <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wide group-hover:text-red-500">Shortage</p>
                   <h4 className="text-base font-black text-red-500 mt-1">{stats.shortage}</h4>
@@ -437,6 +455,10 @@ const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSales
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Audit</p>
                   <h4 className="text-base font-black text-purple-600 mt-1">{stats.audit}</h4>
                 </div>
+                <div onClick={() => setDetailType(detailType === 'pwp' ? null : 'pwp')} className="glass-card py-5 rounded-[1.5rem] text-center border-t-[3px] border-t-teal-400 cursor-pointer active:scale-90 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-teal-500/10 border border-white/50 group">
+                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wide group-hover:text-teal-500">PWP Kasir</p>
+                  <h4 className="text-base font-black text-teal-600 mt-1">{stats.pwp}</h4>
+                </div>
               </div>
 
               {/* TABEL RANGKUMAN */}
@@ -451,6 +473,7 @@ const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSales
                           {detailType === 'sp' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-right'>Total Pelanggaran</th></tr>)}
                           {detailType === 'shortage' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-center'>Freq</th><th className='p-4 text-right'>Short</th><th className='p-4 text-right'>Over</th></tr>)}
                           {detailType === 'sales' && (<tr><th className='p-4'>Periode</th><th className='p-4 text-right'>Sales Member</th><th className='p-4 text-right'>Sales Hourly</th><th className='p-4 text-right'>Selisih</th><th className='p-4 text-right'>% Member</th></tr>)}
+                          {detailType === 'pwp' && (<tr><th className='p-4'>Periode</th><th className='p-4 text-right'>Total Qty</th></tr>)}
                         </thead>
                         <tbody className="text-gray-700">
                           {detailType === 'member' && history.member.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'member', data: item })} className='hover:bg-pink-50 border-b border-gray-50 cursor-pointer transition-colors active:bg-pink-100'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-right font-black text-lg'>{item.totalPerBulan}</td></tr>))}
@@ -467,6 +490,7 @@ const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSales
     <td className='p-4 text-right font-black text-purple-600'>{item.ratio}%</td>
   </tr>
 ))}
+                          {detailType === 'pwp' && history.pwp.map((item, idx) => (<tr key={idx} onClick={() => setActiveModalData({ type: 'pwp', data: item })} className='hover:bg-teal-50 border-b border-gray-50 cursor-pointer transition-colors active:bg-teal-100'><td className='p-4 font-bold'>{item.bulan}</td><td className='p-4 text-right font-black text-teal-600 text-lg'>{item.totalPerBulan} <span className="text-[10px]">Pcs</span></td></tr>))}
                           {history[detailType]?.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-gray-400 font-medium">Belum ada data tercatat.</td></tr>)}
                         </tbody>
                     </table>
@@ -526,6 +550,30 @@ const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSales
           </div>
         ))}
       </div>
+    </div>
+  </div>
+)}
+    {activeModalData?.type === 'pwp' && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+    <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 p-6 text-white flex justify-between items-center">
+        <h3 className="font-black text-sm uppercase tracking-wider">Detail PWP Kasir</h3>
+        <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+      </div>
+      <div className="p-4 bg-teal-50/50 border-b text-center text-xs font-black text-teal-900 tracking-widest uppercase">{activeModalData.data.bulan}</div>
+      <div className="p-5 max-h-[50vh] overflow-y-auto space-y-2.5 bg-gray-50/30">
+        {activeModalData.data.details.map((det, i) => (
+          <div key={i} className="p-3.5 border border-gray-100 rounded-2xl bg-white shadow-sm text-[11px] hover:border-teal-200 transition-colors">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-bold text-gray-600">{det.tanggal}</span>
+              <span className="font-black text-teal-600 bg-teal-50 px-2.5 py-1 rounded-lg">{det.qty}x</span>
+            </div>
+            <p className="text-gray-800 font-semibold">{det.produk}</p>
+            <p className="text-[9px] text-gray-400">SKU: {det.sku}</p>
+          </div>
+        ))}
+      </div>
+      <div className="p-5 bg-white text-center font-black text-teal-600 border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL: {activeModalData.data.totalPerBulan} Pcs</div>
     </div>
   </div>
 )}
