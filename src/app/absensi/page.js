@@ -1140,10 +1140,24 @@ function getStatusBadgeClass(remarks) {
                 {teamSelectedStaff.loading ? <div className="text-center py-10 text-xs text-gray-400">Memuat data...</div> : (
                   <div className="space-y-2">
                     {teamSelectedStaff.logs?.map((item, idx) => (
-                      <div key={idx} className="bg-gray-50 p-3 rounded-xl flex justify-between text-[11px] items-center">
-                        <span className="font-bold text-gray-700 w-16">{item.date}</span>
-                        <span className="text-gray-500 flex-1 text-center">{item.shift}</span>
-                        <span className={`font-bold ${statusBadgeClass(item.remarks)} px-2 py-0.5 rounded`}>{item.remarks}</span>
+                      <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-gray-800">{item.date}</span>
+                          <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase ${statusBadgeClass(item.remarks)}`}>{item.remarks}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] bg-pink-50 text-[#e20074] font-bold px-2 py-1 rounded-md">{item.shift} ({item.shiftJam})</span>
+                          <div className="flex gap-3 text-right">
+                            <div>
+                              <p className="text-[8px] text-gray-400 uppercase font-bold">In</p>
+                              <p className={`text-[11px] font-black ${item.in === "-" ? "text-red-400" : "text-gray-800"}`}>{item.in}</p>
+                            </div>
+                            <div>
+                              <p className="text-[8px] text-gray-400 uppercase font-bold">Out</p>
+                              <p className={`text-[11px] font-black ${item.out === "-" ? "text-red-400" : "text-gray-800"}`}>{item.out}</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
