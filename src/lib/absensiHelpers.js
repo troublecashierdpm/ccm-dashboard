@@ -69,38 +69,42 @@ export function hitungLateEarlyDurasi(clockIn, clockOut, shiftJam) {
   const [expInRaw, expOutRaw] = shiftJam.split("-");
   const expIn = expInRaw.trim(), expOut = expOutRaw.trim();
 
-  if (clockIn && clockIn !== "-" && expIn !== "") {
-    const [ih, im] = clockIn.split(":").map(Number);
-    const [eh, em] = expIn.split(":").map(Number);
-    const tIn = new Date(2000, 0, 1, ih, im);
-    const tExpIn = new Date(2000, 0, 1, eh, em);
-    if (tIn > tExpIn) {
-      const diff = tIn - tExpIn;
-      const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+  // Konversi jam:menit ke total menit sejak jam 00:00
+  const toMinutes = (timeStr) => {
+    if (!timeStr || timeStr === "-") return null;
+    const parts = timeStr.split(":");
+    if (parts.length < 2) return null;
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  };
+
+  const inMin = toMinutes(clockIn);
+  const expInMin = toMinutes(expIn);
+  const outMin = toMinutes(clockOut);
+  const expOutMin = toMinutes(expOut);
+
+  if (inMin !== null && expInMin !== null) {
+    if (inMin > expInMin) {
+      const diff = inMin - expInMin;
+      const h = Math.floor(diff / 60), m = diff % 60;
       lateIn = `${h < 10 ? "0" : ""}${h}:${m < 10 ? "0" : ""}${m}`;
     }
   }
-  if (clockOut && clockOut !== "-" && expOut !== "") {
-    const [oh, om] = clockOut.split(":").map(Number);
-    const [eh, em] = expOut.split(":").map(Number);
-    const tOut = new Date(2000, 0, 1, oh, om);
-    const tExpOut = new Date(2000, 0, 1, eh, em);
-    if (tOut < tExpOut) {
-      const diff = tExpOut - tOut;
-      const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+
+  if (outMin !== null && expOutMin !== null) {
+    if (outMin < expOutMin) {
+      const diff = expOutMin - outMin;
+      const h = Math.floor(diff / 60), m = diff % 60;
       earlyOut = `${h < 10 ? "0" : ""}${h}:${m < 10 ? "0" : ""}${m}`;
     }
   }
-  if (clockIn && clockIn !== "-" && clockOut && clockOut !== "-") {
-    const [ih, im] = clockIn.split(":").map(Number);
-    const [oh, om] = clockOut.split(":").map(Number);
-    const dIn = new Date(2000, 0, 1, ih, im);
-    let dOut = new Date(2000, 0, 1, oh, om);
-    if (dOut < dIn) dOut.setDate(dOut.getDate() + 1);
-    const diff = dOut - dIn;
-    const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+
+  if (inMin !== null && outMin !== null) {
+    let diff = outMin - inMin;
+    if (diff < 0) diff += 24 * 60; // Shift lewat tengah malam
+    const h = Math.floor(diff / 60), m = diff % 60;
     durasi = `${h}:${m < 10 ? "0" : ""}${m}`;
   }
+
   return { late: lateIn, early: earlyOut, durasi };
 }
 
