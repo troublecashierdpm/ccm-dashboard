@@ -72,8 +72,7 @@ export async function GET(req) {
       const fOutUrl = (logRow && logRow.foto_out) || "";
 
       const calculated = hitungLateEarlyDurasi(actualIn, actualOut, shiftDetails.jam);
-      let remarks = (logRow && logRow.remarks) || getRemarks(actualIn, actualOut, shiftDetails.isOff, calculated.late, calculated.early);
-      if (shiftDetails.isOff) remarks = "OFF";
+      let remarks = getRemarks(actualIn, actualOut, shiftDetails.isOff, calculated.late, calculated.early);
 
       const isLate = calculated.late !== "00:00" && calculated.late !== "-";
       const isEarly = calculated.early !== "00:00" && calculated.early !== "-";
