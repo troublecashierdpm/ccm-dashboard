@@ -8,10 +8,13 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   
   // State untuk interaksi animasi karakter Mako Chan
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isFalling, setIsFalling] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
+
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestForm, setRequestForm] = useState({ hari: "", alasan: "" });
-  
-  // State untuk interaksi animasi karakter Mako Chan
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
