@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Chart from "chart.js/auto";
+import * as XLSX from "xlsx";
 
 // ==================================================================
 // NORMALISASI NAMA: kunci pembanding SELALU uppercase & rapat spasi,
@@ -59,6 +60,69 @@ export default function SupervisorDashboard() {
 
 
   const [activeModalData, setActiveModalData] = useState(null);
+
+  const exportToExcel = (dataToExport, fileName, sheetName = "Data") => {
+    if (!dataToExport || dataToExport.length === 0) {
+      alert("Tidak ada data untuk diexport!");
+      return;
+    }
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    
+    // Auto fit column widths
+    const colWidths = [];
+    dataToExport.forEach(row => {
+      Object.keys(row).forEach((key, i) => {
+        const val = row[key] ? String(row[key]) : "";
+        colWidths[i] = Math.max(colWidths[i] || 10, key.length, val.length);
+      });
+    });
+    worksheet["!cols"] = colWidths.map(w => ({ wch: Math.min(w + 3, 50) }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    XLSX.writeFile(workbook, `${fileName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const exportAllPanels = () => {
+    const wb = XLSX.utils.book_new();
+
+    if (allKaryawan.length > 0) {
+      const wsDir = XLSX.utils.json_to_sheet(allKaryawan);
+      XLSX.utils.book_append_sheet(wb, wsDir, "Direktori Staff");
+    }
+    if (rawShortage.length > 0) {
+      const wsShort = XLSX.utils.json_to_sheet(rawShortage);
+      XLSX.utils.book_append_sheet(wb, wsShort, "Shortage");
+    }
+    if (rawEcobag.length > 0) {
+      const wsEco = XLSX.utils.json_to_sheet(rawEcobag);
+      XLSX.utils.book_append_sheet(wb, wsEco, "Ecobag");
+    }
+    if (rawMember.length > 0) {
+      const wsMem = XLSX.utils.json_to_sheet(rawMember);
+      XLSX.utils.book_append_sheet(wb, wsMem, "Member");
+    }
+    if (rawSakit.length > 0) {
+      const wsSak = XLSX.utils.json_to_sheet(rawSakit);
+      XLSX.utils.book_append_sheet(wb, wsSak, "Sakit-Izin");
+    }
+    if (rawSpBa.length > 0) {
+      const wsSp = XLSX.utils.json_to_sheet(rawSpBa);
+      XLSX.utils.book_append_sheet(wb, wsSp, "SP-BA");
+    }
+    if (rawSalesMember.length > 0 || rawSalesHourly.length > 0) {
+      const wsSm = XLSX.utils.json_to_sheet(rawSalesMember);
+      XLSX.utils.book_append_sheet(wb, wsSm, "Sales Member");
+      const wsSh = XLSX.utils.json_to_sheet(rawSalesHourly);
+      XLSX.utils.book_append_sheet(wb, wsSh, "Sales Hourly");
+    }
+    if (rawPwp.length > 0) {
+      const wsPwp = XLSX.utils.json_to_sheet(rawPwp);
+      XLSX.utils.book_append_sheet(wb, wsPwp, "PWP");
+    }
+
+    XLSX.writeFile(wb, `Semua_Data_Supervisor_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   useEffect(() => {
     fetchGlobalData();
@@ -542,10 +606,11 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       <main className="flex-1 md:ml-64 min-w-0 p-6 anim-fade-in relative">
         
         {/* HEADER GRADIENT */}
-        <header className="flex items-center justify-between bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] mb-8 relative overflow-hidden">
+        <header className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] mb-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
           <div className="flex items-center gap-4 relative z-10"><button onClick={() => setSidebarOpen(true)} className="md:hidden text-2xl">☰</button><h2 className="font-black text-lg uppercase tracking-wide">{selectedKaryawan ? `Profil: ${selectedKaryawan.nama}` : activePanel === "dir" ? "Direktori Karyawan DPM" : `Panel ${activePanel}`}</h2></div>
-          <div className="flex items-center gap-2 relative z-10">
+          <div className="flex items-center gap-2 relative z-10 flex-wrap">
+            <button onClick={exportAllPanels} className="bg-white text-[#e20074] hover:bg-pink-50 px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5"><span>📊</span> Export Semua Excel</button>
             <button onClick={handleSyncKasir} disabled={syncStatus.loading}
               className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm disabled:opacity-50">
               {syncStatus.loading ? "⏳ Sinkronisasi..." : "🔄 Sync Data"}
@@ -616,7 +681,10 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                         <h3 className="font-black text-sm text-[#e20074] uppercase tracking-widest mb-1">Hasil Filter Staff</h3>
                         <p className="text-xs text-gray-500 font-bold">Ditemukan {filteredKaryawanDir.length} Karyawan</p>
                       </div>
-                      <button onClick={() => { setDirSearch(""); setDirStatus(""); setDirUnder(""); }} className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl text-xs font-bold uppercase transition">← Kembali ke Grup</button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => exportToExcel(filteredKaryawanDir, "Direktori_Staff", "Staff")} className="bg-[#e20074] text-white hover:bg-pink-700 px-3.5 py-2 rounded-xl text-xs font-black uppercase transition shadow-sm">Export Staff ke Excel</button>
+                        <button onClick={() => { setDirSearch(""); setDirStatus(""); setDirUnder(""); }} className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl text-xs font-bold uppercase transition">← Kembali ke Grup</button>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -664,7 +732,10 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                 </div>
 
                 <div className="glass-card rounded-[2rem] shadow-xl overflow-hidden anim-pop-in">
-                  <div className="p-4 bg-white/40 border-b flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider"><span>{filteredData.length} Data Terangkum</span></div>
+                  <div className="p-4 bg-white/40 border-b flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <span>{filteredData.length} Data Terangkum</span>
+                    <button onClick={() => exportToExcel(filteredData, `Data_${activePanel}`, activePanel.toUpperCase())} className="bg-[#e20074] text-white hover:bg-pink-700 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">Export Panel ke Excel</button>
+                  </div>
                   <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                     <table className="w-full text-left text-xs min-w-[500px]">
                       <thead className="bg-white/80 text-[#e20074] font-black border-b sticky top-0 uppercase tracking-wider text-[9px] z-10 backdrop-blur-md">
