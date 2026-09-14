@@ -37,6 +37,7 @@ export async function GET(req) {
         expIn = a.trim(); expOut = b.trim();
       }
 
+      let status = "Normal";
       if (shiftInfo.isOff) {
         status = (actIn !== "-" || actOut !== "-") ? "Extra/Lembur" : "Day Off";
       } else {
