@@ -12,7 +12,7 @@ export async function POST(req) {
       return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Total staff: ${context?.totalKaryawan || 0}. Pertanyaan Anda "${query}" diterima. Masukkan GEMINI_API_KEY di .env.local untuk respon AI sesungguhnya.` });
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
