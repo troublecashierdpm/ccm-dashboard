@@ -15,6 +15,23 @@ export default function App() {
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestForm, setRequestForm] = useState({ hari: "", alasan: "" });
+  const [requestStatus, setRequestStatus] = useState({ status: "OPEN", message: "", availableDays: [], userHariLama: null, userExists: false });
+  const [isLoadingForm, setIsLoadingForm] = useState(false);
+
+  // Load status saat modal dibuka
+  const handleOpenRequestModal = async () => {
+    setIsLoadingForm(true);
+    setIsRequestModalOpen(true);
+    try {
+      const res = await fetch(`/api/request-schedule?under=${user.under}&nik=${user.nik}`);
+      const data = await res.json();
+      setRequestStatus(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingForm(false);
+    }
+  };
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -416,7 +433,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                     )}
                     <span className="text-[10px] bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 px-3.5 py-1.5 rounded-xl font-bold shadow-sm">Under: {user.under}</span>
                     <button 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsRequestModalOpen(true); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenRequestModal(); }}
                       className="bg-white text-[#e20074] px-3.5 py-1.5 rounded-xl font-black text-[10px] uppercase shadow-sm cursor-pointer z-[100]"
                     >
                       Request Schedule
@@ -602,36 +619,43 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
           {isRequestModalOpen && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
               <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl p-6">
-                <h3 className="font-black text-sm uppercase mb-4">Request Schedule</h3>
-                <select 
-                  className="w-full p-3 rounded-2xl bg-gray-50 border mb-4 text-xs"
-                  onChange={(e) => setRequestForm({...requestForm, hari: e.target.value})}
-                >
-                  <option value="">Pilih Hari</option>
-                  <option value="SENIN">SENIN</option>
-                  <option value="SELASA">SELASA</option>
-                  <option value="RABU">RABU</option>
-                  <option value="KAMIS">KAMIS</option>
-                  <option value="JUMAT">JUMAT</option>
-                </select>
-                <textarea 
-                  className="w-full p-4 rounded-2xl bg-gray-50 border mb-4 text-xs"
-                  placeholder="Alasan..."
-                  onChange={(e) => setRequestForm({...requestForm, alasan: e.target.value})}
-                />
-                <button 
-                  onClick={async () => {
-                    const res = await fetch('/api/request-schedule', {
-                      method: 'POST',
-                      body: JSON.stringify({ ...requestForm, nik: user.nik, nama: user.nama, under: user.under })
-                    });
-                    if ((await res.json()).success) { alert("Berhasil!"); setIsRequestModalOpen(false); }
-                  }}
-                  className="w-full bg-[#e20074] text-white py-3 rounded-2xl font-bold text-xs"
-                >
-                  KIRIM REQUEST
-                </button>
-                <button onClick={() => setIsRequestModalOpen(false)} className="w-full mt-2 text-[10px] text-gray-400 font-bold">BATAL</button>
+                {isLoadingForm ? (
+                   <p className="text-center py-4">Memuat...</p>
+                ) : requestStatus.status === "CLOSED" ? (
+                  <div className="text-center">
+                    <p className="text-red-500 font-bold mb-4">{requestStatus.message || "Request Schedule Tutup"}</p>
+                    <button onClick={() => setIsRequestModalOpen(false)} className="w-full bg-gray-200 py-3 rounded-2xl text-xs">TUTUP</button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-black text-sm uppercase mb-4">Request Schedule</h3>
+                    <select 
+                      className="w-full p-3 rounded-2xl bg-gray-50 border mb-4 text-xs"
+                      onChange={(e) => setRequestForm({...requestForm, hari: e.target.value})}
+                    >
+                      <option value="">Pilih Hari</option>
+                      {requestStatus.availableDays.map(day => <option key={day} value={day}>{day}</option>)}
+                    </select>
+                    <textarea 
+                      className="w-full p-4 rounded-2xl bg-gray-50 border mb-4 text-xs"
+                      placeholder="Alasan..."
+                      onChange={(e) => setRequestForm({...requestForm, alasan: e.target.value})}
+                    />
+                    <button 
+                      onClick={async () => {
+                        const res = await fetch('/api/request-schedule', {
+                          method: 'POST',
+                          body: JSON.stringify({ ...requestForm, nik: user.nik, nama: user.nama, under: user.under })
+                        });
+                        if ((await res.json()).success) { alert("Berhasil!"); setIsRequestModalOpen(false); }
+                      }}
+                      className="w-full bg-[#e20074] text-white py-3 rounded-2xl font-bold text-xs"
+                    >
+                      KIRIM REQUEST
+                    </button>
+                    <button onClick={() => setIsRequestModalOpen(false)} className="w-full mt-2 text-[10px] text-gray-400 font-bold">BATAL</button>
+                  </>
+                )}
               </div>
             </div>
           )}
