@@ -8,10 +8,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   
   // State untuk interaksi animasi karakter Mako Chan
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  const [isFalling, setIsFalling] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestForm, setRequestForm] = useState({ hari: "", alasan: "" });
+  
+  // State untuk interaksi animasi karakter Mako Chan
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -412,6 +412,12 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                       <span className="text-[10px] bg-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-sm border border-white/10 shadow-sm">Join: <span className="font-bold">{user.join_date}</span></span>
                     )}
                     <span className="text-[10px] bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 px-3.5 py-1.5 rounded-xl font-bold shadow-sm">Under: {user.under}</span>
+                    <button 
+                      onClick={() => setIsRequestModalOpen(true)}
+                      className="bg-white text-[#e20074] px-3.5 py-1.5 rounded-xl font-black text-[10px] uppercase shadow-sm"
+                    >
+                      Request Schedule
+                    </button>
                   </div>
                 </div>
               </div>
@@ -590,6 +596,43 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
         /* ========================================================================= */
         <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f4f6f9] anim-fade-in overflow-hidden">
           
+          {isRequestModalOpen && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+              <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl p-6">
+                <h3 className="font-black text-sm uppercase mb-4">Request Schedule</h3>
+                <select 
+                  className="w-full p-3 rounded-2xl bg-gray-50 border mb-4 text-xs"
+                  onChange={(e) => setRequestForm({...requestForm, hari: e.target.value})}
+                >
+                  <option value="">Pilih Hari</option>
+                  <option value="SENIN">SENIN</option>
+                  <option value="SELASA">SELASA</option>
+                  <option value="RABU">RABU</option>
+                  <option value="KAMIS">KAMIS</option>
+                  <option value="JUMAT">JUMAT</option>
+                </select>
+                <textarea 
+                  className="w-full p-4 rounded-2xl bg-gray-50 border mb-4 text-xs"
+                  placeholder="Alasan..."
+                  onChange={(e) => setRequestForm({...requestForm, alasan: e.target.value})}
+                />
+                <button 
+                  onClick={async () => {
+                    const res = await fetch('/api/request-schedule', {
+                      method: 'POST',
+                      body: JSON.stringify({ ...requestForm, nik: user.nik, nama: user.nama, under: user.under })
+                    });
+                    if ((await res.json()).success) { alert("Berhasil!"); setIsRequestModalOpen(false); }
+                  }}
+                  className="w-full bg-[#e20074] text-white py-3 rounded-2xl font-bold text-xs"
+                >
+                  KIRIM REQUEST
+                </button>
+                <button onClick={() => setIsRequestModalOpen(false)} className="w-full mt-2 text-[10px] text-gray-400 font-bold">BATAL</button>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white px-8 pt-20 pb-10 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[380px] text-center anim-slide-up border border-gray-100 relative mt-10">
             
             {/* --- KARAKTER MAKO CHAN --- */}
