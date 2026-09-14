@@ -65,6 +65,7 @@ const [teamList, setTeamList] = useState(null);
 const [teamLoading, setTeamLoading] = useState(false);
 const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
+const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
 const [syncingAbsensi, setSyncingAbsensi] = useState(false);
 const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
 
@@ -164,6 +165,7 @@ async function openTeamMonitor(dateVal) {
   setTeamLoading(true);
   const tgl = dateVal || new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" });
   setTeamDate(tgl);
+  setTeamSelectedStaff(null);
   try {
     const res = await fetch(`/api/absensi/team-status?tanggal=${tgl}`);
     const json = await res.json();
@@ -173,6 +175,18 @@ async function openTeamMonitor(dateVal) {
     alert("Gagal memuat: " + err.message);
   }
   setTeamLoading(false);
+}
+
+async function fetchStaffMonthlyLog(nik, tgl) {
+  const yyyy = tgl.split("-")[0];
+  const mm = tgl.split("-")[1];
+  try {
+    const res = await fetch(`/api/absensi/log?nik=${nik}&month=${yyyy}-${mm}`);
+    const json = await res.json();
+    setTeamSelectedStaff(prev => ({ ...prev, loading: false, logs: json.success ? json.logs : [] }));
+  } catch (err) {
+    setTeamSelectedStaff(prev => ({ ...prev, loading: false, logs: [] }));
+  }
 }
  
 function getFilteredTeam() {
@@ -1098,7 +1112,7 @@ function getStatusBadgeClass(remarks) {
             <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
           )}
           {!teamLoading && filteredTeam.map((t, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onClick={() => { setTeamSelectedStaff({ nik: t.nik, nama: t.nama, loading: true }); fetchStaffMonthlyLog(t.nik, teamDate); }}>
               <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
                 {t.photoUrl
                   ? <img src={t.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
@@ -1115,6 +1129,28 @@ function getStatusBadgeClass(remarks) {
               </div>
             </div>
           ))}
+
+          {teamSelectedStaff && (
+            <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setTeamSelectedStaff(null)}>
+              <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4 border-b pb-4">
+                  <h3 className="font-bold text-gray-800 text-sm">Log: {teamSelectedStaff.nama}</h3>
+                  <button onClick={() => setTeamSelectedStaff(null)} className="text-gray-400 text-xl">✕</button>
+                </div>
+                {teamSelectedStaff.loading ? <div className="text-center py-10 text-xs text-gray-400">Memuat data...</div> : (
+                  <div className="space-y-2">
+                    {teamSelectedStaff.logs?.map((item, idx) => (
+                      <div key={idx} className="bg-gray-50 p-3 rounded-xl flex justify-between text-[11px] items-center">
+                        <span className="font-bold text-gray-700 w-16">{item.date}</span>
+                        <span className="text-gray-500 flex-1 text-center">{item.shift}</span>
+                        <span className={`font-bold ${statusBadgeClass(item.remarks)} px-2 py-0.5 rounded`}>{item.remarks}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
