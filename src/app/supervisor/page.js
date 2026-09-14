@@ -61,6 +61,45 @@ export default function SupervisorDashboard() {
 
 
   const [activeModalData, setActiveModalData] = useState(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiQuery, setAiQuery] = useState("");
+  const [aiChat, setAiChat] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const askAiAssistant = async (e) => {
+    e.preventDefault();
+    if (!aiQuery.trim() || aiLoading) return;
+    const userMsg = aiQuery.trim();
+    setAiQuery("");
+    setAiChat(prev => [...prev, { role: 'user', text: userMsg }]);
+    setAiLoading(true);
+
+    try {
+      const contextSummary = {
+        totalKaryawan: allKaryawan.length,
+        totalShortageRecords: rawShortage.length,
+        totalMemberRecords: rawMember.length,
+        totalEcobagRecords: rawEcobag.length,
+        totalSakitRecords: rawSakit.length,
+        totalSpRecords: rawSpBa.length,
+      };
+
+      const res = await fetch('/api/supervisor/ai-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMsg, context: contextSummary, allKaryawan: allKaryawan.slice(0, 50) })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAiChat(prev => [...prev, { role: 'assistant', text: json.reply }]);
+      } else {
+        setAiChat(prev => [...prev, { role: 'assistant', text: "Maaf, AI sedang mengalami kendala: " + json.message }]);
+      }
+    } catch (err) {
+      setAiChat(prev => [...prev, { role: 'assistant', text: "Error koneksi ke AI: " + err.message }]);
+    }
+    setAiLoading(false);
+  };
 
   const exportToExcel = (dataToExport, fileName, sheetName = "Data") => {
     if (!dataToExport || dataToExport.length === 0) {
@@ -611,6 +650,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
           <div className="flex items-center gap-4 relative z-10"><button onClick={() => setSidebarOpen(true)} className="md:hidden text-2xl">☰</button><h2 className="font-black text-lg uppercase tracking-wide">{selectedKaryawan ? `Profil: ${selectedKaryawan.nama}` : activePanel === "dir" ? "Direktori Karyawan DPM" : `Panel ${activePanel}`}</h2></div>
           <div className="flex items-center gap-2 relative z-10 flex-wrap">
+            <button onClick={() => setAiOpen(!aiOpen)} className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5 ${aiOpen ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600'}`}><span>🤖</span> AI Assistant</button>
             <button onClick={exportAllPanels} className="bg-white text-[#e20074] hover:bg-pink-50 px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5"><span>📊</span> Export Semua Excel</button>
             <button onClick={handleSyncKasir} disabled={syncStatus.loading}
               className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm disabled:opacity-50">
@@ -618,6 +658,19 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
             </button>
             {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
           </div>
+
+          {aiOpen && (
+            <div className="fixed bottom-6 right-6 w-80 bg-white rounded-3xl shadow-2xl z-[9999] flex flex-col overflow-hidden border border-indigo-100 anim-pop-in">
+              <div className="bg-indigo-600 p-4 text-white font-black text-xs uppercase flex justify-between"><span>AI Agent Assistant</span><button onClick={() => setAiOpen(false)}>✕</button></div>
+              <div className="p-4 h-64 overflow-y-auto space-y-3 bg-gray-50 text-xs">
+                {aiChat.map((m, i) => <div key={i} className={`p-2 rounded-lg ${m.role === 'user' ? 'bg-indigo-100 ml-auto' : 'bg-white mr-auto'}`}>{m.text}</div>)}
+              </div>
+              <form onSubmit={askAiAssistant} className="p-2 border-t flex gap-1">
+                <input value={aiQuery} onChange={(e) => setAiQuery(e.target.value)} className="flex-1 p-2 bg-gray-100 rounded-lg outline-none text-xs" placeholder="Tanya sesuatu..." />
+                <button type="submit" disabled={aiLoading} className="bg-indigo-600 text-white px-3 rounded-lg text-xs font-bold">{aiLoading ? '...' : 'Kirim'}</button>
+              </form>
+            </div>
+          )}
         </header>
  
         {syncStatus.message && (
