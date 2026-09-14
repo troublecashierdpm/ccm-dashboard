@@ -75,19 +75,23 @@ export default function SupervisorDashboard() {
     setAiLoading(true);
 
     try {
-      const contextSummary = {
+      const activePanelData = {
+        activePanel,
         totalKaryawan: allKaryawan.length,
-        totalShortageRecords: rawShortage.length,
-        totalMemberRecords: rawMember.length,
-        totalEcobagRecords: rawEcobag.length,
-        totalSakitRecords: rawSakit.length,
-        totalSpRecords: rawSpBa.length,
+        shortage: rawShortage.length > 0 ? rawShortage.slice(0, 100) : [],
+        ecobag: rawEcobag.length > 0 ? rawEcobag.slice(0, 100) : [],
+        member: rawMember.length > 0 ? rawMember.slice(0, 100) : [],
+        salesMember: rawSalesMember.length > 0 ? rawSalesMember.slice(0, 100) : [],
+        salesHourly: rawSalesHourly.length > 0 ? rawSalesHourly.slice(0, 100) : [],
+        sakit: rawSakit.length > 0 ? rawSakit.slice(0, 50) : [],
+        spBa: rawSpBa.length > 0 ? rawSpBa.slice(0, 50) : [],
+        pwp: rawPwp.length > 0 ? rawPwp.slice(0, 50) : [],
       };
 
       const res = await fetch('/api/supervisor/ai-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMsg, context: contextSummary, allKaryawan: allKaryawan.slice(0, 50) })
+        body: JSON.stringify({ query: userMsg, context: activePanelData })
       });
       const json = await res.json();
       if (json.success) {
