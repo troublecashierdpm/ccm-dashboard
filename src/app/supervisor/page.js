@@ -137,25 +137,52 @@ export default function SupervisorDashboard() {
       rawSalesHourly.forEach(r => { totalHourlyAll += parseFloat(r.total_sales) || 0; });
       const globalSalesRatio = totalHourlyAll > 0 ? Math.round((totalMemberAll / totalHourlyAll) * 1000) / 10 : 0;
 
-      // Sakit & SP summary
-      const sakitByNama = {};
-      rawSakit.forEach(r => { const n = normName(r.nama); sakitByNama[n] = (sakitByNama[n] || 0) + 1; });
-      const spByNama = {};
-      rawSpBa.forEach(r => { const n = normName(r.nama); spByNama[n] = (spByNama[n] || 0) + 1; });
+      // KPI: Agregasi per karyawan (semua periode)
+      // Shortage per karyawan total
+      const shortageByKaryawan = {};
+      rawShortage.forEach(r => {
+        const nama = normName(r.nama || r.nama_1 || "");
+        if (!shortageByKaryawan[nama]) shortageByKaryawan[nama] = { nama, totalShort: 0, totalOver: 0, frekuensi: 0 };
+        shortageByKaryawan[nama].frekuensi++;
+        const pagi = parseInt(r.short_over_shift_pagi) || 0;
+        const siang = parseInt(r.short_over_shift_siang) || 0;
+        if (pagi < 0) shortageByKaryawan[nama].totalShort += Math.abs(pagi); if (pagi > 0) shortageByKaryawan[nama].totalOver += pagi;
+        if (siang < 0) shortageByKaryawan[nama].totalShort += Math.abs(siang); if (siang > 0) shortageByKaryawan[nama].totalOver += siang;
+      });
+      const allShortageSorted = Object.values(shortageByKaryawan).sort((a,b) => b.totalShort - a.totalShort);
+      const kpiShortageTertinggi = allShortageSorted.slice(0, 5);
+      const kpiShortageTerendah = allShortageSorted.filter(s => s.totalShort === 0).sort((a,b) => a.frekuensi - b.frekuensi).slice(0, 5);
 
-      // Top shortage
-      const topShortage = Object.values(shortageSummary).sort((a,b) => a.totalShort - b.totalShort).slice(0, 10);
+      // SP/BA per karyawan total
+      const spByKaryawan = {};
+      rawSpBa.forEach(r => { const n = normName(r.nama); spByKaryawan[n] = (spByKaryawan[n] || 0) + 1; });
+      const allSpSorted = Object.entries(spByKaryawan).sort((a,b) => b[1] - a[1]);
+      const kpiSpTertinggi = allSpSorted.slice(0, 5).map(([n,c]) => ({ nama: n, jumlah: c }));
+      // Terendah = yang tidak punya SP sama sekali
+      const allNamaSet = new Set(allKaryawan.map(k => normName(k.nama)));
+      const namaNoSp = [...allNamaSet].filter(n => !spByKaryawan[n]);
+      const kpiSpTerendah = namaNoSp.slice(0, 10).map(n => ({ nama: n, jumlah: 0 }));
+
+      // Sakit per karyawan total
+      const sakitByKaryawan = {};
+      rawSakit.forEach(r => { const n = normName(r.nama); sakitByKaryawan[n] = (sakitByKaryawan[n] || 0) + 1; });
+      const allSakitSorted = Object.entries(sakitByKaryawan).sort((a,b) => b[1] - a[1]);
+      const kpiSakitTertinggi = allSakitSorted.slice(0, 5).map(([n,c]) => ({ nama: n, jumlah: c }));
+      const namaNoSakit = [...allNamaSet].filter(n => !sakitByKaryawan[n]);
+      const kpiSakitTerendah = namaNoSakit.slice(0, 10).map(n => ({ nama: n, jumlah: 0 }));
 
       const activePanelData = {
         activePanel,
         totalKaryawan: allKaryawan.length,
-        topShortage,
-        topSakit: Object.entries(sakitByNama).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([n,c]) => ({ nama: n, jumlah: c })),
-        topSp: Object.entries(spByNama).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([n,c]) => ({ nama: n, jumlah: c })),
+        kpi: {
+          shortage: { tertinggi: kpiShortageTertinggi, terendah: kpiShortageTerendah },
+          sp: { tertinggi: kpiSpTertinggi, terendah: kpiSpTerendah },
+          sakit: { tertinggi: kpiSakitTertinggi, terendah: kpiSakitTerendah },
+        },
+        globalSales: { totalMember: totalMemberAll, totalHourly: totalHourlyAll, ratio: globalSalesRatio },
         memberSummary: Object.values(memberSummary).sort((a,b) => b.total - a.total),
         ecobagSummary: Object.values(ecobagSummary).sort((a,b) => b.total - a.total),
         salesSummary: Object.values(salesSummary).sort((a,b) => a.nama.localeCompare(b.nama)),
-        globalSales: { totalMember: totalMemberAll, totalHourly: totalHourlyAll, ratio: globalSalesRatio },
       };
 
       const res = await fetch('/api/supervisor/ai-agent', {

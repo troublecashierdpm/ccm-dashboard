@@ -11,35 +11,39 @@ export async function POST(req) {
       return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Pertanyaan Anda "${query}" diterima. Masukkan GEMINI_API_KEY di environment variables untuk respon AI sesungguhnya.` });
     }
 
+    const kpi = context.kpi || {};
     const systemPrompt = `Anda adalah AI Assistant cerdas untuk Dashboard Supervisor Kasir AEON.
 Tugas: Membantu supervisor menganalisis data karyawan kasir secara akurat.
 Jawab dalam Bahasa Indonesia, singkat, jelas, langsung pada intinya. Gunakan angka dan data yang diberikan.
 
-Data yang tersedia (sudah dihitung/pre-aggregated):
+Data yang tersedia:
 
 1. Total Karyawan: ${context.totalKaryawan}
 
-2. Global Sales Ratio: Total Member Sales = ${context.globalSales?.totalMember}, Total Hourly Sales = ${context.globalSales?.totalHourly}, Ratio = ${context.globalSales?.ratio}%
+2. KPI RANKING:
+   a. Shortage TERTINGGI (paling banyak minus/kekurangan kas): ${JSON.stringify(kpi.shortage?.tertinggi || [])}
+   b. Shortage TERENDAH (paling sedikit/tidak ada shortage sama sekali): ${JSON.stringify(kpi.shortage?.terendah || [])}
+   c. Surat Pernyataan (SP/BA) TERTINGGI (paling banyak pelanggaran): ${JSON.stringify(kpi.sp?.tertinggi || [])}
+   d. Surat Pernyataan (SP/BA) TERENDAH (TIDAK punya SP/BA sama sekali = karyawan paling disiplin): ${JSON.stringify(kpi.sp?.terendah || [])}
+   e. Absensi Sakit TERTINGGI (paling sering sakit): ${JSON.stringify(kpi.sakit?.tertinggi || [])}
+   f. Absensi Sakit TERENDAH (TIDAK pernah sakit sama sekali): ${JSON.stringify(kpi.sakit?.terendah || [])}
 
-3. Top 10 Shortage (paling banyak minus): ${JSON.stringify(context.topShortage || [])}
+3. Global Sales Ratio: Total Member Sales = ${context.globalSales?.totalMember}, Total Hourly Sales = ${context.globalSales?.totalHourly}, Ratio = ${context.globalSales?.ratio}%
 
-4. Top Sakit (paling banyak absen sakit): ${JSON.stringify(context.topSakit || [])}
+4. Data Member per karyawan per bulan: ${JSON.stringify((context.memberSummary || []).slice(0, 50))}
 
-5. Top SP/BA (paling banyak pelanggaran): ${JSON.stringify(context.topSp || [])}
+5. Data Ecobag per karyawan per bulan: ${JSON.stringify((context.ecobagSummary || []).slice(0, 50))}
 
-6. Data Member per karyawan per bulan: ${JSON.stringify((context.memberSummary || []).slice(0, 50))}
-
-7. Data Ecobag per karyawan per bulan: ${JSON.stringify((context.ecobagSummary || []).slice(0, 50))}
-
-8. Data Sales per karyawan per periode: ${JSON.stringify((context.salesSummary || []).slice(0, 50))}
+6. Data Sales per karyawan per periode: ${JSON.stringify((context.salesSummary || []).slice(0, 50))}
 
 Panel aktif user: ${context.activePanel}
 
 Panduan menjawab:
-- Gunakan data angka yang sudah dihitung di atas, JANGAN mengarang angka.
-- Jika user tanya persentase, hitung dari data yang ada.
-- Jika user tanya siapa terbaik/terburuk, lihat dari data top/ranking.
-- Jika data tidak cukup untuk jawab, bilang jujur.`;
+- "Tertinggi" = karyawan dengan angka paling tinggi (buruk untuk shortage/SP/sakit).
+- "Terendah" = karyawan TERBAIK: zero shortage, zero SP, zero sakit.
+- Jika user tanya "siapa yang terbaik", gabungkan data terendah dari SP, Sakit, dan Shortage.
+- Jika user tanya "siapa yang perlu diperhatikan", tampilkan yang tertinggi.
+- Selalu sertakan nama dan angka spesifik.`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
