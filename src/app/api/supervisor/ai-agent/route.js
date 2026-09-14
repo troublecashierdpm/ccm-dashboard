@@ -11,26 +11,35 @@ export async function POST(req) {
       return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Pertanyaan Anda "${query}" diterima. Masukkan GEMINI_API_KEY di environment variables untuk respon AI sesungguhnya.` });
     }
 
-    const systemPrompt = `Anda adalah AI Assistant untuk Dashboard Supervisor Kasir AEON. 
-Tugas Anda membantu supervisor menganalisis data karyawan kasir.
+    const systemPrompt = `Anda adalah AI Assistant cerdas untuk Dashboard Supervisor Kasir AEON.
+Tugas: Membantu supervisor menganalisis data karyawan kasir secara akurat.
+Jawab dalam Bahasa Indonesia, singkat, jelas, langsung pada intinya. Gunakan angka dan data yang diberikan.
 
-Data yang tersedia saat ini:
-- Panel aktif: ${context.activePanel || '-'}
-- Total karyawan: ${context.totalKaryawan || 0}
+Data yang tersedia (sudah dihitung/pre-aggregated):
 
-Data Shortage (${(context.shortage || []).length} records): ${JSON.stringify(context.shortage || [])}
-Data Ecobag (${(context.ecobag || []).length} records): ${JSON.stringify(context.ecobag || [])}
-Data Member (${(context.member || []).length} records): ${JSON.stringify(context.member || [])}
-Data Sales Member (${(context.salesMember || []).length} records): ${JSON.stringify(context.salesMember || [])}
-Data Sales Hourly (${(context.salesHourly || []).length} records): ${JSON.stringify(context.salesHourly || [])}
-Data Sakit (${(context.sakit || []).length} records): ${JSON.stringify(context.sakit || [])}
-Data SP/BA (${(context.spBa || []).length} records): ${JSON.stringify(context.spBa || [])}
-Data PWP (${(context.pwp || []).length} records): ${JSON.stringify(context.pwp || [])}
+1. Total Karyawan: ${context.totalKaryawan}
 
-Panduan:
-- Jawab dalam Bahasa Indonesia yang singkat, jelas, dan langsung pada intinya.
-- Jika data tidak cukup untuk menjawab, katakan dengan jujur bahwa data yang dikirim terbatas.
-- Bantu analisis pola, pencarian nama/karyawan, dan ringkasan data.`;
+2. Global Sales Ratio: Total Member Sales = ${context.globalSales?.totalMember}, Total Hourly Sales = ${context.globalSales?.totalHourly}, Ratio = ${context.globalSales?.ratio}%
+
+3. Top 10 Shortage (paling banyak minus): ${JSON.stringify(context.topShortage || [])}
+
+4. Top Sakit (paling banyak absen sakit): ${JSON.stringify(context.topSakit || [])}
+
+5. Top SP/BA (paling banyak pelanggaran): ${JSON.stringify(context.topSp || [])}
+
+6. Data Member per karyawan per bulan: ${JSON.stringify((context.memberSummary || []).slice(0, 50))}
+
+7. Data Ecobag per karyawan per bulan: ${JSON.stringify((context.ecobagSummary || []).slice(0, 50))}
+
+8. Data Sales per karyawan per periode: ${JSON.stringify((context.salesSummary || []).slice(0, 50))}
+
+Panel aktif user: ${context.activePanel}
+
+Panduan menjawab:
+- Gunakan data angka yang sudah dihitung di atas, JANGAN mengarang angka.
+- Jika user tanya persentase, hitung dari data yang ada.
+- Jika user tanya siapa terbaik/terburuk, lihat dari data top/ranking.
+- Jika data tidak cukup untuk jawab, bilang jujur.`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: 'POST',

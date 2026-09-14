@@ -75,17 +75,87 @@ export default function SupervisorDashboard() {
     setAiLoading(true);
 
     try {
+      // PRE-AGGREGATE: Hitung ringkasan data sebelum dikirim ke AI
+      // Shortage per karyawan per periode
+      const shortageSummary = {};
+      rawShortage.forEach(r => {
+        const nama = normName(r.nama || r.nama_1 || "");
+        const periode = r.periode || "";
+        const key = nama + "|" + periode;
+        if (!shortageSummary[key]) shortageSummary[key] = { nama, periode, frekuensi: 0, totalShort: 0, totalOver: 0 };
+        shortageSummary[key].frekuensi++;
+        const pagi = parseInt(r.short_over_shift_pagi) || 0;
+        const siang = parseInt(r.short_over_shift_siang) || 0;
+        if (pagi < 0) shortageSummary[key].totalShort += pagi; if (pagi > 0) shortageSummary[key].totalOver += pagi;
+        if (siang < 0) shortageSummary[key].totalShort += siang; if (siang > 0) shortageSummary[key].totalOver += siang;
+      });
+
+      // Member per karyawan per bulan
+      const memberSummary = {};
+      rawMember.forEach(r => {
+        const nama = normName(r.nama);
+        const bulan = r.bulan || "";
+        const key = nama + "|" + bulan;
+        if (!memberSummary[key]) memberSummary[key] = { nama, bulan, total: 0 };
+        memberSummary[key].total += parseInt(r.qty) || 0;
+      });
+
+      // Ecobag per karyawan per bulan
+      const ecobagSummary = {};
+      rawEcobag.forEach(r => {
+        const nama = normName(r.staff_name);
+        const bulan = r.year_month || r.month || "";
+        const key = nama + "|" + bulan;
+        if (!ecobagSummary[key]) ecobagSummary[key] = { nama, bulan, total: 0 };
+        ecobagSummary[key].total += parseInt(r.total) || 0;
+      });
+
+      // Sales ratio per karyawan per periode
+      const salesSummary = {};
+      rawSalesMember.forEach(r => {
+        const nama = normName(r.nama);
+        const periode = r.periode || "";
+        const key = nama + "|" + periode;
+        if (!salesSummary[key]) salesSummary[key] = { nama, periode, totalMemberSales: 0, totalHourlySales: 0 };
+        salesSummary[key].totalMemberSales += parseFloat(r.total_sales) || 0;
+      });
+      rawSalesHourly.forEach(r => {
+        const nama = normName(r.nama);
+        const periode = r.periode || "";
+        const key = nama + "|" + periode;
+        if (!salesSummary[key]) salesSummary[key] = { nama, periode, totalMemberSales: 0, totalHourlySales: 0 };
+        salesSummary[key].totalHourlySales += parseFloat(r.total_sales) || 0;
+      });
+      Object.values(salesSummary).forEach(g => {
+        g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
+        g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
+      });
+
+      // Total global sales
+      let totalMemberAll = 0, totalHourlyAll = 0;
+      rawSalesMember.forEach(r => { totalMemberAll += parseFloat(r.total_sales) || 0; });
+      rawSalesHourly.forEach(r => { totalHourlyAll += parseFloat(r.total_sales) || 0; });
+      const globalSalesRatio = totalHourlyAll > 0 ? Math.round((totalMemberAll / totalHourlyAll) * 1000) / 10 : 0;
+
+      // Sakit & SP summary
+      const sakitByNama = {};
+      rawSakit.forEach(r => { const n = normName(r.nama); sakitByNama[n] = (sakitByNama[n] || 0) + 1; });
+      const spByNama = {};
+      rawSpBa.forEach(r => { const n = normName(r.nama); spByNama[n] = (spByNama[n] || 0) + 1; });
+
+      // Top shortage
+      const topShortage = Object.values(shortageSummary).sort((a,b) => a.totalShort - b.totalShort).slice(0, 10);
+
       const activePanelData = {
         activePanel,
         totalKaryawan: allKaryawan.length,
-        shortage: rawShortage.length > 0 ? rawShortage.slice(0, 100) : [],
-        ecobag: rawEcobag.length > 0 ? rawEcobag.slice(0, 100) : [],
-        member: rawMember.length > 0 ? rawMember.slice(0, 100) : [],
-        salesMember: rawSalesMember.length > 0 ? rawSalesMember.slice(0, 100) : [],
-        salesHourly: rawSalesHourly.length > 0 ? rawSalesHourly.slice(0, 100) : [],
-        sakit: rawSakit.length > 0 ? rawSakit.slice(0, 50) : [],
-        spBa: rawSpBa.length > 0 ? rawSpBa.slice(0, 50) : [],
-        pwp: rawPwp.length > 0 ? rawPwp.slice(0, 50) : [],
+        topShortage,
+        topSakit: Object.entries(sakitByNama).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([n,c]) => ({ nama: n, jumlah: c })),
+        topSp: Object.entries(spByNama).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([n,c]) => ({ nama: n, jumlah: c })),
+        memberSummary: Object.values(memberSummary).sort((a,b) => b.total - a.total),
+        ecobagSummary: Object.values(ecobagSummary).sort((a,b) => b.total - a.total),
+        salesSummary: Object.values(salesSummary).sort((a,b) => a.nama.localeCompare(b.nama)),
+        globalSales: { totalMember: totalMemberAll, totalHourly: totalHourlyAll, ratio: globalSalesRatio },
       };
 
       const res = await fetch('/api/supervisor/ai-agent', {
