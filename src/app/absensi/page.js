@@ -66,6 +66,7 @@ const [teamLoading, setTeamLoading] = useState(false);
 const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
+const [teamStats, setTeamStats] = useState(null);
 const [syncingAbsensi, setSyncingAbsensi] = useState(false);
 const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
 
@@ -166,10 +167,11 @@ async function openTeamMonitor(dateVal) {
   const tgl = dateVal || new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" });
   setTeamDate(tgl);
   setTeamSelectedStaff(null);
+  setTeamStats(null);
   try {
     const res = await fetch(`/api/absensi/team-status?tanggal=${tgl}`);
     const json = await res.json();
-    if (json.success) { setTeamList(json.data); setTeamStatusFilter("All"); }
+    if (json.success) { setTeamList(json.data); setTeamStats(json.stats); setTeamStatusFilter("All"); }
     else alert(json.message);
   } catch (err) {
     alert("Gagal memuat: " + err.message);
@@ -1107,6 +1109,31 @@ function getStatusBadgeClass(remarks) {
         </div>
 
         <div className="p-5 space-y-3">
+          {teamStats && (
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">Present</p>
+                <h4 className="text-lg font-black text-green-600">{teamStats.present}</h4>
+              </div>
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">Late</p>
+                <h4 className="text-lg font-black text-red-600">{teamStats.late}</h4>
+              </div>
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">Early Out</p>
+                <h4 className="text-lg font-black text-orange-500">{teamStats.early}</h4>
+              </div>
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
+                <h4 className="text-lg font-black text-red-600">{teamStats.absent}</h4>
+              </div>
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-2">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
+                <h4 className="text-lg font-black text-amber-500">{teamStats.noIn}</h4>
+              </div>
+            </div>
+          )}
+
           {teamLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
           {!teamLoading && filteredTeam.length === 0 && (
             <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
