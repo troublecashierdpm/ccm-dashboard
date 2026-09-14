@@ -66,6 +66,8 @@ const [teamLoading, setTeamLoading] = useState(false);
 const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 const [syncingAbsensi, setSyncingAbsensi] = useState(false);
+const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
+
 
 
 
@@ -78,7 +80,20 @@ const [syncingAbsensi, setSyncingAbsensi] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  async function handleReverseSyncAbsensi() {
+  async function handleForwardSyncAbsensi() {
+  setSyncingAbsensi(true);
+  setSyncMsg({ text: "Menyinkronkan data dari Google Sheets ke Supabase...", success: null });
+  try {
+    const res = await fetch('/api/sync-absensi');
+    const json = await res.json();
+    setSyncMsg({ text: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
+  } catch (err) {
+    setSyncMsg({ text: "Error koneksi: " + err.message, success: false });
+  }
+  setSyncingAbsensi(false);
+}
+ 
+async function handleReverseSyncAbsensi() {
   const konfirmasi = confirm(
     "⚠️ PERHATIAN!\n\nIni akan MENIMPA seluruh isi sheet Master_Schedule, Log_Absensi, dan Data_Request " +
     "dengan data TERBARU dari Supabase (bukan digabung, tapi ditimpa total).\n\n" +
@@ -87,19 +102,17 @@ const [syncingAbsensi, setSyncingAbsensi] = useState(false);
   if (!konfirmasi) return;
  
   setSyncingAbsensi(true);
+  setSyncMsg({ text: "Menyinkronkan data dari Supabase ke Google Sheets...", success: null });
   try {
     const res = await fetch('/api/sync-absensi/reverse', { method: 'POST' });
     const json = await res.json();
-    if (json.success) {
-      alert("✅ " + json.message);
-    } else {
-      alert("❌ Gagal sync: " + (json.message || "Unknown error"));
-    }
+    setSyncMsg({ text: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
   } catch (err) {
-    alert("❌ Error koneksi: " + err.message);
+    setSyncMsg({ text: "Error koneksi: " + err.message, success: false });
   }
   setSyncingAbsensi(false);
 }
+
   
 async function openApproval() {
   setStep("approval");
@@ -1171,22 +1184,36 @@ function getStatusBadgeClass(remarks) {
           📂 My Requests
         </button>
 
-        {user.isHeadDept && (
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button onClick={openApproval}
-              className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
-              ✅ Approvals
-            </button>
-            <button onClick={() => openTeamMonitor()}
-              className="py-4 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm font-bold text-blue-700 text-xs">
-              👥 Team Monitor
-            </button>
-            <button onClick={handleReverseSyncAbsensi} disabled={syncingAbsensi}
-              className="col-span-2 py-4 bg-orange-50 border border-orange-200 rounded-2xl shadow-sm font-bold text-orange-700 text-xs disabled:opacity-50">
-              {syncingAbsensi ? "⏳ Menyinkronkan..." : "🔄 Sync Absensi → Sheet"}
-            </button>
-          </div>
+                {user.isHeadDept && (
+          <>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button onClick={openApproval}
+                className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
+                ✅ Approvals
+              </button>
+              <button onClick={() => openTeamMonitor()}
+                className="py-4 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm font-bold text-blue-700 text-xs">
+                👥 Team Monitor
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={handleForwardSyncAbsensi} disabled={syncingAbsensi}
+                className="py-4 bg-cyan-50 border border-cyan-200 rounded-2xl shadow-sm font-bold text-cyan-700 text-xs disabled:opacity-50">
+                {syncingAbsensi ? "⏳ ..." : "⬇️ Sync Sheet → DB"}
+              </button>
+              <button onClick={handleReverseSyncAbsensi} disabled={syncingAbsensi}
+                className="py-4 bg-purple-50 border border-purple-200 rounded-2xl shadow-sm font-bold text-purple-700 text-xs disabled:opacity-50">
+                {syncingAbsensi ? "⏳ ..." : "⬆️ Sync DB → Sheet"}
+              </button>
+            </div>
+            {syncMsg.text && (
+              <div className={`text-xs font-bold px-4 py-3 rounded-xl ${syncMsg.success === null ? 'bg-blue-50 text-blue-600' : syncMsg.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {syncMsg.text}
+              </div>
+            )}
+          </>
         )}
+
       </div>
     </div>
   );
