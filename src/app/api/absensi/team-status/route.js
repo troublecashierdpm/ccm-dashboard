@@ -24,18 +24,13 @@ export async function GET(req) {
     const logMap = {};
     (logRows || []).forEach(l => { logMap[l.nik] = l; });
 
+    let stats = { present: 0, late: 0, early: 0, absent: 0, noIn: 0 };
     const results = (users || []).map(u => {
       const shiftCode = jadwalMap[u.nik] || "XX";
       const shiftInfo = hitungJamKerja(shiftCode);
       const log = logMap[u.nik] || { clock_in: "-", clock_out: "-" };
       const actIn = log.clock_in || "-";
       const actOut = log.clock_out || "-";
-
-      let expIn = "", expOut = "";
-      if (shiftInfo.jam && shiftInfo.jam.indexOf("-") !== -1) {
-        const [a, b] = shiftInfo.jam.split("-");
-        expIn = a.trim(); expOut = b.trim();
-      }
 
       let status = "Normal";
       if (shiftInfo.isOff) {
@@ -44,15 +39,18 @@ export async function GET(req) {
         const calculated = hitungLateEarlyDurasi(actIn, actOut, shiftInfo.jam);
         const remarks = getRemarks(actIn, actOut, shiftInfo.isOff, calculated.late, calculated.early);
         
-        // Perbaikan logika status agar sama dengan Log Absensi
         if (remarks === "Alpha") status = "Absent";
-        else if (remarks.includes("No Clock In") && remarks.includes("No Clock Out")) status = "No Clock In"; // Memastikan No Clock In jika salah satu/keduanya tidak ada
-        else if (remarks.includes("No Clock In")) status = "No Clock In";
-        else if (remarks.includes("No Clock Out")) status = "No Clock Out"; // Tambah case No Clock Out
+        else if (remarks.includes("No Clock In") || remarks.includes("No Clock Out")) status = "No Clock In";
         else if (remarks.includes("Late In")) status = "Late";
         else if (remarks.includes("Early Out")) status = "Early";
         else status = "Normal";
       }
+
+      if (status === "Normal") stats.present++;
+      else if (status === "Late") { stats.present++; stats.late++; }
+      else if (status === "Early") { stats.present++; stats.early++; }
+      else if (status === "Absent") stats.absent++;
+      else if (status === "No Clock In" || status === "No Clock Out") stats.noIn++;
 
       return {
         nik: u.nik, nama: u.nama,
@@ -61,7 +59,7 @@ export async function GET(req) {
       };
     });
 
-    return NextResponse.json({ success: true, data: results, date: tanggal });
+    return NextResponse.json({ success: true, data: results, stats, date: tanggal });
   } catch (err) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
