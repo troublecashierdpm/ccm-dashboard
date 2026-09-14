@@ -210,7 +210,7 @@ allSalesDates.forEach(tgl => {
   const m = memberSalesMap[tgl] || { sales: 0, periode: '' };
   const h = hourlySalesMap[tgl] || { sales: 0, count: 0, periode: '' };
   const periode = m.periode || h.periode || 'Unknown';
-  if (!salesPeriodeGroups[periode]) salesPeriodeGroups[periode] = { periode, totalMemberSales: 0, totalHourlySales: 0, details: [] };
+  if (!salesPeriodeGroups[periode]) salesPeriodeGroups[periode] = { periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
  
   // Ratio = % kontribusi Sales Member dari Total Sales (Sales Hourly = total gabungan member + non-member)
   const selisih = h.sales - m.sales; // sales yang TIDAK pakai member
@@ -218,8 +218,10 @@ allSalesDates.forEach(tgl => {
  
   salesPeriodeGroups[periode].totalMemberSales += m.sales;
   salesPeriodeGroups[periode].totalHourlySales += h.sales;
+  salesPeriodeGroups[periode].totalCount += h.count;
   salesPeriodeGroups[periode].details.push({
     tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count,
+    avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0,
     selisih: Math.round(selisih * 100) / 100, ratio: Math.round(ratio * 10) / 10
   });
  
@@ -231,6 +233,7 @@ const finalSalesHistory = Object.values(salesPeriodeGroups).sort((a, b) => b.per
   group.details.sort((a, b) => (b.tgl || '').localeCompare(a.tgl || ''));
   group.selisih = Math.round((group.totalHourlySales - group.totalMemberSales) * 100) / 100;
   group.ratio = group.totalHourlySales > 0 ? Math.round((group.totalMemberSales / group.totalHourlySales) * 1000) / 10 : 0;
+  group.avgTransaction = group.totalCount > 0 ? Math.round(group.totalHourlySales / group.totalCount) : 0;
   return group;
 });
  
@@ -472,7 +475,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                           {detailType === 'sakit' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-right'>Frekuensi Absen</th></tr>)}
                           {detailType === 'sp' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-right'>Total Pelanggaran</th></tr>)}
                           {detailType === 'shortage' && (<tr><th className='p-4'>Bulan</th><th className='p-4 text-center'>Freq</th><th className='p-4 text-right'>Short</th><th className='p-4 text-right'>Over</th></tr>)}
-                          {detailType === 'sales' && (<tr><th className='p-4'>Periode</th><th className='p-4 text-right'>Sales Member</th><th className='p-4 text-right'>Sales Hourly</th><th className='p-4 text-right'>Selisih</th><th className='p-4 text-right'>% Member</th></tr>)}
+                          {detailType === 'sales' && (<tr><th className='p-4'>Periode</th><th className='p-4 text-right'>Sales Member</th><th className='p-4 text-right'>Sales Hourly</th><th className='p-4 text-center'>Transaksi</th><th className='p-4 text-right'>Rata-rata/Tx</th><th className='p-4 text-right'>Selisih</th><th className='p-4 text-right'>% Member</th></tr>)}
                           {detailType === 'pwp' && (<tr><th className='p-4'>Periode</th><th className='p-4 text-right'>Total Qty</th></tr>)}
                         </thead>
                         <tbody className="text-gray-700">
@@ -486,6 +489,8 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
     <td className='p-4 font-bold'>{item.periode}</td>
     <td className='p-4 text-right font-bold text-pink-600'>{item.totalMemberSales.toLocaleString('id-ID')}</td>
     <td className='p-4 text-right font-bold text-indigo-600'>{item.totalHourlySales.toLocaleString('id-ID')}</td>
+    <td className='p-4 text-center font-bold text-gray-500'>{(item.totalCount || 0).toLocaleString('id-ID')}</td>
+    <td className='p-4 text-right font-bold text-green-600'>{(item.avgTransaction || 0).toLocaleString('id-ID')}</td>
     <td className='p-4 text-right font-bold text-orange-600'>{item.selisih.toLocaleString('id-ID')}</td>
     <td className='p-4 text-right font-black text-purple-600'>{item.ratio}%</td>
   </tr>
@@ -524,9 +529,9 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
             <p className="text-[10px] text-indigo-500 font-extrabold uppercase tracking-wide">Sales Hourly</p>
             <p className="font-black text-sm text-indigo-600 mt-1">{activeModalData.data.totalHourlySales.toLocaleString('id-ID')}</p>
           </div>
-          <div className="bg-orange-50 p-3 rounded-2xl text-center border border-orange-100 shadow-sm">
-            <p className="text-[10px] text-orange-500 font-extrabold uppercase tracking-wide">Selisih Non-Member</p>
-            <p className="font-black text-sm text-orange-600 mt-1">{activeModalData.data.selisih.toLocaleString('id-ID')}</p>
+          <div className="bg-green-50 p-3 rounded-2xl text-center border border-green-100 shadow-sm">
+            <p className="text-[10px] text-green-500 font-extrabold uppercase tracking-wide">Rata-rata/Tx</p>
+            <p className="font-black text-sm text-green-600 mt-1">{(activeModalData.data.avgTransaction || 0).toLocaleString('id-ID')}</p>
           </div>
           <div className="bg-purple-50 p-3 rounded-2xl text-center border border-purple-100 shadow-sm">
             <p className="text-[10px] text-purple-500 font-extrabold uppercase tracking-wide">% Member</p>
@@ -544,6 +549,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
             <div className="text-right space-y-0.5">
               <p className="text-[9px] text-gray-500">Member: <span className="font-bold text-pink-600">{det.memberSales.toLocaleString('id-ID')}</span></p>
               <p className="text-[9px] text-gray-500">Hourly: <span className="font-bold text-indigo-600">{det.hourlySales.toLocaleString('id-ID')}</span></p>
+              <p className="text-[9px] text-gray-500">Rata-rata: <span className="font-bold text-green-600">{(det.avgTransaction || 0).toLocaleString('id-ID')}</span></p>
               <p className="text-[9px] text-gray-500">Selisih: <span className="font-bold text-orange-600">{det.selisih.toLocaleString('id-ID')}</span></p>
               <p className="font-black text-sm text-purple-600">{det.ratio}%</p>
             </div>
