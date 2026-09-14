@@ -54,7 +54,7 @@ Panduan menjawab:
         'X-Title': 'CCM Dashboard AI Assistant'
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat:free',
+        model: 'meta-llama/llama-3.1-8b-instruct:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: query }
