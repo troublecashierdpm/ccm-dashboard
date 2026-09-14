@@ -22,6 +22,8 @@ export default function SupervisorDashboard() {
   const [activePanel, setActivePanel] = useState("dir"); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState({ loading: false, message: "", success: null });
+
   
   const [allKaryawan, setAllKaryawan] = useState([]);
   const [rawShortage, setRawShortage] = useState([]);
@@ -95,6 +97,17 @@ export default function SupervisorDashboard() {
     }
     return all;
   };
+
+  async function handleSyncKasir() {
+  setSyncStatus({ loading: true, message: "Menyinkronkan data dari Google Sheets ke Supabase...", success: null });
+  try {
+    const res = await fetch('/api/sync');
+    const json = await res.json();
+    setSyncStatus({ loading: false, message: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
+  } catch (err) {
+    setSyncStatus({ loading: false, message: "Error koneksi: " + err.message, success: false });
+  }
+}
 
   const fetchGlobalData = async () => {
     setLoading(true);
@@ -525,8 +538,21 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         <header className="flex items-center justify-between bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] mb-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20"></div>
           <div className="flex items-center gap-4 relative z-10"><button onClick={() => setSidebarOpen(true)} className="md:hidden text-2xl">☰</button><h2 className="font-black text-lg uppercase tracking-wide">{selectedKaryawan ? `Profil: ${selectedKaryawan.nama}` : activePanel === "dir" ? "Direktori Karyawan DPM" : `Panel ${activePanel}`}</h2></div>
-          {selectedKaryawan && <button onClick={() => setActivePanel("dir")} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm relative z-10">← Kembali</button>}
+          <div className="flex items-center gap-2 relative z-10">
+            <button onClick={handleSyncKasir} disabled={syncStatus.loading}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm disabled:opacity-50">
+              {syncStatus.loading ? "⏳ Sinkronisasi..." : "🔄 Sync Data"}
+            </button>
+            {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
+          </div>
         </header>
+ 
+        {syncStatus.message && (
+          <div className={`-mt-4 mb-6 text-xs font-bold px-4 py-3 rounded-xl ${syncStatus.loading ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {syncStatus.loading && "⏳ "}{syncStatus.message}
+          </div>
+        )}
+
 
         {loading ? ( <div className="flex flex-col items-center justify-center py-40 gap-3"><div className="w-12 h-12 border-4 border-[#e20074] border-t-transparent rounded-full animate-spin"></div><p className="text-gray-400 font-bold text-xs tracking-widest uppercase animate-pulse">Memuat Database...</p></div> ) : (
           <>
