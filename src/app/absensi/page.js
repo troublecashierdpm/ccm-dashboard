@@ -1098,14 +1098,22 @@ function getStatusBadgeClass(remarks) {
             <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
             <h2 className="font-bold text-gray-800">Team Monitor</h2>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => { 
+              const d = new Date(teamDate); d.setDate(d.getDate() - 1); 
+              openTeamMonitor(d.toLocaleDateString('sv-SE'));
+            }} className="p-3 bg-white rounded-xl shadow-sm font-bold text-[#e20074]">‹</button>
             <input type="date" value={teamDate} onChange={(e) => openTeamMonitor(e.target.value)}
               className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50" />
-            <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
-              className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
-              {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
-            </select>
+            <button onClick={() => { 
+              const d = new Date(teamDate); d.setDate(d.getDate() + 1); 
+              openTeamMonitor(d.toLocaleDateString('sv-SE'));
+            }} className="p-3 bg-white rounded-xl shadow-sm font-bold text-[#e20074]">›</button>
           </div>
+          <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
+            className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+            {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
+          </select>
         </div>
 
         <div className="p-5 space-y-3">
