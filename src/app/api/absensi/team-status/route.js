@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { hitungJamKerja } from '@/lib/absensiHelpers';
+import { hitungJamKerja, hitungLateEarlyDurasi, getRemarks } from '@/lib/absensiHelpers';
 
 export async function GET(req) {
   try {
@@ -37,14 +37,16 @@ export async function GET(req) {
         expIn = a.trim(); expOut = b.trim();
       }
 
-      let status = "Normal";
       if (shiftInfo.isOff) {
         status = (actIn !== "-" || actOut !== "-") ? "Extra/Lembur" : "Day Off";
       } else {
-        if (actIn === "-" && actOut === "-") status = "Absent";
-        else if (actIn === "-" && actOut !== "-") status = "No Clock In";
-        else if (actIn !== "-" && expIn && actIn > expIn) status = "Late";
-        else if (actOut !== "-" && expOut && actOut < expOut) status = "Early";
+        const calculated = hitungLateEarlyDurasi(actIn, actOut, shiftInfo.jam);
+        const remarks = getRemarks(actIn, actOut, shiftInfo.isOff, calculated.late, calculated.early);
+        if (remarks === "Alpha") status = "Absent";
+        else if (remarks.indexOf("No Clock In") !== -1 || remarks.indexOf("No Clock Out") !== -1) status = "No Clock In";
+        else if (remarks.indexOf("Late In") !== -1) status = "Late";
+        else if (remarks.indexOf("Early Out") !== -1) status = "Early";
+        else status = "Normal";
       }
 
       return {
