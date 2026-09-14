@@ -5,10 +5,10 @@ import { NextResponse } from 'next/server';
 export async function POST(req) {
   try {
     const { query, context } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Pertanyaan Anda "${query}" diterima. Masukkan GEMINI_API_KEY di environment variables untuk respon AI sesungguhnya.` });
+      return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Pertanyaan Anda "${query}" diterima. Masukkan OPENROUTER_API_KEY di environment variables untuk respon AI sesungguhnya.` });
     }
 
     const kpi = context.kpi || {};
@@ -45,26 +45,31 @@ Panduan menjawab:
 - Jika user tanya "siapa yang perlu diperhatikan", tampilkan yang tertinggi.
 - Selalu sertakan nama dan angka spesifik.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ccm-dashboard-nine.vercel.app',
+        'X-Title': 'CCM Dashboard AI Assistant'
+      },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{
-          role: "user",
-          parts: [{ text: query }]
-        }]
+        model: 'mistralai/mistral-7b-instruct:free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query }
+        ]
       })
     });
 
     const json = await response.json();
 
     if (!response.ok || json.error) {
-      console.error("Gemini API Error:", JSON.stringify(json));
-      return NextResponse.json({ success: false, message: json.error?.message || `HTTP ${response.status}` }, { status: 500 });
+      console.error("OpenRouter API Error:", JSON.stringify(json));
+      return NextResponse.json({ success: false, message: json.error?.message || json.message || `HTTP ${response.status}` }, { status: 500 });
     }
 
-    const reply = json.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, AI tidak dapat merespon saat ini.";
+    const reply = json.choices?.[0]?.message?.content || "Maaf, AI tidak dapat merespon saat ini.";
     return NextResponse.json({ success: true, reply });
   } catch (err) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
