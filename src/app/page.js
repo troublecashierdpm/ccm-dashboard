@@ -416,8 +416,8 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                     )}
                     <span className="text-[10px] bg-gradient-to-r from-yellow-400 to-amber-500 text-amber-950 px-3.5 py-1.5 rounded-xl font-bold shadow-sm">Under: {user.under}</span>
                     <button 
-                      onClick={() => setIsRequestModalOpen(true)}
-                      className="bg-white text-[#e20074] px-3.5 py-1.5 rounded-xl font-black text-[10px] uppercase shadow-sm"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsRequestModalOpen(true); }}
+                      className="bg-white text-[#e20074] px-3.5 py-1.5 rounded-xl font-black text-[10px] uppercase shadow-sm cursor-pointer z-[100]"
                     >
                       Request Schedule
                     </button>
