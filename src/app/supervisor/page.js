@@ -15,6 +15,7 @@ import * as XLSX from "xlsx";
 function normName(s) {
   return String(s || "").trim().toUpperCase().replace(/\s+/g, " ");
 }
+
 function toTitleCase(s) {
   return String(s || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
