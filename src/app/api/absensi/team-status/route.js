@@ -43,10 +43,14 @@ export async function GET(req) {
       } else {
         const calculated = hitungLateEarlyDurasi(actIn, actOut, shiftInfo.jam);
         const remarks = getRemarks(actIn, actOut, shiftInfo.isOff, calculated.late, calculated.early);
+        
+        // Perbaikan logika status agar sama dengan Log Absensi
         if (remarks === "Alpha") status = "Absent";
-        else if (remarks.indexOf("No Clock In") !== -1 || remarks.indexOf("No Clock Out") !== -1) status = "No Clock In";
-        else if (remarks.indexOf("Late In") !== -1) status = "Late";
-        else if (remarks.indexOf("Early Out") !== -1) status = "Early";
+        else if (remarks.includes("No Clock In") && remarks.includes("No Clock Out")) status = "No Clock In"; // Memastikan No Clock In jika salah satu/keduanya tidak ada
+        else if (remarks.includes("No Clock In")) status = "No Clock In";
+        else if (remarks.includes("No Clock Out")) status = "No Clock Out"; // Tambah case No Clock Out
+        else if (remarks.includes("Late In")) status = "Late";
+        else if (remarks.includes("Early Out")) status = "Early";
         else status = "Normal";
       }
 
