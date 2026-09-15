@@ -370,6 +370,11 @@ function getStatusBadgeClass(remarks) {
 }
 
   // ============ LOGIN ============
+  useEffect(() => {
+    const savedUser = localStorage.getItem("ccm_user");
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
+
   async function handleLogin(e) {
     e.preventDefault();
     setError("");
@@ -381,7 +386,10 @@ function getStatusBadgeClass(remarks) {
         body: JSON.stringify({ nik, password })
       });
       const json = await res.json();
-      if (json.success) setUser(json.data);
+      if (json.success) {
+        setUser(json.data);
+        localStorage.setItem("ccm_user", JSON.stringify(json.data));
+      }
       else setError(json.message || "Login gagal.");
     } catch (err) {
       setError("Koneksi terputus: " + err.message);
@@ -392,6 +400,7 @@ function getStatusBadgeClass(remarks) {
   function logout() {
     cleanupResources();
     setUser(null);
+    localStorage.removeItem("ccm_user");
     setNik("");
     setPassword("");
     setStep("home");

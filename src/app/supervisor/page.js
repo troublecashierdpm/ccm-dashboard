@@ -322,6 +322,14 @@ export default function SupervisorDashboard() {
     return all;
   };
 
+  useEffect(() => {
+    const savedSup = localStorage.getItem("ccm_sup");
+    if (savedSup) {
+      setSupervisorUser(JSON.parse(savedSup));
+      setIsSupervisorLoggedIn(true);
+    }
+  }, []);
+
   async function prosesLoginSupervisor(e) {
     e.preventDefault();
     setSupLoginError("");
@@ -348,6 +356,7 @@ export default function SupervisorDashboard() {
       }
  
       setSupervisorUser(userData);
+      localStorage.setItem("ccm_sup", JSON.stringify(userData));
       setIsSupervisorLoggedIn(true);
       setSupLoginLoading(false);
     } catch (err) {
@@ -358,6 +367,7 @@ export default function SupervisorDashboard() {
  
   function prosesLogoutSupervisor() {
     if (confirm("Yakin ingin keluar dari Panel Supervisor?")) {
+      localStorage.removeItem("ccm_sup");
       setIsSupervisorLoggedIn(false);
       setSupervisorUser(null);
       setSupNik("");

@@ -340,6 +340,14 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
     }
   };
 
+  useEffect(() => {
+    const savedUser = localStorage.getItem("ccm_user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      setIsLoggedIn(true);
+    }
+  }, []);
+
   const prosesLogin = async () => {
     if (!nik || !password) { 
       alert("Wajib isi NIK & ID Swipe!"); 
@@ -362,6 +370,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
     setIsSuccess(true);
     setTimeout(() => {
       setUser(userData); 
+      localStorage.setItem("ccm_user", JSON.stringify(userData));
       setIsLoggedIn(true); 
       setLoading(false);
       setIsSuccess(false);
@@ -373,6 +382,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
       if (user) {
         await supabase.from('log_login').insert([{ nik: user.nik, nama: user.nama, status: 'LOGOUT' }]);
       }
+      localStorage.removeItem("ccm_user");
       setIsLoggedIn(false); setUser(null); setNik(""); setPassword("");
       setStats({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-', salesRatio: null });
       setDetailType(null); setActiveModalData(null);
