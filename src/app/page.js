@@ -17,20 +17,69 @@ export default function App() {
   const [requestForm, setRequestForm] = useState({ hari: "", alasan: "" });
   const [requestStatus, setRequestStatus] = useState({ status: "OPEN", message: "", availableDays: [], userHariLama: null, userExists: false });
   const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [requestResultMsg, setRequestResultMsg] = useState({ text: "", success: null });
 
   // Load status saat modal dibuka
   const handleOpenRequestModal = async () => {
     setIsLoadingForm(true);
     setIsRequestModalOpen(true);
+    setRequestResultMsg({ text: "", success: null });
+    setRequestForm({ hari: "", alasan: "" });
     try {
       const res = await fetch(`/api/request-schedule?under=${user.under}&nik=${user.nik}`);
       const data = await res.json();
       setRequestStatus(data);
+ 
+      // Pre-select hari yang sudah pernah diajukan user sebelumnya (kalau ada)
+      if (data.status !== "CLOSED" && data.userExists && data.userHariLama && data.availableDays) {
+        const match = data.availableDays.find(
+          (d) => d.toUpperCase().replace(/\(.*?\)/g, "").trim() === data.userHariLama
+        );
+        if (match) setRequestForm((prev) => ({ ...prev, hari: match }));
+      }
     } catch (err) {
       console.error(err);
+      setRequestStatus({ status: "CLOSED", message: "Gagal memuat data: " + err.message });
     } finally {
       setIsLoadingForm(false);
     }
+  };
+
+  const handleSubmitRequest = async () => {
+    if (!requestForm.hari) {
+      setRequestResultMsg({ text: "❌ Wajib pilih hari request!", success: false });
+      return;
+    }
+    if (requestForm.hari.includes("PENUH")) {
+      setRequestResultMsg({ text: "❌ Hari ini sudah penuh! Pilih hari lain.", success: false });
+      return;
+    }
+    if (!requestForm.alasan || !requestForm.alasan.trim()) {
+      setRequestResultMsg({ text: "❌ Alasan wajib diisi!", success: false });
+      return;
+    }
+ 
+    setIsSubmittingRequest(true);
+    setRequestResultMsg({ text: "", success: null });
+    try {
+      const res = await fetch("/api/request-schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...requestForm, nik: user.nik, nama: user.nama, under: user.under })
+      });
+      const result = await res.json();
+      if (result.success) {
+        setRequestResultMsg({ text: result.message || "✅ Request berhasil dikirim!", success: true });
+        fetchDashboardData(); // refresh raport seperti manualRefresh() di versi lama
+        setTimeout(() => setIsRequestModalOpen(false), 1800);
+      } else {
+        setRequestResultMsg({ text: result.message || "❌ Gagal mengirim request.", success: false });
+      }
+    } catch (err) {
+      setRequestResultMsg({ text: "❌ Error koneksi: " + err.message, success: false });
+    }
+    setIsSubmittingRequest(false);
   };
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -393,9 +442,78 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
 
       {isLoggedIn ? (
         <>
+          {isRequestModalOpen && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+              <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl">
+                <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white text-center">
+                  <h3 className="font-black text-sm uppercase">Request Schedule</h3>
+                  <p className="text-[9px] opacity-70 mt-1">Silakan pilih hari dan tuliskan alasan.</p>
+                </div>
+ 
+                <div className="p-6 space-y-4">
+                  {isLoadingForm ? (
+                    <p className="text-center py-4 text-sm text-gray-400">⏳ Memuat data...</p>
+                  ) : requestStatus.status === "CLOSED" ? (
+                    <div className="text-center py-2">
+                      <p className="text-red-500 font-bold text-sm mb-4">{requestStatus.message || "Request Schedule sedang ditutup"}</p>
+                    </div>
+                  ) : (
+                    <>
+                      {requestStatus.userExists && (
+                        <div className="text-[10px] bg-blue-50 text-blue-700 p-3 rounded-xl">
+                          ✅ Anda sudah mengajukan <strong>{requestStatus.userHariLama}</strong> sebelumnya. Anda bisa tambah alasan atau ganti hari jika slot tersedia.
+                        </div>
+                      )}
+ 
+                      <div>
+                        <label className="text-[9px] font-bold uppercase text-gray-400 ml-1 mb-1.5 block">Pilih Hari Request</label>
+                        <select
+                          value={requestForm.hari}
+                          className="w-full p-3.5 rounded-2xl bg-gray-50 border border-gray-100 text-xs outline-none focus:ring-2 focus:ring-pink-400"
+                          onChange={(e) => setRequestForm({ ...requestForm, hari: e.target.value })}
+                        >
+                          <option value="" disabled>-- Pilih Hari --</option>
+                          {(requestStatus.availableDays || []).map((day) => (
+                            <option key={day} value={day} disabled={day.includes("PENUH")}>{day}</option>
+                          ))}
+                        </select>
+                      </div>
+ 
+                      <div>
+                        <label className="text-[9px] font-bold uppercase text-gray-400 ml-1 mb-1.5 block">Alasan/Detail Request</label>
+                        <textarea
+                          value={requestForm.alasan}
+                          className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-100 text-xs outline-none focus:ring-2 focus:ring-pink-400 min-h-[100px]"
+                          placeholder="Tuliskan alasan yang jelas..."
+                          onChange={(e) => setRequestForm({ ...requestForm, alasan: e.target.value })}
+                        />
+                      </div>
+ 
+                      {requestResultMsg.text && (
+                        <div className={`text-[10px] font-semibold p-3 rounded-lg ${requestResultMsg.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                          {requestResultMsg.text}
+                        </div>
+                      )}
+ 
+                      <button
+                        onClick={handleSubmitRequest}
+                        disabled={isSubmittingRequest}
+                        className="w-full bg-[#e20074] text-white py-3.5 rounded-2xl font-bold text-xs uppercase shadow-lg shadow-pink-100 disabled:opacity-60"
+                      >
+                        {isSubmittingRequest ? "⏳ Mengirim..." : "Kirim Pengajuan"}
+                      </button>
+                    </>
+                  )}
+                  <button onClick={() => setIsRequestModalOpen(false)} className="w-full mt-1 text-[10px] text-gray-400 font-bold py-2">BATAL / TUTUP</button>
+                </div>
+              </div>
+            </div>
+          )}
+ 
           {/* ========================================================= */}
           {/* HALAMAN UTAMA DASHBOARD KASIR (TETAP 100% PREMIUM & SAMA) */}
           {/* ========================================================= */}
+
           <div className="min-h-screen bg-[#f8f9fc] font-sans text-[#1a1a1a] pb-12 overflow-x-hidden anim-fade-in relative z-0">
             
             <div className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] pt-14 pb-28 px-6 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(226,0,116,0.5)] text-white relative overflow-hidden">
@@ -615,51 +733,6 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
         /* HALAMAN LOGIN BARU: MAKO CHAN INTERAKTIF (BENTUK BULAT, MATA TRACKING, DLL) */
         /* ========================================================================= */
         <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f4f6f9] anim-fade-in overflow-hidden">
-          
-          {isRequestModalOpen && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
-              <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl p-6">
-                {isLoadingForm ? (
-                   <p className="text-center py-4">Memuat...</p>
-                ) : requestStatus.status === "CLOSED" ? (
-                  <div className="text-center">
-                    <p className="text-red-500 font-bold mb-4">{requestStatus.message || "Request Schedule Tutup"}</p>
-                    <button onClick={() => setIsRequestModalOpen(false)} className="w-full bg-gray-200 py-3 rounded-2xl text-xs">TUTUP</button>
-                  </div>
-                ) : (
-                  <>
-                    <h3 className="font-black text-sm uppercase mb-4">Request Schedule</h3>
-                    <select 
-                      className="w-full p-3 rounded-2xl bg-gray-50 border mb-4 text-xs"
-                      onChange={(e) => setRequestForm({...requestForm, hari: e.target.value})}
-                    >
-                      <option value="">Pilih Hari</option>
-                      {requestStatus.availableDays.map(day => <option key={day} value={day}>{day}</option>)}
-                    </select>
-                    <textarea 
-                      className="w-full p-4 rounded-2xl bg-gray-50 border mb-4 text-xs"
-                      placeholder="Alasan..."
-                      onChange={(e) => setRequestForm({...requestForm, alasan: e.target.value})}
-                    />
-                    <button 
-                      onClick={async () => {
-                        const res = await fetch('/api/request-schedule', {
-                          method: 'POST',
-                          body: JSON.stringify({ ...requestForm, nik: user.nik, nama: user.nama, under: user.under })
-                        });
-                        if ((await res.json()).success) { alert("Berhasil!"); setIsRequestModalOpen(false); }
-                      }}
-                      className="w-full bg-[#e20074] text-white py-3 rounded-2xl font-bold text-xs"
-                    >
-                      KIRIM REQUEST
-                    </button>
-                    <button onClick={() => setIsRequestModalOpen(false)} className="w-full mt-2 text-[10px] text-gray-400 font-bold">BATAL</button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
           <div className="bg-white px-8 pt-20 pb-10 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[380px] text-center anim-slide-up border border-gray-100 relative mt-10">
             
             {/* --- KARAKTER MAKO CHAN --- */}
