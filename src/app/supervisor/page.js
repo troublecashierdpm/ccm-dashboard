@@ -323,19 +323,11 @@ export default function SupervisorDashboard() {
   };
 
   useEffect(() => {
-    const handleStorageChange = () => {
-      const savedSup = localStorage.getItem("ccm_sup");
-      if (savedSup) {
-        setSupervisorUser(JSON.parse(savedSup));
-        setIsSupervisorLoggedIn(true);
-      } else {
-        setSupervisorUser(null);
-        setIsSupervisorLoggedIn(false);
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-    handleStorageChange();
-    return () => window.removeEventListener("storage", handleStorageChange);
+    const savedSup = localStorage.getItem("ccm_sup");
+    if (savedSup) {
+      setSupervisorUser(JSON.parse(savedSup));
+      setIsSupervisorLoggedIn(true);
+    }
   }, []);
 
   async function prosesLoginSupervisor(e) {

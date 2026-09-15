@@ -371,17 +371,11 @@ function getStatusBadgeClass(remarks) {
 
   // ============ LOGIN ============
   useEffect(() => {
-    const handleStorageChange = () => {
-      const savedUser = localStorage.getItem("ccm_user");
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-      } else {
-        setUser(null);
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-    handleStorageChange();
-    return () => window.removeEventListener("storage", handleStorageChange);
+    // Cek otomatis saat page load
+    const savedUser = localStorage.getItem("ccm_user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
   }, []);
 
   async function handleLogin(e) {
