@@ -398,6 +398,7 @@ function getStatusBadgeClass(remarks) {
       if (json.success) {
         setUser(json.data);
         localStorage.setItem("ccm_user", JSON.stringify(json.data));
+        localStorage.setItem("ccm_sup", JSON.stringify(json.data));
       }
       else setError(json.message || "Login gagal.");
     } catch (err) {

@@ -363,8 +363,10 @@ export default function SupervisorDashboard() {
         return;
       }
  
-      setSupervisorUser(userData);
+      // Simpan di ccm_sup DAN ccm_user untuk sharing akses
       localStorage.setItem("ccm_sup", JSON.stringify(userData));
+      localStorage.setItem("ccm_user", JSON.stringify(userData));
+      setSupervisorUser(userData);
       setIsSupervisorLoggedIn(true);
       setSupLoginLoading(false);
     } catch (err) {

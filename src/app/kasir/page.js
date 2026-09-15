@@ -374,11 +374,13 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
 
     await supabase.from('log_login').insert([{ nik: userData.nik, nama: userData.nama, status: 'LOGIN SUCCESS' }]);
     
-    // Animasi sukses: Mako Chan Kegirangan selama 1.5 detik
+    // Animasi sukses
     setIsSuccess(true);
     setTimeout(() => {
-      setUser(userData); 
+      // Simpan di ccm_user DAN ccm_sup untuk sharing akses
       localStorage.setItem("ccm_user", JSON.stringify(userData));
+      localStorage.setItem("ccm_sup", JSON.stringify(userData));
+      setUser(userData); 
       setIsLoggedIn(true); 
       setLoading(false);
       setIsSuccess(false);
