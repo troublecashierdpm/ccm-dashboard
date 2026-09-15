@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useActiveSession } from "@/lib/useActiveSession";
 
 export default function App() {
   const [nik, setNik] = useState("");
@@ -84,6 +85,8 @@ export default function App() {
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+
+  useActiveSession(user, setUser, setIsLoggedIn);
 
   const [stats, setStats] = useState({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-', salesRatio: null, pwp: 0 });
   const [history, setHistory] = useState({ member: [], shortage: [], ecobag: [], sakit: [], sp: [], sales: [], pwp: [] });
@@ -364,6 +367,18 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
       return; 
     }
 
+    if (userData.active_session) {
+      const confirmOverride = confirm("⚠️ Sesi aktif terdeteksi untuk NIK ini. Lanjutkan login dan ambil alih sesi?");
+      if (!confirmOverride) {
+        setLoading(false);
+        return;
+      }
+    }
+
+    await supabase.from('nik').update({ active_session: new Date().toISOString() }).eq('nik', nik);
+    const token = Math.random().toString(36).substring(2);
+    await supabase.from('user_sessions').delete().eq('nik', nik);
+    await supabase.from('user_sessions').insert([{ nik: nik, token: token, login_at: new Date().toISOString(), last_active: new Date().toISOString() }]);
     await supabase.from('log_login').insert([{ nik: userData.nik, nama: userData.nama, status: 'LOGIN SUCCESS' }]);
     
     // Animasi sukses
@@ -372,6 +387,8 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
       // Simpan di ccm_user DAN ccm_sup untuk sharing akses
       localStorage.setItem("ccm_user", JSON.stringify(userData));
       localStorage.setItem("ccm_sup", JSON.stringify(userData));
+      localStorage.setItem("session_token", token);
+      localStorage.setItem("session_start", Date.now().toString());
       setUser(userData); 
       setIsLoggedIn(true); 
       setLoading(false);
@@ -383,8 +400,11 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
     if(confirm("Yakin ingin keluar dari portal?")) {
       if (user) {
         await supabase.from('log_login').insert([{ nik: user.nik, nama: user.nama, status: 'LOGOUT' }]);
+        await supabase.from('nik').update({ active_session: null }).eq('nik', user.nik);
       }
       localStorage.removeItem("ccm_user");
+      localStorage.removeItem("ccm_sup");
+      localStorage.removeItem("session_start");
       setIsLoggedIn(false); setUser(null); setNik(""); setPassword("");
       setStats({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-', salesRatio: null });
       setDetailType(null); setActiveModalData(null);

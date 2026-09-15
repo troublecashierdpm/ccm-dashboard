@@ -2,6 +2,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
+import { useActiveSession } from "@/lib/useActiveSession";
+import { supabase } from "@/lib/supabaseClient";
 
 const ALLOWED_LOCATIONS = [
   { lat: -6.9826417, lon: 110.4152754 },
@@ -390,9 +392,17 @@ function getStatusBadgeClass(remarks) {
       });
       const json = await res.json();
       if (json.success) {
+        const token = Math.random().toString(36).substring(2);
+        await fetch("/api/user_sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nik: json.data.nik, token, action: 'create' })
+        });
+        
         setUser(json.data);
         localStorage.setItem("ccm_user", JSON.stringify(json.data));
         localStorage.setItem("ccm_sup", JSON.stringify(json.data));
+        localStorage.setItem("session_token", token);
       }
       else setError(json.message || "Login gagal.");
     } catch (err) {

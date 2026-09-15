@@ -61,6 +61,10 @@ export async function POST(req) {
     const actualIn = (logRows && logRows[0] && logRows[0].clock_in) ? logRows[0].clock_in : "-";
     const actualOut = (logRows && logRows[0] && logRows[0].clock_out) ? logRows[0].clock_out : "-";
 
+    const token = Math.random().toString(36).substring(2);
+    await supabase.from('user_sessions').delete().eq('nik', inNik);
+    await supabase.from('user_sessions').insert([{ nik: inNik, token: token, login_at: new Date().toISOString(), last_active: new Date().toISOString() }]);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -74,7 +78,8 @@ export async function POST(req) {
         isOff: shiftInfo.isOff,
         actualIn,
         actualOut,
-        tanggalHariIni: isoToDdMmYyyy(todayIso)
+        tanggalHariIni: isoToDdMmYyyy(todayIso),
+        token
       }
     });
   } catch (err) {
