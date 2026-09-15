@@ -396,6 +396,8 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
     }, 1500);
   };
 
+  const [step, setStep] = useState('home');
+
   const prosesLogout = async () => {
     if(confirm("Yakin ingin keluar dari portal?")) {
       if (user) {
@@ -559,6 +561,9 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
               
               <div className="flex items-center justify-between mb-10 relative z-10">
                 <div>
+                  <a href="/" className="inline-block mb-3 bg-white/25 hover:bg-white/40 text-white font-bold text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl backdrop-blur-md transition-all">
+                    ← Kembali ke Beranda
+                  </a>
                   <h3 className="font-bold opacity-80 uppercase tracking-widest text-[10px] mb-1">Staff Performance</h3>
                   <p className="text-xl font-extrabold tracking-tight">Halo, Kasir!</p>
                 </div>
