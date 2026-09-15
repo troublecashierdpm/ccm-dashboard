@@ -4,7 +4,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export function useActiveSession(user, setUser, setIsLoggedIn) {
-  const timerRef = useRef(null);
+  const mountTime = useRef(Date.now());
 
   const performLogout = useCallback(async (reason = "LOGOUT") => {
     if (user) {
@@ -27,6 +27,17 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
 
   const verifyAndPing = useCallback(async () => {
     if (!user || !user.nik) return;
+    
+    // Skip if within 5s of mount
+    if (Date.now() - mountTime.current < 5000) return;
+
+    // Strict 10m logout
+    const sessionStart = localStorage.getItem("session_start");
+    if (sessionStart && Date.now() - parseInt(sessionStart) > 10 * 60 * 1000) {
+      await performLogout("SESSION_EXPIRED");
+      return;
+    }
+
     try {
       const storedToken = localStorage.getItem("session_token");
       const res = await fetch("/api/user_sessions", {
@@ -37,8 +48,11 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
       const { token: dbToken } = await res.json();
 
       if (!dbToken || dbToken !== storedToken) {
-        alert("⚠️ Sesi berakhir: Login di perangkat lain.");
-        await performLogout("SESSION_OVERRIDDEN");
+        // Only flag if token existed, handle false positives
+        if (storedToken) {
+          alert("⚠️ Sesi berakhir: Login di perangkat lain.");
+          await performLogout("SESSION_OVERRIDDEN");
+        }
         return;
       }
 
