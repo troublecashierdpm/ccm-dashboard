@@ -406,6 +406,11 @@ function getStatusBadgeClass(remarks) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+    userMarkerRef.current = null;
   }
 
   // ============ STEP 1: PETA / GPS ============
@@ -674,13 +679,15 @@ function getStatusBadgeClass(remarks) {
   // STEP: MAP
   if (step === "map") {
     return (
-      <div className="min-h-screen relative bg-black">
-        <div className="absolute top-0 left-0 w-full z-20 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white p-5 flex items-center gap-4">
+      <div className="min-h-screen relative bg-black flex flex-col">
+        <div className="z-20 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white p-5 flex items-center gap-4 shrink-0">
           <button onClick={batalkanAbsen} className="text-xl">←</button>
           <h2 className="font-bold">Step 1: Lokasi ({tipeAbsen})</h2>
         </div>
-        <div ref={mapRef} style={{ height: "100vh", width: "100%" }} />
-        <div className="fixed bottom-0 left-0 w-full bg-white rounded-t-3xl p-6 shadow-2xl z-20">
+        <div className="relative flex-1 w-full" style={{ minHeight: "50vh" }}>
+          <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+        </div>
+        <div className="bg-white rounded-t-3xl p-6 shadow-2xl z-20 shrink-0">
           <div className={`p-3 rounded-xl text-center text-sm font-bold mb-4 ${
             gpsStatus.color === "green" ? "bg-green-100 text-green-700" :
             gpsStatus.color === "red" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"
