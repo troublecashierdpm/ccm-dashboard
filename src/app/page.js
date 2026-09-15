@@ -104,9 +104,14 @@ export default function HomePage() {
                     <p className="font-bold text-gray-800">{log.nama} <span className="text-gray-400 font-normal">({log.nik})</span></p>
                     <p className="text-[10px] text-gray-500">{log.status}</p>
                   </div>
-                  <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                    {new Date(log.timestamp || log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <div className="text-right">
+                    <span className="text-[10px] text-gray-400 block">
+                      {new Date(log.timestamp || log.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </span>
+                    <span className="text-[10px] text-gray-500 font-semibold">
+                      {new Date(log.timestamp || log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 </div>
               ))
             )}
