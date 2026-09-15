@@ -26,6 +26,7 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
   }, [user, setUser, setIsLoggedIn]);
 
   const verifyAndPing = useCallback(async () => {
+    return;
     if (!user || !user.nik) return;
     
     // Skip if within 5s of mount
