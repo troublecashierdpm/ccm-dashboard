@@ -38,7 +38,7 @@ export default function HomePage() {
         const { data, error } = await supabase
           .from("log_login")
           .select("*")
-          .order("created_at", { ascending: false })
+          .order("timestamp", { ascending: false })
           .limit(10);
         if (!error && data) {
           setLogs(data);
