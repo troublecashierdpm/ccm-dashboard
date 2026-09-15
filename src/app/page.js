@@ -105,7 +105,7 @@ export default function HomePage() {
                     <p className="text-[10px] text-gray-500">{log.status}</p>
                   </div>
                   <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                    {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(log.timestamp || log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               ))
