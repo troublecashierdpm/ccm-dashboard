@@ -341,11 +341,19 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("ccm_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsLoggedIn(true);
-    }
+    const handleStorageChange = () => {
+      const savedUser = localStorage.getItem("ccm_user");
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+        setIsLoggedIn(true);
+      } else {
+        setUser(null);
+        setIsLoggedIn(false);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    handleStorageChange();
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const prosesLogin = async () => {

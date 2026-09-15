@@ -371,8 +371,17 @@ function getStatusBadgeClass(remarks) {
 
   // ============ LOGIN ============
   useEffect(() => {
-    const savedUser = localStorage.getItem("ccm_user");
-    if (savedUser) setUser(JSON.parse(savedUser));
+    const handleStorageChange = () => {
+      const savedUser = localStorage.getItem("ccm_user");
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      } else {
+        setUser(null);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    handleStorageChange();
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   async function handleLogin(e) {
@@ -681,9 +690,8 @@ function getStatusBadgeClass(remarks) {
             </button>
           </form>
           
-          <div className="mt-6 pt-6 border-t border-gray-100 flex gap-2">
-            <a href="/kasir" className="flex-1 py-3 text-center bg-gray-100 text-gray-600 font-bold rounded-2xl text-xs">Kasir</a>
-            <a href="/supervisor" className="flex-1 py-3 text-center bg-gray-100 text-gray-600 font-bold rounded-2xl text-xs">Supervisor</a>
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <a href="/" className="block w-full py-3 text-center bg-gray-100 text-gray-600 font-bold rounded-2xl text-xs">Kembali ke Utama</a>
           </div>
         </div>
       </div>
