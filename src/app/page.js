@@ -311,8 +311,14 @@ const overallSalesRatio = totalHourlySalesAll > 0 ? Math.round((totalMemberSales
 // X. DATA PWP KASIR
 const pwpData = await fetchUserRecords('pwp_kasir', 'nama');
 let totalPwp = 0; let pwpGroups = {};
+const seenPwpKeys = new Set();
 if (pwpData && pwpData.length > 0) {
   pwpData.forEach(row => {
+    // Dedupe: skip baris yang persis sama (tanggal+nama+sku+produk+qty+periode) supaya sync ganda tidak menggandakan total
+    const dedupeKey = [row.tanggal, row.nama, row.sku_produk, row.nama_barang, row.qty, row.periode].join('|');
+    if (seenPwpKeys.has(dedupeKey)) return;
+    seenPwpKeys.add(dedupeKey);
+ 
     const periode = row.periode || 'Unknown';
     const qty = parseInt(row.qty) || 0;
     totalPwp += qty;
