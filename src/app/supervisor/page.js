@@ -19,12 +19,31 @@ function normName(s) {
 function toTitleCase(s) {
   return String(s || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+ 
+// Hanya nama-nama ini yang boleh login ke Panel Supervisor (dicocokkan dari kolom
+// "nama" di tabel nik, lowercase & trim supaya tidak sensitif kapitalisasi/spasi)
+const SUPERVISOR_WHITELIST = [
+  "ferri efendi",
+  "arif wardani",
+  "desi setia pamuji",
+  "widya sekarwangi",
+  "ade triani",
+  "ayu ariani",
+  "arpah mustopa",
+  "rahmawati"
+];
 
 export default function SupervisorDashboard() {
   const [activePanel, setActivePanel] = useState("dir"); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState({ loading: false, message: "", success: null });
+  const [isSupervisorLoggedIn, setIsSupervisorLoggedIn] = useState(false);
+  const [supervisorUser, setSupervisorUser] = useState(null);
+  const [supNik, setSupNik] = useState("");
+  const [supPassword, setSupPassword] = useState("");
+  const [supLoginError, setSupLoginError] = useState("");
+  const [supLoginLoading, setSupLoginLoading] = useState(false);
 
   
   const [allKaryawan, setAllKaryawan] = useState([]);
@@ -266,8 +285,8 @@ export default function SupervisorDashboard() {
   };
 
   useEffect(() => {
-    fetchGlobalData();
-  }, []);
+    if (isSupervisorLoggedIn) fetchGlobalData();
+  }, [isSupervisorLoggedIn]);
 
   useEffect(() => {
     if (selectedKaryawan) {
@@ -303,6 +322,51 @@ export default function SupervisorDashboard() {
     return all;
   };
 
+  async function prosesLoginSupervisor(e) {
+    e.preventDefault();
+    setSupLoginError("");
+    if (!supNik || !supPassword) {
+      setSupLoginError("Wajib isi NIK & ID Swipe!");
+      return;
+    }
+    setSupLoginLoading(true);
+    try {
+      const { data: userData, error } = await supabase
+        .from("nik").select("*").eq("nik", supNik).eq("id_swipe", supPassword).single();
+ 
+      if (error || !userData) {
+        setSupLoginError("NIK atau ID Swipe salah!");
+        setSupLoginLoading(false);
+        return;
+      }
+ 
+      const namaNormalized = String(userData.nama || "").trim().toLowerCase();
+      if (!SUPERVISOR_WHITELIST.includes(namaNormalized)) {
+        setSupLoginError("Akses ditolak. Panel ini khusus untuk Supervisor/TRC terdaftar.");
+        setSupLoginLoading(false);
+        return;
+      }
+ 
+      setSupervisorUser(userData);
+      setIsSupervisorLoggedIn(true);
+      setSupLoginLoading(false);
+    } catch (err) {
+      setSupLoginError("Error koneksi: " + err.message);
+      setSupLoginLoading(false);
+    }
+  }
+ 
+  function prosesLogoutSupervisor() {
+    if (confirm("Yakin ingin keluar dari Panel Supervisor?")) {
+      setIsSupervisorLoggedIn(false);
+      setSupervisorUser(null);
+      setSupNik("");
+      setSupPassword("");
+      setSelectedKaryawan(null);
+      setActivePanel("dir");
+    }
+  }
+  
   async function handleSyncKasir() {
   setSyncStatus({ loading: true, message: "Menyinkronkan data dari Google Sheets ke Supabase...", success: null });
   try {
@@ -735,8 +799,44 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     return { card1, card2, card3 };
   };
   
+  if (!isSupervisorLoggedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fffcfd] p-6">
+        <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8">
+          <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
+            <span className="text-white text-2xl">📊</span>
+          </div>
+          <h1 className="text-xl font-extrabold text-center text-gray-900 mb-1">Panel Supervisor</h1>
+          <p className="text-xs text-center text-gray-400 mb-8">Akses terbatas — khusus Supervisor/TRC terdaftar</p>
+ 
+          <form onSubmit={prosesLoginSupervisor} className="space-y-4">
+            <input
+              type="text" placeholder="NIK" value={supNik}
+              onChange={(e) => setSupNik(e.target.value)}
+              className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-pink-400 text-sm"
+            />
+            <input
+              type="password" placeholder="ID Swipe" value={supPassword}
+              onChange={(e) => setSupPassword(e.target.value)}
+              className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-pink-400 text-sm"
+            />
+            {supLoginError && (
+              <div className="text-xs font-semibold text-red-600 bg-red-50 p-3 rounded-xl">{supLoginError}</div>
+            )}
+            <button
+              type="submit" disabled={supLoginLoading}
+              className="w-full py-3.5 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg shadow-pink-200 disabled:opacity-60"
+            >
+              {supLoginLoading ? "Memverifikasi..." : "Masuk Panel"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+ 
   const gSum = getGlobalSummary();
-
+ 
   return (
     <div className="min-h-screen bg-[#f8f9fc] font-sans flex text-gray-800">
       
@@ -776,6 +876,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
               {syncStatus.loading ? "⏳ Sinkronisasi..." : "🔄 Sync Data"}
             </button>
             {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
+            <button onClick={prosesLogoutSupervisor} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">🚪 Logout</button>
           </div>
         </header>
  
