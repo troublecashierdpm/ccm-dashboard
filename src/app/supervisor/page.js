@@ -887,6 +887,8 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
             </button>
             {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
             <button onClick={prosesLogoutSupervisor} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">🚪 Logout</button>
+            <a href="/absensi" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">Absensi</a>
+            <a href="/kasir" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">Kasir</a>
           </div>
         </header>
  

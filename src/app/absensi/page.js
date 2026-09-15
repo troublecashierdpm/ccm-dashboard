@@ -680,6 +680,11 @@ function getStatusBadgeClass(remarks) {
               {loading ? "Memverifikasi..." : "Masuk"}
             </button>
           </form>
+          
+          <div className="mt-6 pt-6 border-t border-gray-100 flex gap-2">
+            <a href="/kasir" className="flex-1 py-3 text-center bg-gray-100 text-gray-600 font-bold rounded-2xl text-xs">Kasir</a>
+            <a href="/supervisor" className="flex-1 py-3 text-center bg-gray-100 text-gray-600 font-bold rounded-2xl text-xs">Supervisor</a>
+          </div>
         </div>
       </div>
     );
