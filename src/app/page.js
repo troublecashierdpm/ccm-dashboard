@@ -1,5 +1,8 @@
 // src/app/page.js
+"use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
 
 const menu = [
   {
@@ -26,6 +29,29 @@ const menu = [
 ];
 
 export default function HomePage() {
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+
+  useEffect(() => {
+    async function fetchLogs() {
+      try {
+        const { data, error } = await supabase
+          .from("log_login")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!error && data) {
+          setLogs(data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingLogs(false);
+      }
+    }
+    fetchLogs();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#fffcfd] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -37,7 +63,7 @@ export default function HomePage() {
           <p className="text-gray-400 text-sm">Pilih dashboard yang ingin dibuka</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 mb-8">
           {menu.map((item) => (
             <Link
               key={item.href}
@@ -60,7 +86,34 @@ export default function HomePage() {
           ))}
         </div>
 
-        <p className="text-center text-[10px] text-gray-300 mt-10 font-semibold uppercase tracking-wider">
+        {/* Live Log Login Notice */}
+        <div className="bg-white border border-gray-100 rounded-[1.75rem] p-5 shadow-sm">
+          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>📋 Live Login Activity</span>
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
+            {loadingLogs ? (
+              <p className="text-gray-400 text-center py-4">Memuat log...</p>
+            ) : logs.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">Belum ada aktivitas.</p>
+            ) : (
+              logs.map((log, i) => (
+                <div key={i} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
+                  <div>
+                    <p className="font-bold text-gray-800">{log.nama} <span className="text-gray-400 font-normal">({log.nik})</span></p>
+                    <p className="text-[10px] text-gray-500">{log.status}</p>
+                  </div>
+                  <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                    {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <p className="text-center text-[10px] text-gray-300 mt-8 font-semibold uppercase tracking-wider">
           AEON DPM Semarang
         </p>
       </div>
