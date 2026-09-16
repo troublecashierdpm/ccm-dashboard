@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { SUPERVISOR_WHITELIST, isSupervisorWhitelisted } from "@/lib/accessControl";
 import Chart from "chart.js/auto";
 import * as XLSX from "xlsx";
 
@@ -22,16 +23,6 @@ function toTitleCase(s) {
  
 // Hanya nama-nama ini yang boleh login ke Panel Supervisor (dicocokkan dari kolom
 // "nama" di tabel nik, lowercase & trim supaya tidak sensitif kapitalisasi/spasi)
-const SUPERVISOR_WHITELIST = [
-  "ferri efendi",
-  "arif wardani",
-  "desi setia pamuji",
-  "widya sekarwangi",
-  "ade triani",
-  "ayu ariani",
-  "arpah mustopa",
-  "rahmawati"
-];
 
 export default function SupervisorDashboard() {
   const [activePanel, setActivePanel] = useState("dir"); 
@@ -327,8 +318,7 @@ export default function SupervisorDashboard() {
     if (savedSup) {
       try {
         const parsedUser = JSON.parse(savedSup);
-        const namaNormalized = String(parsedUser?.nama || "").trim().toLowerCase();
-        if (SUPERVISOR_WHITELIST.includes(namaNormalized)) {
+        if (isSupervisorWhitelisted(parsedUser?.nama)) {
           setSupervisorUser(parsedUser);
           setIsSupervisorLoggedIn(true);
         } else {
@@ -360,8 +350,7 @@ export default function SupervisorDashboard() {
         return;
       }
  
-      const namaNormalized = String(userData.nama || "").trim().toLowerCase();
-      if (!SUPERVISOR_WHITELIST.includes(namaNormalized)) {
+      if (!isSupervisorWhitelisted(userData.nama)) {
         setSupLoginError("Akses ditolak. Panel ini khusus untuk Supervisor/TRC terdaftar.");
         setSupLoginLoading(false);
         return;
