@@ -373,10 +373,31 @@ function getStatusBadgeClass(remarks) {
 
   // ============ LOGIN ============
   useEffect(() => {
-    // Cek otomatis saat page load
+    // Cek otomatis saat page load — selalu REFRESH via API, jangan percaya
+    // mentah bentuk data localStorage (bisa jadi berasal dari sesi Kasir/Supervisor
+    // yang bentuk objeknya beda, tidak punya isHeadDept/shiftCode/dst).
     const savedUser = localStorage.getItem("ccm_user");
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && parsed.nik) {
+          fetch(`/api/absensi/refresh?nik=${parsed.nik}`)
+            .then((res) => res.json())
+            .then((json) => {
+              if (json.success) {
+                setUser(json.data);
+                localStorage.setItem("ccm_user", JSON.stringify(json.data));
+              } else {
+                // NIK ini tidak terdaftar sebagai PPKK/Head Dept di Absensi —
+                // jangan auto-login, biarkan tampil form login manual.
+                localStorage.removeItem("ccm_user");
+              }
+            })
+            .catch(() => { /* biarkan user login manual kalau refresh gagal */ });
+        }
+      } catch (e) {
+        localStorage.removeItem("ccm_user");
+      }
     }
   }, []);
 
