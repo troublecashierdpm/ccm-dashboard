@@ -325,8 +325,20 @@ export default function SupervisorDashboard() {
   useEffect(() => {
     const savedSup = localStorage.getItem("ccm_sup");
     if (savedSup) {
-      setSupervisorUser(JSON.parse(savedSup));
-      setIsSupervisorLoggedIn(true);
+      try {
+        const parsedUser = JSON.parse(savedSup);
+        const namaNormalized = String(parsedUser?.nama || "").trim().toLowerCase();
+        if (SUPERVISOR_WHITELIST.includes(namaNormalized)) {
+          setSupervisorUser(parsedUser);
+          setIsSupervisorLoggedIn(true);
+        } else {
+          // Sesi ini datang dari login Kasir/Absensi (bukan Supervisor terdaftar) —
+          // JANGAN auto-login, walau ada data tersimpan di ccm_sup.
+          localStorage.removeItem("ccm_sup");
+        }
+      } catch (e) {
+        localStorage.removeItem("ccm_sup");
+      }
     }
   }, []);
 
