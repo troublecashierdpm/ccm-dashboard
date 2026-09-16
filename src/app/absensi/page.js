@@ -33,6 +33,7 @@ export default function AbsensiPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [toast, setToast] = useState("");
 
   // step: 'home' | 'map' | 'camera'
@@ -393,12 +394,15 @@ function getStatusBadgeClass(remarks) {
                 localStorage.removeItem("ccm_user");
               }
             })
-            .catch(() => { /* biarkan user login manual kalau refresh gagal */ });
+            .catch(() => { /* biarkan user login manual kalau refresh gagal */ })
+            .finally(() => setCheckingSession(false));
+          return;
         }
       } catch (e) {
         localStorage.removeItem("ccm_user");
       }
     }
+    setCheckingSession(false);
   }, []);
 
   async function handleLogin(e) {
@@ -695,6 +699,17 @@ function getStatusBadgeClass(remarks) {
   }
 
   // ============ RENDER ============
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fffcfd]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-[#e20074] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Memeriksa sesi...</p>
+        </div>
+      </div>
+    );
+  }
+ 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fffcfd] p-6">
