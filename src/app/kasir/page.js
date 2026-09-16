@@ -2,11 +2,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useActiveSession } from "@/lib/useActiveSession";
+import { isSupervisorWhitelisted } from "@/lib/accessControl";
 
 export default function App() {
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   
   // State untuk interaksi animasi karakter Mako Chan
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -346,9 +348,14 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
   useEffect(() => {
     const savedUser = localStorage.getItem("ccm_user");
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsLoggedIn(true);
+      try {
+        setUser(JSON.parse(savedUser));
+        setIsLoggedIn(true);
+      } catch (e) {
+        localStorage.removeItem("ccm_user");
+      }
     }
+    setCheckingSession(false);
   }, []);
 
   const prosesLogin = async () => {
@@ -480,7 +487,14 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
         body { overflow: ${activeModalData ? 'hidden' : 'auto'}; }
       `}</style>
 
-      {isLoggedIn ? (
+      {checkingSession ? (
+        <div className="min-h-screen flex items-center justify-center bg-[#fffcfd]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-[#e20074] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Memeriksa sesi...</p>
+          </div>
+        </div>
+      ) : isLoggedIn ? (
         <>
           {isRequestModalOpen && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
@@ -571,7 +585,12 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                   <button onClick={prosesLogout} className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-3.5 rounded-2xl transition-all duration-300 active:scale-90 shadow-sm">
                     <svg style={{width:"20px",height:"20px"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                   </button>
-                  <a href="/absensi" className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-3.5 rounded-2xl transition-all duration-300 active:scale-90 shadow-sm flex items-center justify-center">
+                  {isSupervisorWhitelisted(user?.nama) && (
+                    <a href="/supervisor" title="Panel Supervisor" className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-3.5 rounded-2xl transition-all duration-300 active:scale-90 shadow-sm flex items-center justify-center">
+                      <svg style={{width:"20px",height:"20px"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                    </a>
+                  )}
+                  <a href="/absensi" title="Absensi PPKK" className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-3.5 rounded-2xl transition-all duration-300 active:scale-90 shadow-sm flex items-center justify-center">
                     <svg style={{width:"20px",height:"20px"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   </a>
                 </div>
