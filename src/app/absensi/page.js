@@ -94,10 +94,9 @@ const [teamStats, setTeamStats] = useState(null);
 
   async function handleSpecificSync(type) {
     const states = {
-        'NIK': [setSyncingNik, '/api/sync/nik'],
-        'Master Schedule': [setSyncingSchedule, '/api/sync/schedule'],
-        'Log Absensi': [setSyncingLog, '/api/sync/log'],
-        'Data Request': [setSyncingRequest, '/api/sync/request'],
+        'NIK': [setSyncingNik, '/api/sync-absensi/nik'],
+        'Master Schedule': [setSyncingSchedule, '/api/sync-absensi/master-schedule'],
+        'Log Absensi': [setSyncingLog, '/api/sync-absensi/log-absensi'],
     };
     
     if (!states[type]) return;
@@ -107,7 +106,7 @@ const [teamStats, setTeamStats] = useState(null);
     setSyncStatus({ text: `Syncing ${type}...`, success: null });
     
     try {
-        const res = await fetch(endpoint, { method: 'POST' });
+        const res = await fetch(endpoint);
         const json = await res.json();
         setSyncStatus({ text: json.message || `${type} sync ${json.success ? 'berhasil!' : 'gagal'}`, success: json.success });
     } catch (err) {
