@@ -800,6 +800,9 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
         /* HALAMAN LOGIN BARU: MAKO CHAN INTERAKTIF (BENTUK BULAT, MATA TRACKING, DLL) */
         /* ========================================================================= */
         <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f4f6f9] anim-fade-in overflow-hidden">
+          <a href="/" className="fixed top-4 right-4 z-50 text-[10px] font-bold text-gray-500 bg-white shadow-sm hover:bg-gray-100 px-3 py-1.5 rounded-xl transition-colors">
+            ← Beranda
+          </a>
           <div className="bg-white px-8 pt-20 pb-10 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[380px] text-center anim-slide-up border border-gray-100 relative mt-10">
             
             {/* --- KARAKTER MAKO CHAN --- */}
