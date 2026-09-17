@@ -383,15 +383,29 @@ export default function SupervisorDashboard() {
   }
   
   async function handleSyncKasir() {
-  setSyncStatus({ loading: true, message: "Menyinkronkan data dari Google Sheets ke Supabase...", success: null });
-  try {
-    const res = await fetch('/api/sync');
-    const json = await res.json();
-    setSyncStatus({ loading: false, message: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
-  } catch (err) {
-    setSyncStatus({ loading: false, message: "Error koneksi: " + err.message, success: false });
+    setSyncStatus({ loading: true, message: "Menyinkronkan data dari Google Sheets ke Supabase...", success: null });
+    try {
+      const res = await fetch('/api/sync');
+      const json = await res.json();
+      setSyncStatus({ loading: false, message: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
+    } catch (err) {
+      setSyncStatus({ loading: false, message: "Error koneksi: " + err.message, success: false });
+    }
   }
-}
+
+  async function handleSyncTable(tableName) {
+    setSyncStatus({ loading: true, message: `Menyinkronkan ${tableName} dari Google Sheets...`, success: null });
+    try {
+      const res = await fetch(`/api/sync/${tableName}`);
+      const json = await res.json();
+      setSyncStatus({ loading: false, message: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
+      if (json.success) {
+        fetchGlobalData();
+      }
+    } catch (err) {
+      setSyncStatus({ loading: false, message: "Error koneksi: " + err.message, success: false });
+    }
+  }
 
   const fetchGlobalData = async () => {
     setLoading(true);
@@ -896,10 +910,21 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           <div className="flex items-center gap-2 relative z-10 flex-wrap">
             <button onClick={() => setAiOpen(!aiOpen)} className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5 ${aiOpen ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600'}`}><span>🤖</span> AI Assistant</button>
             <button onClick={exportAllPanels} className="bg-white text-[#e20074] hover:bg-pink-50 px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5"><span>📊</span> Export Semua Excel</button>
-            <button onClick={handleSyncKasir} disabled={syncStatus.loading}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm disabled:opacity-50">
-              {syncStatus.loading ? "⏳ Sinkronisasi..." : "🔄 Sync Data"}
-            </button>
+             <button onClick={handleSyncKasir} disabled={syncStatus.loading}
+               className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm disabled:opacity-50">
+               {syncStatus.loading ? "⏳ Sinkronisasi..." : "🔄 Sync Data"}
+             </button>
+             <div className="relative group">
+               <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">
+                 ⚙️ Sync Spesifik
+               </button>
+               <div className="absolute right-0 top-full mt-2 w-48 bg-white text-gray-800 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-50">
+                 <button onClick={() => handleSyncTable('nik')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">NIK</button>
+                 <button onClick={() => handleSyncTable('master-schedule')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Master Schedule</button>
+                 <button onClick={() => handleSyncTable('log-absensi')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Log Absensi</button>
+                 <button onClick={() => handleSyncTable('data-request')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Data Request</button>
+               </div>
+             </div>
             {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
             <button onClick={prosesLogoutSupervisor} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">🚪 Logout</button>
             <a href="/absensi" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">Absensi</a>
