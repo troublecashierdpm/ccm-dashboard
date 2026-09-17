@@ -3,6 +3,8 @@
 import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+const SESSION_LIMIT_MS = 10 * 60 * 1000; // 10 menit
+
 export function useActiveSession(user, setUser, setIsLoggedIn) {
   const mountTime = useRef(Date.now());
 
@@ -10,8 +12,6 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
     if (user) {
       try {
         await supabase.from('log_login').insert([{ nik: user.nik, nama: user.nama, status: reason }]);
-        await supabase.from('nik').update({ active_session: null }).eq('nik', user.nik);
-        await supabase.from('user_sessions').delete().eq('nik', user.nik);
       } catch (e) {
         console.error(e);
       }
@@ -25,74 +25,49 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
     window.location.reload();
   }, [user, setUser, setIsLoggedIn]);
 
+  // Cek berkala (tiap 1 menit) selama tab tetap terbuka
   const verifyAndPing = useCallback(async () => {
-    return;
     if (!user || !user.nik) return;
-    
-    // Skip if within 5s of mount
+
+    // Hindari logout tak sengaja sesaat setelah mount/login
     if (Date.now() - mountTime.current < 5000) return;
 
-    // Strict 10m logout
     const sessionStart = localStorage.getItem("session_start");
-    if (sessionStart && Date.now() - parseInt(sessionStart) > 10 * 60 * 1000) {
+    if (sessionStart && Date.now() - parseInt(sessionStart, 10) > SESSION_LIMIT_MS) {
       await performLogout("SESSION_EXPIRED");
-      return;
     }
 
-    try {
-      const storedToken = localStorage.getItem("session_token");
-      const res = await fetch("/api/user_sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nik: user.nik, action: 'get' })
-      });
-      const { token: dbToken } = await res.json();
-
-      if (!dbToken || dbToken !== storedToken) {
-        // Only flag if token existed, handle false positives
-        if (storedToken) {
-          alert("⚠️ Sesi berakhir: Login di perangkat lain.");
-          await performLogout("SESSION_OVERRIDDEN");
-        }
-        return;
-      }
-
-      await fetch("/api/user_sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nik: user.nik, action: 'ping' })
-      });
-    } catch (e) {
-      console.error("Session check error:", e);
-    }
+    // CATATAN: pengecekan per-NIK / satu-sesi-per-device (via /api/user_sessions)
+    // SENGAJA belum diaktifkan dulu sesuai permintaan — hanya limit waktu 10 menit.
   }, [user, performLogout]);
 
   useEffect(() => {
     if (!user) return;
-    
-    if (!localStorage.getItem("session_start")) {
-      localStorage.setItem("session_start", Date.now().toString());
-    }
 
-    verifyAndPing();
+    const existingStart = localStorage.getItem("session_start");
+
+    if (!existingStart) {
+      // Sesi baru (baru saja login)
+      localStorage.setItem("session_start", Date.now().toString());
+    } else {
+      // Sesi lama sudah ada di localStorage (misal browser sempat ditutup lalu
+      // dibuka lagi jam/hari berikutnya) — cek LANGSUNG saat halaman dibuka,
+      // jangan tunggu interval 1 menit pertama.
+      const elapsed = Date.now() - parseInt(existingStart, 10);
+      if (elapsed > SESSION_LIMIT_MS) {
+        performLogout("SESSION_EXPIRED");
+        return;
+      }
+    }
 
     const interval = setInterval(() => {
       verifyAndPing();
-    }, 60 * 1000); // 1 minute interval
-
-    const handleActivity = () => {
-      // Optional: reset inactivity or keep session start strict 10 mins as requested
-    };
-
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
+    }, 60 * 1000); // cek ulang tiap 1 menit selama tab terbuka
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
     };
-  }, [user, verifyAndPing]);
+  }, [user, verifyAndPing, performLogout]);
 
   return { performLogout };
 }
