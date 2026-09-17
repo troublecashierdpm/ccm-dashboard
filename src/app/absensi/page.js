@@ -71,8 +71,14 @@ const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
 const [teamStats, setTeamStats] = useState(null);
-const [syncingAbsensi, setSyncingAbsensi] = useState(false);
-const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
+  const [syncingNik, setSyncingNik] = useState(false);
+  const [syncingSchedule, setSyncingSchedule] = useState(false);
+  const [syncingLog, setSyncingLog] = useState(false);
+  const [syncingRequest, setSyncingRequest] = useState(false);
+  const [syncStatus, setSyncStatus] = useState({ text: "", success: null });
+  const [syncingAbsensi, setSyncingAbsensi] = useState(false);
+  const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
+
 
 
 
@@ -86,38 +92,29 @@ const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  async function handleForwardSyncAbsensi() {
-  setSyncingAbsensi(true);
-  setSyncMsg({ text: "Menyinkronkan data dari Google Sheets ke Supabase...", success: null });
-  try {
-    const res = await fetch('/api/sync-absensi');
-    const json = await res.json();
-    setSyncMsg({ text: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
-  } catch (err) {
-    setSyncMsg({ text: "Error koneksi: " + err.message, success: false });
+  async function handleSpecificSync(type) {
+    const states = {
+        'NIK': [setSyncingNik, '/api/sync/nik'],
+        'Master Schedule': [setSyncingSchedule, '/api/sync/schedule'],
+        'Log Absensi': [setSyncingLog, '/api/sync/log'],
+        'Data Request': [setSyncingRequest, '/api/sync/request'],
+    };
+    
+    if (!states[type]) return;
+    const [setLoading, endpoint] = states[type];
+    
+    setLoading(true);
+    setSyncStatus({ text: `Syncing ${type}...`, success: null });
+    
+    try {
+        const res = await fetch(endpoint, { method: 'POST' });
+        const json = await res.json();
+        setSyncStatus({ text: json.message || `${type} sync ${json.success ? 'berhasil!' : 'gagal'}`, success: json.success });
+    } catch (err) {
+        setSyncStatus({ text: `Error ${type}: ${err.message}`, success: false });
+    }
+    setLoading(false);
   }
-  setSyncingAbsensi(false);
-}
- 
-async function handleReverseSyncAbsensi() {
-  const konfirmasi = confirm(
-    "⚠️ PERHATIAN!\n\nIni akan MENIMPA seluruh isi sheet Master_Schedule, Log_Absensi, dan Data_Request " +
-    "dengan data TERBARU dari Supabase (bukan digabung, tapi ditimpa total).\n\n" +
-    "Pastikan tidak ada yang sedang mengedit sheet-nya secara manual saat ini.\n\nLanjutkan?"
-  );
-  if (!konfirmasi) return;
- 
-  setSyncingAbsensi(true);
-  setSyncMsg({ text: "Menyinkronkan data dari Supabase ke Google Sheets...", success: null });
-  try {
-    const res = await fetch('/api/sync-absensi/reverse', { method: 'POST' });
-    const json = await res.json();
-    setSyncMsg({ text: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
-  } catch (err) {
-    setSyncMsg({ text: "Error koneksi: " + err.message, success: false });
-  }
-  setSyncingAbsensi(false);
-}
 
   
 async function openApproval() {
@@ -1350,7 +1347,7 @@ function getStatusBadgeClass(remarks) {
         </button>
 
                 {user.isHeadDept && (
-          <>
+              <>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button onClick={openApproval}
                 className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
@@ -1361,22 +1358,21 @@ function getStatusBadgeClass(remarks) {
                 👥 Team Monitor
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={handleForwardSyncAbsensi} disabled={syncingAbsensi}
-                className="py-4 bg-cyan-50 border border-cyan-200 rounded-2xl shadow-sm font-bold text-cyan-700 text-xs disabled:opacity-50">
-                {syncingAbsensi ? "⏳ ..." : "⬇️ Sync Sheet → DB"}
-              </button>
-              <button onClick={handleReverseSyncAbsensi} disabled={syncingAbsensi}
-                className="py-4 bg-purple-50 border border-purple-200 rounded-2xl shadow-sm font-bold text-purple-700 text-xs disabled:opacity-50">
-                {syncingAbsensi ? "⏳ ..." : "⬆️ Sync DB → Sheet"}
-              </button>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
+                  <button key={t} onClick={() => handleSpecificSync(t)} disabled={syncingNik || syncingSchedule || syncingLog || syncingRequest}
+                      className="py-3 bg-cyan-50 border border-cyan-200 rounded-2xl shadow-sm font-bold text-cyan-700 text-[10px] disabled:opacity-50">
+                      {t}
+                  </button>
+              ))}
             </div>
-            {syncMsg.text && (
-              <div className={`text-xs font-bold px-4 py-3 rounded-xl ${syncMsg.success === null ? 'bg-blue-50 text-blue-600' : syncMsg.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                {syncMsg.text}
+            {syncStatus.text && (
+              <div className={`text-xs font-bold px-4 py-3 rounded-xl mt-2 ${syncStatus.success === null ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {syncStatus.text}
               </div>
             )}
           </>
+
         )}
 
       </div>
