@@ -622,27 +622,32 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   const getFilteredGlobalData = () => {
     if (activePanel === "shortage") {
       const map = {};
-      rawShortage.forEach(r => {
-        if (filterBulan && r.periode !== filterBulan) return;
-        const namaKasirRaw = r.nama || r.nama_1 || "Unknown";
+ 
+      const tambahEntriShortage = (namaKasirRaw, periode, nominal, tanggal, pos, shiftLabel) => {
+        if (!namaKasirRaw) return;
+        if (filterBulan && periode !== filterBulan) return;
         const namaKasir = resolveNama(namaKasirRaw);
         if (searchNama && !namaKasir.toLowerCase().includes(searchNama.toLowerCase())) return;
-        
-        const key = normName(namaKasirRaw) + "||" + r.periode;
-        if (!map[key]) map[key] = { nama: namaKasir, periode: r.periode, totalShort: 0, totalOver: 0, frekuensi: 0, details: [] };
-        
+ 
+        const key = normName(namaKasirRaw) + "||" + periode;
+        if (!map[key]) map[key] = { nama: namaKasir, periode: periode, totalShort: 0, totalOver: 0, frekuensi: 0, details: [] };
+ 
+        map[key].frekuensi++;
+        if (nominal < 0) map[key].totalShort += nominal;
+        if (nominal > 0) map[key].totalOver += nominal;
+        map[key].details.push({ tanggal, pos, shift: shiftLabel, nominal });
+      };
+ 
+      rawShortage.forEach(r => {
         const nomPagi = parseInt(r.short_over_shift_pagi) || 0;
         const nomSiang = parseInt(r.short_over_shift_siang) || 0;
-        
-        map[key].frekuensi++;
-        if (nomPagi < 0) map[key].totalShort += nomPagi;
-        if (nomPagi > 0) map[key].totalOver += nomPagi;
-        if (nomSiang < 0) map[key].totalShort += nomSiang;
-        if (nomSiang > 0) map[key].totalOver += nomSiang;
-        
-        map[key].details.push({ tanggal: r.tanggal, pos: r.pos, shiftPagi: nomPagi, shiftSiang: nomSiang });
+        // Kasir shift Pagi (kolom "nama") dan shift Siang (kolom "nama_1")
+        // adalah DUA ORANG BERBEDA dalam satu baris — jangan digabung jadi satu nama.
+        tambahEntriShortage(r.nama, r.periode, nomPagi, r.tanggal, r.pos, "PAGI");
+        tambahEntriShortage(r.nama_1, r.periode, nomSiang, r.tanggal, r.pos, "SIANG");
       });
-      return Object.values(map).sort((a,b) => b.periode.localeCompare(a.periode));
+ 
+      return Object.values(map).sort((a, b) => (b.periode || '').localeCompare(a.periode || ''));
     }
     
     if (activePanel === "ecobag") return rawEcobag.filter(r => (!filterBulan || r.year_month === filterBulan || r.month === filterBulan) && (!searchNama || resolveNama(r.staff_name).toLowerCase().includes(searchNama.toLowerCase())) && ((showL && r.bag_la > 0) || (showM && r.bag_me > 0) || (showS && r.bag_sm > 0) || (!showL && !showM && !showS)) );
@@ -1191,26 +1196,18 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
               {activeModalData.data.nama}
             </div>
             <div className="p-5 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50/50">
-              {activeModalData.data.details.map((det, i) => {
-                const tPagi = det.shiftPagi;
-                const tSiang = det.shiftSiang;
-                return (
-                  <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-gray-400 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between font-bold text-gray-800 border-b pb-2">
-                      <span>{det.tanggal}</span>
-                      <span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">POS: {det.pos}</span>
-                    </div>
-                    <div className="flex justify-between pt-1">
-                      <span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Shift Pagi:</span>
-                      <span className={`font-black ${tPagi < 0 ? 'text-red-600' : tPagi > 0 ? 'text-green-600' : 'text-gray-400'}`}>{tPagi !== 0 ? tPagi.toLocaleString('id-ID') : '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Shift Siang:</span>
-                      <span className={`font-black ${tSiang < 0 ? 'text-red-600' : tSiang > 0 ? 'text-green-600' : 'text-gray-400'}`}>{tSiang !== 0 ? tSiang.toLocaleString('id-ID') : '-'}</span>
-                    </div>
+              {activeModalData.data.details.map((det, i) => (
+                <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-2 border-l-[5px] border-l-gray-400 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between font-bold text-gray-800 border-b pb-2">
+                    <span>{det.tanggal}</span>
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">POS: {det.pos} · Shift {det.shift}</span>
                   </div>
-                );
-              })}
+                  <div className="flex justify-between pt-1">
+                    <span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Nominal:</span>
+                    <span className={`font-black ${det.nominal < 0 ? 'text-red-600' : det.nominal > 0 ? 'text-green-600' : 'text-gray-400'}`}>{det.nominal !== 0 ? det.nominal.toLocaleString('id-ID') : '-'}</span>
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="p-5 bg-white border-t flex justify-between text-sm shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
               <span className="font-black text-red-600">Short: {activeModalData.data.totalShort.toLocaleString('id-ID')}</span>
