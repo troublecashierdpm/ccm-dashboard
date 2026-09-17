@@ -918,7 +918,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">
                  ⚙️ Sync Spesifik
                </button>
-               <div className="absolute right-0 top-full mt-2 w-48 bg-white text-gray-800 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-50">
+                 <div className="absolute right-0 top-full mt-2 w-48 bg-white text-gray-800 rounded-xl shadow-xl overflow-hidden group-hover:block z-50">
                  <button onClick={() => handleSyncTable('nik')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">NIK</button>
                  <button onClick={() => handleSyncTable('master-schedule')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Master Schedule</button>
                  <button onClick={() => handleSyncTable('log-absensi')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Log Absensi</button>
