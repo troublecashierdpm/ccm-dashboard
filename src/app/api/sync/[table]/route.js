@@ -187,6 +187,32 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, message: "Sinkronisasi Data Request Sukses!" });
     }
     
+    else if (table === 'member-per-day') {
+      const responseMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Member_Per_Day!A2:D' });
+      const rowsMember = responseMember.data.values;
+      
+      const { error: delError } = await supabase.from('member_per_day').delete().neq('id', 0);
+      if (delError) {
+        const { error: delError2 } = await supabase.from('member_per_day').delete().neq('nama', '');
+        if (delError2) console.warn("Warning deleting member_per_day:", delError2.message);
+      }
+
+      if (rowsMember && rowsMember.length > 0) {
+        const formattedMember = rowsMember
+          .map(row => ({
+            nama: row[0] || null,
+            bulan: row[1] || null,
+            qty: parseInt(row[2]) || 0,
+            id: row[3] || null
+          }));
+        for (let i = 0; i < formattedMember.length; i += 2000) {
+          const { error } = await supabase.from('member_per_day').insert(formattedMember.slice(i, i + 2000));
+          if (error) throw new Error(`Error Member_Per_Day Baris ${i}: ` + error.message);
+        }
+      }
+      return NextResponse.json({ success: true, message: "Sinkronisasi Member Per Day Sukses!" });
+    }
+    
     else {
       return NextResponse.json({ success: false, error: "Tabel tidak dikenal" }, { status: 400 });
     }
