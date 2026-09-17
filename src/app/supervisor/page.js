@@ -902,8 +902,11 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           <div className="pt-6 border-t border-gray-100 mt-6">
             <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 px-4 mb-3">Sync Data</p>
             <button onClick={handleSyncKasir} disabled={syncStatus.loading} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🔄 {syncStatus.loading ? "Loading..." : "Sync All"}</button>
-            <button onClick={() => handleSyncTable('nik')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📄 Sync NIK</button>
-            <button onClick={() => handleSyncTable('master-schedule')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📅 Sync Schedule</button>
+             <button onClick={() => handleSyncTable('nik')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📄 Sync NIK</button>
+             <button onClick={() => handleSyncTable('master-schedule')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📅 Sync Schedule</button>
+             <button onClick={() => handleSyncTable('log-absensi')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📝 Sync Log Absensi</button>
+             <button onClick={() => handleSyncTable('data-request')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📥 Sync Request</button>
+             <button onClick={() => handleSyncTable('member-per-day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">💳 Sync Member</button>
           </div>
         </nav>
       </aside>
