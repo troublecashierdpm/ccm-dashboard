@@ -1286,7 +1286,15 @@ function getStatusBadgeClass(remarks) {
             <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
             <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
           </div>
-          <button onClick={logout} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold">Logout</button>
+          <div className="flex items-center gap-2">
+            <a href="/kasir" onClick={() => {
+              localStorage.setItem("ccm_user", JSON.stringify(user));
+              localStorage.setItem("ccm_sup", JSON.stringify(user));
+            }} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">
+              Kasir →
+            </a>
+            <button onClick={logout} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white">Logout</button>
+          </div>
         </div>
         <div className="bg-white/10 rounded-2xl p-4">
           <p className="text-[10px] uppercase opacity-70 font-bold mb-1">Jadwal {user.tanggalHariIni}</p>
