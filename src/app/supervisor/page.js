@@ -898,6 +898,13 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sales", label: "Sales Ratio", icon: "💰" }, { id: "pwp", label: "PWP Kasir", icon: "🎯" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }].map(menu => (
             <button key={menu.id} onClick={() => { setActivePanel(menu.id); setSelectedKaryawan(null); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wide transition-all ${activePanel === menu.id && !selectedKaryawan ? "bg-[#e20074] text-white shadow-lg shadow-pink-500/30" : "text-gray-500 hover:bg-pink-50 hover:text-[#e20074]"}`}><span>{menu.icon}</span> {menu.label}</button>
           ))}
+          
+          <div className="pt-6 border-t border-gray-100 mt-6">
+            <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 px-4 mb-3">Sync Data</p>
+            <button onClick={handleSyncKasir} disabled={syncStatus.loading} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🔄 {syncStatus.loading ? "Loading..." : "Sync All"}</button>
+            <button onClick={() => handleSyncTable('nik')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📄 Sync NIK</button>
+            <button onClick={() => handleSyncTable('master-schedule')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📅 Sync Schedule</button>
+          </div>
         </nav>
       </aside>
 
@@ -910,21 +917,6 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           <div className="flex items-center gap-2 relative z-10 flex-wrap">
             <button onClick={() => setAiOpen(!aiOpen)} className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5 ${aiOpen ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600'}`}><span>🤖</span> AI Assistant</button>
             <button onClick={exportAllPanels} className="bg-white text-[#e20074] hover:bg-pink-50 px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5"><span>📊</span> Export Semua Excel</button>
-             <button onClick={handleSyncKasir} disabled={syncStatus.loading}
-               className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm disabled:opacity-50">
-               {syncStatus.loading ? "⏳ Sinkronisasi..." : "🔄 Sync Data"}
-             </button>
-             <div className="relative group">
-               <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">
-                 ⚙️ Sync Spesifik
-               </button>
-                 <div className="absolute right-0 top-full mt-2 w-48 bg-white text-gray-800 rounded-xl shadow-xl overflow-hidden group-hover:block z-50">
-                 <button onClick={() => handleSyncTable('nik')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">NIK</button>
-                 <button onClick={() => handleSyncTable('master-schedule')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Master Schedule</button>
-                 <button onClick={() => handleSyncTable('log-absensi')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Log Absensi</button>
-                 <button onClick={() => handleSyncTable('data-request')} className="block w-full text-left px-4 py-3 hover:bg-gray-100 text-xs font-bold uppercase">Data Request</button>
-               </div>
-             </div>
             {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
             <button onClick={prosesLogoutSupervisor} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">🚪 Logout</button>
             <a href="/absensi" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">Absensi</a>
