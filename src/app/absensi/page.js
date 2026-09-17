@@ -29,6 +29,7 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
 
 export default function AbsensiPage() {
   const [user, setUser] = useState(null);
+  useActiveSession(user, setUser, null); // absensi tidak punya state isLoggedIn terpisah, cukup null
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
