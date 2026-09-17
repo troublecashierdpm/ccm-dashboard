@@ -26,6 +26,7 @@ function toTitleCase(s) {
 // "nama" di tabel nik, lowercase & trim supaya tidak sensitif kapitalisasi/spasi)
 
 export default function SupervisorDashboard() {
+  const [isSyncMenuOpen, setIsSyncMenuOpen] = useState(false);
   const [activePanel, setActivePanel] = useState("dir"); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -900,13 +901,23 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           ))}
           
           <div className="pt-6 border-t border-gray-100 mt-6">
-            <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 px-4 mb-3">Sync Data</p>
-            <button onClick={handleSyncKasir} disabled={syncStatus.loading} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🔄 {syncStatus.loading ? "Loading..." : "Sync All"}</button>
-             <button onClick={() => handleSyncTable('nik')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📄 Sync NIK</button>
-             <button onClick={() => handleSyncTable('master-schedule')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📅 Sync Schedule</button>
-             <button onClick={() => handleSyncTable('log-absensi')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📝 Sync Log Absensi</button>
-             <button onClick={() => handleSyncTable('data-request')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📥 Sync Request</button>
-             <button onClick={() => handleSyncTable('member-per-day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">💳 Sync Member</button>
+            <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 px-4 mb-3 cursor-pointer" onClick={() => setIsSyncMenuOpen(!isSyncMenuOpen)}>
+              Sync Data {isSyncMenuOpen ? "▼" : "▶"}
+            </p>
+            {isSyncMenuOpen && (
+              <>
+                <button onClick={handleSyncKasir} disabled={syncStatus.loading} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🔄 {syncStatus.loading ? "Loading..." : "Sync All"}</button>
+                <button onClick={() => handleSyncTable('nik')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📄 Sync NIK</button>
+                <button onClick={() => handleSyncTable('pwp_kasir')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🎯 Sync PWP Kasir</button>
+                <button onClick={() => handleSyncTable('sales_member')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">💰 Sync Sales Member</button>
+                <button onClick={() => handleSyncTable('sales_hourly')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">⏰ Sync Sales Hourly</button>
+                <button onClick={() => handleSyncTable('shortage_per_day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">⚠️ Sync Shortage</button>
+                <button onClick={() => handleSyncTable('ecobag_per_day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🛍️ Sync Ecobag</button>
+                <button onClick={() => handleSyncTable('member_per_day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">💳 Sync Member</button>
+                <button onClick={() => handleSyncTable('sp_ba_per_day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">📄 Sync SP BA</button>
+                <button onClick={() => handleSyncTable('sakit_per_day')} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-pink-50 hover:text-[#e20074] rounded-xl font-bold text-xs uppercase transition">🏥 Sync Sakit</button>
+              </>
+            )}
           </div>
         </nav>
       </aside>
