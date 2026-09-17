@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { SUPERVISOR_WHITELIST, isSupervisorWhitelisted } from "@/lib/accessControl";
+import { useActiveSession } from "@/lib/useActiveSession";
 import Chart from "chart.js/auto";
 import * as XLSX from "xlsx";
 
@@ -31,6 +32,7 @@ export default function SupervisorDashboard() {
   const [syncStatus, setSyncStatus] = useState({ loading: false, message: "", success: null });
   const [isSupervisorLoggedIn, setIsSupervisorLoggedIn] = useState(false);
   const [supervisorUser, setSupervisorUser] = useState(null);
+  useActiveSession(supervisorUser, setSupervisorUser, setIsSupervisorLoggedIn);
   const [supNik, setSupNik] = useState("");
   const [supPassword, setSupPassword] = useState("");
   const [supLoginError, setSupLoginError] = useState("");
