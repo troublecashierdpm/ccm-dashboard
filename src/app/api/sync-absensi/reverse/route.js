@@ -82,9 +82,22 @@ export async function POST() {
     // ========================================================
     // 2. LOG_ABSENSI
     // ========================================================
-    const { data: logRows, error: logErr } = await supabase
-      .from('absensi_log').select('*').order('tanggal', { ascending: true });
-    if (logErr) throw new Error("Gagal baca log: " + logErr.message);
+    // Ambil data log per batch agar tidak terkena limit default Supabase (1000 baris)
+    let logRows = [];
+    let logRangeStart = 0;
+    const logPageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('absensi_log')
+        .select('*')
+        .order('tanggal', { ascending: false })
+        .range(logRangeStart, logRangeStart + logPageSize - 1);
+      if (error) throw new Error("Gagal baca log: " + error.message);
+      if (!data || data.length === 0) break;
+      logRows.push(...data);
+      if (data.length < logPageSize) break;
+      logRangeStart += logPageSize;
+    }
 
     const logHeader = ["Date","NIK","Nama Lengkap","Shift","Remarks","Clock In","Clock Out","Late In","Early Out","Durasi Kerja","Foto In","Foto Out"];
     const logGrid = (logRows || []).map(r => [
