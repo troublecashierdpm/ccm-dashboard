@@ -10,22 +10,15 @@ export async function POST() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
-    // 1. Ambil semua user PPKK yang punya email
+    // 1. Ambil semua user yang punya email
     const { data: nikRows, error: nikErr } = await supabase
       .from('absensi_nik')
-      .select('nik, nama, email, status')
-      .not('email', 'is', null)
-      .neq('email', '');
+      .select('nik, nama, email, status');
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
 
-    console.log("nikRows:", nikRows);
-
-    // DIAGNOSTIC LOGGING
-    const allUsersCount = nikRows ? nikRows.length : 0;
-    const usersWithEmail = (nikRows || []).filter(u => u.email && u.email.trim() !== "");
-    console.log(`[Diagnostic] Total staff PPKK ditemukan: ${allUsersCount}, staff dengan email: ${usersWithEmail.length}`);
-
     const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "");
+    console.log(`[Diag] Total NIK: ${(nikRows||[]).length}, Punya email: ${users.length}`);
+    console.log(`[Diag] Sample NIK rows:`, JSON.stringify((nikRows || []).slice(0, 3)));
 
     // 2. Tentukan rentang tanggal: 1 bulan ini s/d kemarin
     const now = new Date();
@@ -166,7 +159,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: `Berhasil mengirim ${sentCount} email${failCount > 0 ? `, ${failCount} gagal` : ''}.`
+      message: `Diagnostic: ${users.length} user ditemukan. Berhasil mengirim ${sentCount} email${failCount > 0 ? `, ${failCount} gagal` : ''}.`
     });
   } catch (err) {
     console.error("Error sendWeeklyLogEmails:", err);
