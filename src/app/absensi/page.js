@@ -92,27 +92,22 @@ const [teamStats, setTeamStats] = useState(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  async function handleSpecificSync(type) {
-    const states = {
-        'NIK': [setSyncingNik, '/api/sync-absensi/nik'],
-        'Master Schedule': [setSyncingSchedule, '/api/sync-absensi/master-schedule'],
-        'Log Absensi': [setSyncingLog, '/api/sync-absensi/log-absensi'],
+  async function triggerSync(type) {
+    const map = {
+      'NIK': '/api/sync-absensi/nik',
+      'Master Schedule': '/api/sync-absensi/master-schedule',
+      'Log Absensi': '/api/sync-absensi/log-absensi',
+      'Data Request': '/api/sync-absensi/data-request'
     };
-    
-    if (!states[type]) return;
-    const [setLoading, endpoint] = states[type];
-    
-    setLoading(true);
+    if (!map[type]) return;
     setSyncStatus({ text: `Syncing ${type}...`, success: null });
-    
     try {
-        const res = await fetch(endpoint);
-        const json = await res.json();
-        setSyncStatus({ text: json.message || `${type} sync ${json.success ? 'berhasil!' : 'gagal'}`, success: json.success });
+      const res = await fetch(map[type]);
+      const json = await res.json();
+      setSyncStatus({ text: json.message || `${type} ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
     } catch (err) {
-        setSyncStatus({ text: `Error ${type}: ${err.message}`, success: false });
+      setSyncStatus({ text: `Error: ${err.message}`, success: false });
     }
-    setLoading(false);
   }
 
   
@@ -1359,8 +1354,8 @@ function getStatusBadgeClass(remarks) {
             </div>
             <div className="grid grid-cols-2 gap-3 pt-2">
               {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
-                  <button key={t} onClick={() => handleSpecificSync(t)} disabled={syncingNik || syncingSchedule || syncingLog || syncingRequest}
-                      className="py-3 bg-cyan-50 border border-cyan-200 rounded-2xl shadow-sm font-bold text-cyan-700 text-[10px] disabled:opacity-50">
+                  <button key={t} onClick={() => triggerSync(t)}
+                      className="py-3 bg-cyan-50 border border-cyan-200 rounded-2xl shadow-sm font-bold text-cyan-700 text-[10px]">
                       {t}
                   </button>
               ))}
