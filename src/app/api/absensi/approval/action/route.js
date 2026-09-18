@@ -1,9 +1,7 @@
 // src/app/api/absensi/approval/action/route.js
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { hitungJamKerja, hitungLateEarlyDurasi, getRemarks } from '@/lib/absensiHelpers';
+import nodemailer from 'nodemailer';
 
 export async function POST(req) {
   try {
@@ -86,10 +84,18 @@ export async function POST(req) {
 
     // 3. Email notifikasi (best-effort — kalau gagal, tidak menggagalkan approval)
     try {
-      if (process.env.RESEND_API_KEY) {
+      if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
         const { data: nikRows } = await supabase.from("absensi_nik").select("email").eq("nik", reqData.nik).limit(1);
         const email = nikRows && nikRows[0] && nikRows[0].email;
         if (email) {
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.GMAIL_USER,
+              pass: process.env.GMAIL_APP_PASSWORD
+            }
+          });
+
           const reqType = reqData.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
           const subject = `[Absensi DPM] Pengajuan ${reqType} Anda ${actionStatus === "Approved" ? "DISETUJUI ✅" : "DITOLAK ❌"}`;
           const color = actionStatus === "Approved" ? "#16a34a" : "#ef4444";
@@ -105,13 +111,11 @@ export async function POST(req) {
           }
           html += `</table></div>`;
 
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: process.env.RESEND_FROM_EMAIL || "Admin Absensi DPM <onboarding@resend.dev>",
-              to: email, subject, html
-            })
+          await transporter.sendMail({
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject,
+            html
           });
         }
       }
