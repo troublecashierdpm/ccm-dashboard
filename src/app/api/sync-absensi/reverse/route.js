@@ -4,7 +4,10 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
-import { isoToDdMmYyyy } from '@/lib/absensiHelpers';
+function toYyyyMmDd(iso) {
+  if (!iso) return '';
+  return String(iso).slice(0, 10);
+}
 
 export async function POST() {
   try {
