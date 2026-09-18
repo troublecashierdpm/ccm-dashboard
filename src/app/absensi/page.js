@@ -120,6 +120,17 @@ const [teamStats, setTeamStats] = useState(null);
     }
   }
 
+  async function triggerSendLogEmail() {
+    setSyncStatus({ text: "Mengirim email rekapan ke semua staff...", success: null });
+    try {
+      const res = await fetch('/api/absensi/send-log-email', { method: "POST" });
+      const json = await res.json();
+      setSyncStatus({ text: json.message || "Selesai", success: json.success });
+    } catch (err) {
+      setSyncStatus({ text: `Error: ${err.message}`, success: false });
+    }
+  }
+
   
 async function openApproval() {
   setStep("approval");
@@ -1294,6 +1305,7 @@ function getStatusBadgeClass(remarks) {
                   <button key={t} onClick={() => triggerSync(t)} className="w-full py-3 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-xl">{t}</button>
                 ))}
                 <button onClick={triggerReverseSync} className="w-full py-3 bg-purple-50 text-purple-700 font-bold text-xs rounded-xl">Reverse Sync (Supabase → Sheet)</button>
+                <button onClick={triggerSendLogEmail} className="w-full py-3 bg-orange-50 text-orange-700 font-bold text-xs rounded-xl">Kirim Rekap Email (Bulanan)</button>
               </div>
               {syncStatus.text && (
                 <div className={`mt-4 text-[10px] font-bold p-3 rounded-xl ${syncStatus.success === null ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
