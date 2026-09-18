@@ -85,12 +85,19 @@ const [emailNik, setEmailNik] = useState("");
 
 function formatPhotoUrl(url) {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
   
-  const idMatch = url.match(/(?:file\/d\/|id=)([^&/]+)/);
-  const fileId = idMatch ? idMatch[1] : url;
+  // Jika berupa link Google Drive
+  const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (idMatch && idMatch[1]) {
+    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w400`;
+  }
   
-  return `https://lh3.googleusercontent.com/d/${fileId}`;
+  const idMatch2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch2 && idMatch2[1]) {
+    return `https://drive.google.com/thumbnail?id=${idMatch2[1]}&sz=w400`;
+  }
+
+  return url;
 }
   const mapInstanceRef = useRef(null);
   const userMarkerRef = useRef(null);
