@@ -83,8 +83,15 @@ const [emailNik, setEmailNik] = useState("");
 
 
 
-
-  const mapRef = useRef(null);
+function formatPhotoUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  
+  const idMatch = url.match(/(?:file\/d\/|id=)([^&/]+)/);
+  const fileId = idMatch ? idMatch[1] : url;
+  
+  return `https://lh3.googleusercontent.com/d/${fileId}`;
+}
   const mapInstanceRef = useRef(null);
   const userMarkerRef = useRef(null);
   const watchIdRef = useRef(null);
@@ -904,13 +911,13 @@ function getStatusBadgeClass(remarks) {
                   {detailItem.fotoIn && (
                     <div className="flex-1">
                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Foto In</p>
-                      <img src={detailItem.fotoIn} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
+                      <img src={formatPhotoUrl(detailItem.fotoIn)} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
                     </div>
                   )}
                   {detailItem.fotoOut && (
                     <div className="flex-1">
                       <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Foto Out</p>
-                      <img src={detailItem.fotoOut} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
+                      <img src={formatPhotoUrl(detailItem.fotoOut)} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
                     </div>
                   )}
                 </div>
@@ -1119,7 +1126,7 @@ function getStatusBadgeClass(remarks) {
               <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
                 <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
                   {r.photoUrl
-                    ? <img src={r.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
+                    ? <img src={formatPhotoUrl(r.photoUrl)} className="w-10 h-10 rounded-xl object-cover" />
                     : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
                   <div className="flex-1">
                     <p className="font-bold text-sm text-gray-800">{r.nama} <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">{jenis}</span></p>
@@ -1159,7 +1166,7 @@ function getStatusBadgeClass(remarks) {
                 <div className="flex justify-between"><span className="text-gray-500">Alasan</span><span className="italic text-right max-w-[60%]">{approvalDetail.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim()}</span></div>
               </div>
               {approvalDetail.lampiranUrl && (
-                <img src={approvalDetail.lampiranUrl} className="w-full rounded-xl mb-4 bg-gray-100 max-h-60 object-cover" />
+                <img src={formatPhotoUrl(approvalDetail.lampiranUrl)} className="w-full rounded-xl mb-4 bg-gray-100 max-h-60 object-cover" />
               )}
               <div className="flex gap-2">
                 <button onClick={() => eksekusiApproval(approvalDetail.reqId, "Rejected")}
@@ -1237,7 +1244,7 @@ function getStatusBadgeClass(remarks) {
             <div key={i} className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onClick={() => { setTeamSelectedStaff({ nik: t.nik, nama: t.nama, loading: true }); fetchStaffMonthlyLog(t.nik, teamDate); }}>
               <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
                 {t.photoUrl
-                  ? <img src={t.photoUrl} className="w-10 h-10 rounded-xl object-cover" />
+                  ? <img src={formatPhotoUrl(t.photoUrl)} className="w-10 h-10 rounded-xl object-cover" />
                   : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074]">👤</div>}
                 <div className="flex-1">
                   <p className="font-bold text-sm text-gray-800">{t.nama}</p>
@@ -1283,14 +1290,14 @@ function getStatusBadgeClass(remarks) {
                         {(item.fotoIn || item.fotoOut) && (
                           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
                             {item.fotoIn && (
-                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(item.fotoIn)}>
-                                <img src={item.fotoIn} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
+                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(formatPhotoUrl(item.fotoIn))}>
+                                <img src={formatPhotoUrl(item.fotoIn)} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
                                 <span className="text-[9px] font-bold text-gray-500">Foto In</span>
                               </div>
                             )}
                             {item.fotoOut && (
-                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(item.fotoOut)}>
-                                <img src={item.fotoOut} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
+                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(formatPhotoUrl(item.fotoOut))}>
+                                <img src={formatPhotoUrl(item.fotoOut)} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
                                 <span className="text-[9px] font-bold text-gray-500">Foto Out</span>
                               </div>
                             )}
