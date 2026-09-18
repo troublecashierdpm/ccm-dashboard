@@ -13,9 +13,14 @@ export async function POST() {
     // 1. Ambil semua user PPKK yang punya email
     const { data: nikRows, error: nikErr } = await supabase
       .from('absensi_nik')
-      .select('nik, nama, email')
-      .eq('status', 'PPKK');
+      .select('nik, nama, email, status')
+      .not('email', 'is', null);
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
+
+    // DIAGNOSTIC LOGGING
+    const allUsersCount = nikRows ? nikRows.length : 0;
+    const usersWithEmail = (nikRows || []).filter(u => u.email && u.email.trim() !== "");
+    console.log(`[Diagnostic] Total staff PPKK ditemukan: ${allUsersCount}, staff dengan email: ${usersWithEmail.length}`);
 
     const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "");
 
