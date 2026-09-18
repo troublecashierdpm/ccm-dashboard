@@ -1377,8 +1377,7 @@ function getStatusBadgeClass(remarks) {
           📂 My Requests
         </button>
 
-                {user.isHeadDept && (
-              <>
+        {user.isHeadDept && (
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button onClick={openApproval}
                 className="py-4 bg-green-50 border border-green-200 rounded-2xl shadow-sm font-bold text-green-700 text-xs">
@@ -1389,12 +1388,7 @@ function getStatusBadgeClass(remarks) {
                 👥 Team Monitor
               </button>
             </div>
-          </>
         )}
-          </>
-
-        )}
-
       </div>
     </div>
   );
