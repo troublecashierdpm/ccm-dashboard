@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useActiveSession } from "@/lib/useActiveSession";
 import { isSupervisorWhitelisted } from "@/lib/accessControl";
@@ -15,6 +15,11 @@ export default function App() {
   const [isFalling, setIsFalling] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
+
+  // Photo Upload States
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestForm, setRequestForm] = useState({ hari: "", alasan: "" });
@@ -85,6 +90,45 @@ export default function App() {
     setIsSubmittingRequest(false);
   };
   
+  // --- LOGIKA PHOTO UPLOAD ---
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewPhoto(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const executeUpload = async () => {
+    if (!previewPhoto) return;
+    setIsUploadingPhoto(true);
+    try {
+      const res = await fetch("/api/absensi/request-foto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base64Data: previewPhoto.split(',')[1],
+          nik: user.nik,
+          nama: user.nama
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Request ganti foto berhasil dikirim!");
+        setPreviewPhoto(null);
+      } else {
+        alert("❌ Gagal: " + data.message);
+      }
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
@@ -561,10 +605,36 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                   <button onClick={() => setIsRequestModalOpen(false)} className="w-full mt-1 text-[10px] text-gray-400 font-bold py-2">BATAL / TUTUP</button>
                 </div>
               </div>
-            </div>
-          )}
+          </div>
+         )}
+
+         {previewPhoto && (
+           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+             <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+               <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white text-center">
+                 <h3 className="font-black text-sm uppercase">Request Ganti Foto</h3>
+                 <p className="text-[9px] opacity-70 mt-1">Konfirmasi foto baru Anda</p>
+               </div>
+               <div className="p-6 space-y-4 flex flex-col items-center">
+                 <img src={previewPhoto} className="w-48 h-48 object-cover rounded-2xl border border-gray-100 shadow-sm" alt="Preview" />
+                 <div className="flex gap-3 w-full mt-2">
+                   <button onClick={() => setPreviewPhoto(null)} className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs">
+                     Batal
+                   </button>
+                   <button 
+                     onClick={executeUpload} 
+                     disabled={isUploadingPhoto}
+                     className="flex-1 py-3.5 bg-[#e20074] text-white rounded-2xl font-bold text-xs shadow-lg shadow-pink-100 disabled:opacity-60"
+                   >
+                     {isUploadingPhoto ? "Mengirim..." : "Ya, Kirim"}
+                   </button>
+                 </div>
+               </div>
+             </div>
+           </div>
+         )}
  
-          {/* ========================================================= */}
+         {/* ========================================================= */}
           {/* HALAMAN UTAMA DASHBOARD KASIR (TETAP 100% PREMIUM & SAMA) */}
           {/* ========================================================= */}
 
@@ -598,7 +668,11 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
 
               <div className="flex items-start gap-5 relative z-10">
                 {/* --- FOTO PROFIL KASIR ASLI DARI GOOGLE DRIVE --- */}
-                <div className="relative group shrink-0 bg-white/10 rounded-3xl p-1 shadow-2xl">
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative group shrink-0 bg-white/10 rounded-3xl p-1 shadow-2xl cursor-pointer"
+                  title="Klik untuk Request Ganti Foto"
+                >
                   <img 
                     src={getPhotoUrl()} 
                     onError={(e) => { e.currentTarget.src = fallbackAvatar; }} 
@@ -606,8 +680,18 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                     className="w-24 h-24 object-cover rounded-[1.2rem] border-2 border-white/40 bg-white/20 transition-transform duration-300 group-hover:scale-105" 
                     alt="Foto Profil" 
                   />
+                  <div className="absolute inset-0 bg-black/40 rounded-[1.2rem] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold text-center p-1">
+                    Ganti Foto
+                  </div>
                   <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-400 border-4 border-[#e20074] rounded-full shadow-lg z-10"></div>
                 </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileSelect} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
                 {/* ------------------------------------------------ */}
                 <div className="flex-1 min-w-0 pt-1">
                   <h1 className="text-xl sm:text-2xl font-black drop-shadow-md leading-tight break-words pr-2">{user.nama}</h1>
