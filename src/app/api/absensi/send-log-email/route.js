@@ -135,21 +135,26 @@ export async function POST() {
           </div>
         </div>`;
 
-        if (process.env.RESEND_API_KEY) {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              from: process.env.RESEND_FROM_EMAIL || "Absensi PPKK DPM <onboarding@resend.dev>",
-              to: userData.email,
-              subject: `[Absensi DPM] Rekapan Absensi ${strStart} - ${strEnd}`,
-              html
-            })
-          });
+        const emailResponse = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL || "Absensi PPKK DPM <onboarding@resend.dev>",
+            to: userData.email,
+            subject: `[Absensi DPM] Rekapan Absensi ${strStart} - ${strEnd}`,
+            html
+          })
+        });
+
+        const emailResult = await emailResponse.json();
+        if (emailResponse.ok) {
           sentCount++;
+        } else {
+          console.error("Resend error detail:", emailResult);
+          failCount++;
         }
       } catch (e) {
         console.error("Gagal kirim ke " + userData.email + ": " + e);
