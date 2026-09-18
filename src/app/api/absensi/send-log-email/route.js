@@ -25,7 +25,7 @@ export async function POST() {
       .select('nik, nama, email, status');
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
 
-    const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "");
+    const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "" && u.status && u.status.trim().toUpperCase() === "PPKK");
 
     // 2. Tentukan rentang tanggal: 1 bulan ini s/d kemarin
     const now = new Date();
