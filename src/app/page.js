@@ -39,7 +39,7 @@ export default function HomePage() {
           .from("log_login")
           .select("*")
           .order("timestamp", { ascending: false })
-          .limit(10);
+          .limit(50);
         if (!error && data) {
           setLogs(data);
         }
@@ -92,7 +92,7 @@ export default function HomePage() {
             <span>📋 Live Login Activity</span>
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           </h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
+          <div className="space-y-2 max-h-96 overflow-y-auto text-xs">
             {loadingLogs ? (
               <p className="text-gray-400 text-center py-4">Memuat log...</p>
             ) : logs.length === 0 ? (
