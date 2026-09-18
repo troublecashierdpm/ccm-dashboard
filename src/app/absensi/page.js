@@ -1302,13 +1302,27 @@ function getStatusBadgeClass(remarks) {
                 <h3 className="font-bold text-gray-800">Menu Sync</h3>
                 <button onClick={() => setSidebarOpen(false)} className="text-gray-400">✕</button>
               </div>
-              <div className="space-y-3">
-                {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
-                  <button key={t} onClick={() => triggerSync(t)} className="w-full py-3 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-xl">{t}</button>
-                ))}
-                <button onClick={triggerReverseSync} className="w-full py-3 bg-purple-50 text-purple-700 font-bold text-xs rounded-xl">Reverse Sync (Supabase → Sheet)</button>
-                <div className="pt-2 border-t border-gray-100 mt-2">
-                  <input type="text" placeholder="NIK (opsional)" value={emailNik} onChange={(e) => setEmailNik(e.target.value)} className="w-full p-2.5 rounded-xl border border-gray-200 text-xs mb-2" />
+              <div className="space-y-6">
+                {/* GROUP 1: Sheet to DB */}
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Sync (Sheet → DB)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
+                      <button key={t} onClick={() => triggerSync(t)} className="w-full py-2.5 bg-cyan-50 text-cyan-700 font-bold text-[10px] rounded-lg">{t}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* GROUP 2: Reverse Sync */}
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Reverse (DB → Sheet)</p>
+                  <button onClick={triggerReverseSync} className="w-full py-3 bg-purple-50 text-purple-700 font-bold text-xs rounded-xl">Reverse Sync</button>
+                </div>
+
+                {/* GROUP 3: Email Tools */}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Tools Email</p>
+                  <input type="text" placeholder="NIK (opsional)" value={emailNik} onChange={(e) => setEmailNik(e.target.value)} className="w-full p-2 rounded-lg border border-gray-200 text-xs mb-2" />
                   <button onClick={triggerSendLogEmail} className="w-full py-3 bg-orange-50 text-orange-700 font-bold text-xs rounded-xl">Kirim Rekap Email</button>
                 </div>
               </div>
