@@ -66,7 +66,7 @@ export async function POST() {
         scheduleMap[r.nik][r.tanggal] = r.shift_code;
       });
 
-      const header = ['NIK', 'Nama', ...allDates.map(d => isoToDdMmYyyy(d))];
+      const header = ['NIK', 'Nama', ...allDates.map(d => toYyyyMmDd(d))];
       const dataGrid = allNiks.map(item => {
         const row = [item.nik, item.nama];
         allDates.forEach(d => row.push((scheduleMap[item.nik] && scheduleMap[item.nik][d]) || '-'));
@@ -104,7 +104,7 @@ export async function POST() {
 
     const logHeader = ["Date","NIK","Nama Lengkap","Shift","Remarks","Clock In","Clock Out","Late In","Early Out","Durasi Kerja","Foto In","Foto Out"];
     const logGrid = (logRows || []).map(r => [
-      isoToDdMmYyyy(r.tanggal), r.nik, r.nama || '', r.shift || '', r.remarks || '',
+      toYyyyMmDd(r.tanggal), r.nik, r.nama || '', r.shift || '', r.remarks || '',
       r.clock_in || '', r.clock_out || '', r.late_in || '', r.early_out || '', r.durasi_kerja || '',
       r.foto_in || '', r.foto_out || ''
     ]);
@@ -126,7 +126,7 @@ export async function POST() {
 
     const reqHeader = ["ID Request","Waktu Submit","NIK","Nama Lengkap","Tanggal Absen","Kode Shift Baru","Jam In Baru","Jam Out Baru","Alasan","Status","Tanggal Action","Foto Lampiran","Pesan/Catatan Admin"];
     const reqGrid = (reqRows || []).map(r => [
-      r.req_id, r.waktu_submit, r.nik, r.nama || '', isoToDdMmYyyy(r.tanggal_absen),
+      r.req_id, r.waktu_submit, r.nik, r.nama || '', toYyyyMmDd(r.tanggal_absen),
       r.shift_baru || '-', r.jam_in_baru || '-', r.jam_out_baru || '-', r.alasan || '',
       r.status || 'Pending', r.tanggal_action || '-', r.foto_lampiran || '', r.catatan_admin || '-'
     ]);
