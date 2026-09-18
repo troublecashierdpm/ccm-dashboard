@@ -71,13 +71,12 @@ const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
 const [teamStats, setTeamStats] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [syncingNik, setSyncingNik] = useState(false);
   const [syncingSchedule, setSyncingSchedule] = useState(false);
   const [syncingLog, setSyncingLog] = useState(false);
   const [syncingRequest, setSyncingRequest] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ text: "", success: null });
-  const [syncingAbsensi, setSyncingAbsensi] = useState(false);
-  const [syncMsg, setSyncMsg] = useState({ text: "", success: null });
 
 
 
@@ -105,6 +104,17 @@ const [teamStats, setTeamStats] = useState(null);
       const res = await fetch(map[type]);
       const json = await res.json();
       setSyncStatus({ text: json.message || `${type} ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
+    } catch (err) {
+      setSyncStatus({ text: `Error: ${err.message}`, success: false });
+    }
+  }
+
+  async function triggerReverseSync() {
+    setSyncStatus({ text: "Syncing Reverse (Supabase → Sheet)...", success: null });
+    try {
+      const res = await fetch('/api/sync-absensi/reverse', { method: "POST" });
+      const json = await res.json();
+      setSyncStatus({ text: json.message || `Reverse sync ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
     } catch (err) {
       setSyncStatus({ text: `Error: ${err.message}`, success: false });
     }
@@ -1271,11 +1281,38 @@ function getStatusBadgeClass(remarks) {
   // STEP: HOME
   return (
     <div className="min-h-screen bg-[#f8fafc]">
-      <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-8 rounded-b-[2.5rem] shadow-lg">
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-[100] flex">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+            <div className="bg-white w-72 h-full p-6 shadow-2xl relative">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-bold text-gray-800">Menu Sync</h3>
+                <button onClick={() => setSidebarOpen(false)} className="text-gray-400">✕</button>
+              </div>
+              <div className="space-y-3">
+                {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
+                  <button key={t} onClick={() => triggerSync(t)} className="w-full py-3 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-xl">{t}</button>
+                ))}
+                <button onClick={triggerReverseSync} className="w-full py-3 bg-purple-50 text-purple-700 font-bold text-xs rounded-xl">Reverse Sync (Supabase → Sheet)</button>
+              </div>
+              {syncStatus.text && (
+                <div className={`mt-4 text-[10px] font-bold p-3 rounded-xl ${syncStatus.success === null ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {syncStatus.text}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-8 rounded-b-[2.5rem] shadow-lg">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
-            <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
+          <div className="flex items-center gap-3">
+            {user.isHeadDept && (
+              <button onClick={() => setSidebarOpen(true)} className="p-2 bg-white/20 rounded-xl">≡</button>
+            )}
+            <div>
+              <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
+              <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <a href="/kasir" onClick={() => {
@@ -1352,19 +1389,8 @@ function getStatusBadgeClass(remarks) {
                 👥 Team Monitor
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
-                  <button key={t} onClick={() => triggerSync(t)}
-                      className="py-3 bg-cyan-50 border border-cyan-200 rounded-2xl shadow-sm font-bold text-cyan-700 text-[10px]">
-                      {t}
-                  </button>
-              ))}
-            </div>
-            {syncStatus.text && (
-              <div className={`text-xs font-bold px-4 py-3 rounded-xl mt-2 ${syncStatus.success === null ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                {syncStatus.text}
-              </div>
-            )}
+          </>
+        )}
           </>
 
         )}
