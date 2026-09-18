@@ -4,8 +4,10 @@ import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(req) {
   try {
+    const body = await req.json().catch(() => ({}));
+    const targetNik = body.nik || new URL(req.url).searchParams.get('nik');
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -20,12 +22,18 @@ export async function POST() {
     });
 
     // 1. Ambil semua user yang punya email
-    const { data: nikRows, error: nikErr } = await supabase
+    let query = supabase
       .from('absensi_nik')
       .select('nik, nama, email, status');
+
+    if (targetNik) {
+      query = query.eq('nik', targetNik);
+    }
+
+    const { data: nikRows, error: nikErr } = await query;
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
 
-    const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "" && u.status && u.status.trim().toUpperCase() === "PPKK");
+    const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "" && (targetNik ? true : (u.status && u.status.trim().toUpperCase() === "PPKK")));
 
     // 2. Tentukan rentang tanggal: 1 bulan ini s/d kemarin
     const now = new Date();

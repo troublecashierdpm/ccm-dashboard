@@ -77,6 +77,7 @@ const [teamStats, setTeamStats] = useState(null);
   const [syncingLog, setSyncingLog] = useState(false);
   const [syncingRequest, setSyncingRequest] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ text: "", success: null });
+const [emailNik, setEmailNik] = useState("");
 
 
 
@@ -121,9 +122,10 @@ const [teamStats, setTeamStats] = useState(null);
   }
 
   async function triggerSendLogEmail() {
-    setSyncStatus({ text: "Mengirim email rekapan ke semua staff...", success: null });
+    setSyncStatus({ text: `Mengirim email rekapan ke ${emailNik || 'semua staff'}...`, success: null });
     try {
-      const res = await fetch('/api/absensi/send-log-email', { method: "POST" });
+      const url = emailNik ? `/api/absensi/send-log-email?nik=${emailNik}` : '/api/absensi/send-log-email';
+      const res = await fetch(url, { method: "POST", headers: emailNik ? { "Content-Type": "application/json" } : {}, body: emailNik ? JSON.stringify({ nik: emailNik }) : undefined });
       const json = await res.json();
       setSyncStatus({ text: json.message || "Selesai", success: json.success });
     } catch (err) {
@@ -1305,7 +1307,10 @@ function getStatusBadgeClass(remarks) {
                   <button key={t} onClick={() => triggerSync(t)} className="w-full py-3 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-xl">{t}</button>
                 ))}
                 <button onClick={triggerReverseSync} className="w-full py-3 bg-purple-50 text-purple-700 font-bold text-xs rounded-xl">Reverse Sync (Supabase → Sheet)</button>
-                <button onClick={triggerSendLogEmail} className="w-full py-3 bg-orange-50 text-orange-700 font-bold text-xs rounded-xl">Kirim Rekap Email (Bulanan)</button>
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <input type="text" placeholder="NIK (opsional)" value={emailNik} onChange={(e) => setEmailNik(e.target.value)} className="w-full p-2.5 rounded-xl border border-gray-200 text-xs mb-2" />
+                  <button onClick={triggerSendLogEmail} className="w-full py-3 bg-orange-50 text-orange-700 font-bold text-xs rounded-xl">Kirim Rekap Email</button>
+                </div>
               </div>
               {syncStatus.text && (
                 <div className={`mt-4 text-[10px] font-bold p-3 rounded-xl ${syncStatus.success === null ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
