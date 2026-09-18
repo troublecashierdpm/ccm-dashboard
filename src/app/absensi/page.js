@@ -42,11 +42,17 @@ export default function AbsensiPage() {
   const [tipeAbsen, setTipeAbsen] = useState("");
   const [gpsStatus, setGpsStatus] = useState({ text: "Mencari sinyal GPS...", ok: false, color: "gray" });
   const [submitting, setSubmitting] = useState(false);
-const [logData, setLogData] = useState(null);
-const [logMonthDate, setLogMonthDate] = useState(new Date());
-const [logLoading, setLogLoading] = useState(false);
-const [showStats, setShowStats] = useState(false);
-const [detailItem, setDetailItem] = useState(null);
+  const [logData, setLogData] = useState(null);
+  const [logMonthDate, setLogMonthDate] = useState(new Date());
+  const [logLoading, setLogLoading] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [detailItem, setDetailItem] = useState(null);
+
+  const [staffDetailStaff, setStaffDetailStaff] = useState(null);
+  const [staffDetailMonth, setStaffDetailMonth] = useState(new Date());
+  const [staffDetailData, setStaffDetailData] = useState(null);
+  const [staffDetailLoading, setStaffDetailLoading] = useState(false);
+  const [staffDetailDetailItem, setStaffDetailDetailItem] = useState(null);
 const [reqMenuOpen, setReqMenuOpen] = useState(false);
 const [reqTgl, setReqTgl] = useState("");
 const [reqData, setReqData] = useState(null); // hasil fetch request-data (shiftCode, expIn, expOut, actualIn, actualOut)
@@ -388,10 +394,31 @@ function gantiBulanLog(delta) {
   setLogMonthDate(newDate);
 }
  
-// Muat ulang log setiap kali bulan berubah selagi berada di step "log"
-useEffect(() => {
-  if (step === "log" && user) fetchLog(logMonthDate);
-}, [step, logMonthDate]);
+async function fetchStaffDetailLog(nik, monthDate) {
+    setStaffDetailLoading(true);
+    const yyyy = monthDate.getFullYear();
+    const mm = String(monthDate.getMonth() + 1).padStart(2, "0");
+    try {
+      const res = await fetch(`/api/absensi/log?nik=${nik}&month=${yyyy}-${mm}`);
+      const json = await res.json();
+      if (json.success) setStaffDetailData(json);
+      else alert("Gagal memuat log: " + json.message);
+    } catch (err) {
+      alert("Koneksi terputus: " + err.message);
+    }
+    setStaffDetailLoading(false);
+  }
+  
+  // Muat ulang log setiap kali bulan berubah selagi berada di step "log"
+  useEffect(() => {
+    if (step === "log" && user) fetchLog(logMonthDate);
+  }, [step, logMonthDate]);
+  
+  useEffect(() => {
+    if (step === "staff-detail" && staffDetailStaff) {
+      fetchStaffDetailLog(staffDetailStaff.nik, staffDetailMonth);
+    }
+  }, [step, staffDetailStaff, staffDetailMonth]);
  
 function getStatusBadgeClass(remarks) {
   if (!remarks) return "bg-gray-100 text-gray-500";
@@ -1248,7 +1275,12 @@ function getStatusBadgeClass(remarks) {
             <div className="text-center text-gray-400 text-sm py-10">Tidak ada data.</div>
           )}
           {!teamLoading && filteredTeam.map((t, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onClick={() => { setTeamSelectedStaff({ nik: t.nik, nama: t.nama, loading: true }); fetchStaffMonthlyLog(t.nik, teamDate); }}>
+            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onClick={() => {
+              setStaffDetailStaff({ nik: t.nik, nama: t.nama, photoUrl: t.photoUrl, status: t.status, shift: t.shift, jam: t.jam });
+              setStaffDetailMonth(new Date(teamDate));
+              setStaffDetailDetailItem(null);
+              setStep("staff-detail");
+            }}>
               <div className="flex gap-3 items-center mb-3 pb-3 border-b border-gray-100">
                 {t.photoUrl
                   ? <img src={formatPhotoUrl(t.photoUrl)} className="w-10 h-10 rounded-xl object-cover" />
@@ -1266,58 +1298,6 @@ function getStatusBadgeClass(remarks) {
             </div>
           ))}
 
-          {teamSelectedStaff && (
-            <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setTeamSelectedStaff(null)}>
-              <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4 border-b pb-4">
-                  <h3 className="font-bold text-gray-800 text-sm">Log: {teamSelectedStaff.nama}</h3>
-                  <button onClick={() => setTeamSelectedStaff(null)} className="text-gray-400 text-xl">✕</button>
-                </div>
-                {teamSelectedStaff.loading ? <div className="text-center py-10 text-xs text-gray-400">Memuat data...</div> : (
-                  <div className="space-y-2">
-                    {teamSelectedStaff.logs?.map((item, idx) => (
-                      <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-bold text-gray-800">{item.date}</span>
-                          <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase ${statusBadgeClass(item.remarks)}`}>{item.remarks}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] bg-pink-50 text-[#e20074] font-bold px-2 py-1 rounded-md">{item.shift} ({item.shiftJam})</span>
-                          <div className="flex gap-3 text-right">
-                            <div>
-                              <p className="text-[8px] text-gray-400 uppercase font-bold">In</p>
-                              <p className={`text-[11px] font-black ${item.in === "-" ? "text-red-400" : "text-gray-800"}`}>{item.in}</p>
-                            </div>
-                            <div>
-                              <p className="text-[8px] text-gray-400 uppercase font-bold">Out</p>
-                              <p className={`text-[11px] font-black ${item.out === "-" ? "text-red-400" : "text-gray-800"}`}>{item.out}</p>
-                            </div>
-                          </div>
-                        </div>
-                        {(item.fotoIn || item.fotoOut) && (
-                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-                            {item.fotoIn && (
-                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(formatPhotoUrl(item.fotoIn))}>
-                                <img src={formatPhotoUrl(item.fotoIn)} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
-                                <span className="text-[9px] font-bold text-gray-500">Foto In</span>
-                              </div>
-                            )}
-                            {item.fotoOut && (
-                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(formatPhotoUrl(item.fotoOut))}>
-                                <img src={formatPhotoUrl(item.fotoOut)} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
-                                <span className="text-[9px] font-bold text-gray-500">Foto Out</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {teamPhotoModal && (
             <div className="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4" onClick={() => setTeamPhotoModal(null)}>
               <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
@@ -1327,6 +1307,163 @@ function getStatusBadgeClass(remarks) {
             </div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // STEP: STAFF DETAIL
+  if (step === "staff-detail" && staffDetailStaff) {
+    const staffMonthLabel = staffDetailData ? staffDetailData.month : "Memuat...";
+    const staffLogs = staffDetailData?.logs || [];
+    const staffStats = staffDetailData?.stats || (() => {
+      const s = { present: 0, late: 0, early: 0, absent: 0, noIn: 0, dayOff: 0 };
+      staffLogs.forEach(l => {
+        if (l.isOff) { s.dayOff++; return; }
+        const r = (l.remarks || "").toLowerCase();
+        if (r === "alpha" || r.indexOf("no clock") !== -1) s.absent++;
+        else if (r.indexOf("late") !== -1) s.late++;
+        else if (r.indexOf("early") !== -1) s.early++;
+        else if (r === "present" || r === "normal") s.present++;
+        else if (l.in === "-" && l.out === "-") s.noIn++;
+      });
+      return s;
+    })();
+
+    return (
+      <div className="min-h-screen bg-[#f8fafc] pb-10">
+        <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <button onClick={() => { setStep("team"); setStaffDetailStaff(null); setStaffDetailData(null); }} className="text-xl text-[#e20074]">←</button>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {staffDetailStaff.photoUrl
+                ? <img src={formatPhotoUrl(staffDetailStaff.photoUrl)} className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                : <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#e20074] shrink-0">👤</div>}
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-800 text-sm truncate">{staffDetailStaff.nama}</h2>
+                <p className="text-[10px] text-gray-400">{staffDetailStaff.nik} · <span className={`font-bold ${statusBadgeClass(staffDetailStaff.status)}`}>{staffDetailStaff.status}</span></p>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { const d = new Date(staffDetailMonth); d.setMonth(d.getMonth() - 1); setStaffDetailMonth(d); }}
+              className="p-3 bg-white rounded-xl shadow-sm font-bold text-[#e20074]">‹</button>
+            <div className="flex-1 p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50 text-center">{staffMonthLabel}</div>
+            <button onClick={() => { const d = new Date(staffDetailMonth); d.setMonth(d.getMonth() + 1); setStaffDetailMonth(d); }}
+              className="p-3 bg-white rounded-xl shadow-sm font-bold text-[#e20074]">›</button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Present</p>
+              <h4 className="text-lg font-black text-green-600">{staffStats.present}</h4>
+            </div>
+            <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Late</p>
+              <h4 className="text-lg font-black text-red-600">{staffStats.late}</h4>
+            </div>
+            <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Early Out</p>
+              <h4 className="text-lg font-black text-orange-500">{staffStats.early}</h4>
+            </div>
+            <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
+              <h4 className="text-lg font-black text-red-600">{staffStats.absent}</h4>
+            </div>
+            <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-2">
+              <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
+              <h4 className="text-lg font-black text-amber-500">{staffStats.noIn}</h4>
+            </div>
+          </div>
+
+          {staffDetailLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
+          {!staffDetailLoading && staffLogs.length === 0 && (
+            <div className="text-center text-gray-400 text-sm py-10">Tidak ada data log.</div>
+          )}
+          {!staffDetailLoading && staffLogs.map((item, idx) => (
+            <div key={idx} onClick={() => setStaffDetailDetailItem(item)}
+              className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-2 cursor-pointer active:scale-[0.98] transition-transform">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-800">{item.date}</span>
+                <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase ${getStatusBadgeClass(item.remarks)}`}>{item.remarks}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] bg-pink-50 text-[#e20074] font-bold px-2 py-1 rounded-md">{item.shift} ({item.shiftJam})</span>
+                <div className="flex gap-3 text-right">
+                  <div>
+                    <p className="text-[8px] text-gray-400 uppercase font-bold">In</p>
+                    <p className={`text-[11px] font-black ${item.in === "-" ? "text-red-400" : "text-gray-800"}`}>{item.in}</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] text-gray-400 uppercase font-bold">Out</p>
+                    <p className={`text-[11px] font-black ${item.out === "-" ? "text-red-400" : "text-gray-800"}`}>{item.out}</p>
+                  </div>
+                </div>
+              </div>
+              {(item.fotoIn || item.fotoOut) && (
+                <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                  {item.fotoIn && (
+                    <div className="flex items-center gap-1.5 cursor-pointer" onClick={(e) => { e.stopPropagation(); setTeamPhotoModal(formatPhotoUrl(item.fotoIn)); }}>
+                      <img src={formatPhotoUrl(item.fotoIn)} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
+                      <span className="text-[9px] font-bold text-gray-500">Foto In</span>
+                    </div>
+                  )}
+                  {item.fotoOut && (
+                    <div className="flex items-center gap-1.5 cursor-pointer" onClick={(e) => { e.stopPropagation(); setTeamPhotoModal(formatPhotoUrl(item.fotoOut)); }}>
+                      <img src={formatPhotoUrl(item.fotoOut)} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
+                      <span className="text-[9px] font-bold text-gray-500">Foto Out</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* MODAL DETAIL HARIAN STAFF */}
+        {staffDetailDetailItem && (
+          <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end" onClick={() => setStaffDetailDetailItem(null)}>
+            <div className="bg-white w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-800">{staffDetailDetailItem.fullDate}</h3>
+                <button onClick={() => setStaffDetailDetailItem(null)} className="text-gray-400 text-xl">✕</button>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-4 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Shift</span><span className="font-bold">{staffDetailDetailItem.isOff ? "Day Off" : `${staffDetailDetailItem.shift} (${staffDetailDetailItem.shiftJam})`}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Durasi Kerja</span><span className="font-bold">{staffDetailDetailItem.totalHours}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Late In</span><span className="font-bold text-red-600">{staffDetailDetailItem.lateIn}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Early Out</span><span className="font-bold text-orange-500">{staffDetailDetailItem.earlyOut}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Remarks</span><span className={`font-black px-2 py-1 rounded text-[10px] ${getStatusBadgeClass(staffDetailDetailItem.remarks)}`}>{staffDetailDetailItem.remarks}</span></div>
+              </div>
+              {(staffDetailDetailItem.fotoIn || staffDetailDetailItem.fotoOut) && (
+                <div className="flex gap-3">
+                  {staffDetailDetailItem.fotoIn && (
+                    <div className="flex-1 cursor-pointer" onClick={() => setTeamPhotoModal(formatPhotoUrl(staffDetailDetailItem.fotoIn))}>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Foto In</p>
+                      <img src={formatPhotoUrl(staffDetailDetailItem.fotoIn)} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
+                    </div>
+                  )}
+                  {staffDetailDetailItem.fotoOut && (
+                    <div className="flex-1 cursor-pointer" onClick={() => setTeamPhotoModal(formatPhotoUrl(staffDetailDetailItem.fotoOut))}>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Foto Out</p>
+                      <img src={formatPhotoUrl(staffDetailDetailItem.fotoOut)} className="w-full h-40 object-cover rounded-xl bg-gray-100" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {teamPhotoModal && (
+          <div className="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4" onClick={() => setTeamPhotoModal(null)}>
+            <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setTeamPhotoModal(null)} className="absolute -top-10 right-0 text-white text-2xl font-bold">✕</button>
+              <img src={teamPhotoModal} className="max-w-full max-h-[85vh] rounded-2xl object-contain bg-white" />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
