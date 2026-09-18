@@ -14,8 +14,11 @@ export async function POST() {
     const { data: nikRows, error: nikErr } = await supabase
       .from('absensi_nik')
       .select('nik, nama, email, status')
-      .not('email', 'is', null);
+      .not('email', 'is', null)
+      .neq('email', '');
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
+
+    console.log("nikRows:", nikRows);
 
     // DIAGNOSTIC LOGGING
     const allUsersCount = nikRows ? nikRows.length : 0;
