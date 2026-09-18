@@ -71,6 +71,7 @@ const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
 const [teamStats, setTeamStats] = useState(null);
+const [teamPhotoModal, setTeamPhotoModal] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [syncingNik, setSyncingNik] = useState(false);
   const [syncingSchedule, setSyncingSchedule] = useState(false);
@@ -1279,10 +1280,35 @@ function getStatusBadgeClass(remarks) {
                             </div>
                           </div>
                         </div>
+                        {(item.fotoIn || item.fotoOut) && (
+                          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                            {item.fotoIn && (
+                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(item.fotoIn)}>
+                                <img src={item.fotoIn} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
+                                <span className="text-[9px] font-bold text-gray-500">Foto In</span>
+                              </div>
+                            )}
+                            {item.fotoOut && (
+                              <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTeamPhotoModal(item.fotoOut)}>
+                                <img src={item.fotoOut} className="w-8 h-8 rounded-lg object-cover bg-gray-100 border border-gray-200" />
+                                <span className="text-[9px] font-bold text-gray-500">Foto Out</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {teamPhotoModal && (
+            <div className="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4" onClick={() => setTeamPhotoModal(null)}>
+              <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setTeamPhotoModal(null)} className="absolute -top-10 right-0 text-white text-2xl font-bold">✕</button>
+                <img src={teamPhotoModal} className="max-w-full max-h-[85vh] rounded-2xl object-contain bg-white" />
               </div>
             </div>
           )}
