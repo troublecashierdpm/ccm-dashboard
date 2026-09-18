@@ -33,14 +33,30 @@ export async function POST() {
     // ========================================================
     // 1. MASTER_SCHEDULE (long format Supabase -> wide format sheet)
     // ========================================================
-    const { data: scheduleRows, error: schedErr } = await supabase
-      .from('absensi_master_schedule').select('nik, tanggal, shift_code');
-    if (schedErr) throw new Error("Gagal baca schedule: " + schedErr.message);
+    // Ambil semua NIK dari absensi_nik
+    const { data: allNiksData, error: nikErr } = await supabase
+      .from('absensi_nik').select('nik');
+    if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
+    const allNiks = allNiksData.map(r => r.nik).sort();
 
-    if (scheduleRows && scheduleRows.length > 0) {
-      const allDates = [...new Set(scheduleRows.map(r => r.tanggal))].sort(); // ISO -> urut kronologis
-      const allNiks = [...new Set(scheduleRows.map(r => r.nik))].sort();
+    // Ambil data schedule per batch
+    let scheduleRows = [];
+    let rangeStart = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('absensi_master_schedule')
+        .select('nik, tanggal, shift_code')
+        .range(rangeStart, rangeStart + pageSize - 1);
+      if (error) throw new Error("Gagal baca schedule: " + error.message);
+      if (!data || data.length === 0) break;
+      scheduleRows.push(...data);
+      if (data.length < pageSize) break;
+      rangeStart += pageSize;
+    }
 
+    if (allNiks.length > 0) {
+      const allDates = [...new Set(scheduleRows.map(r => r.tanggal))].sort();
       const scheduleMap = {};
       scheduleRows.forEach(r => {
         if (!scheduleMap[r.nik]) scheduleMap[r.nik] = {};
@@ -50,7 +66,7 @@ export async function POST() {
       const header = ['NIK', ...allDates.map(d => isoToDdMmYyyy(d))];
       const dataGrid = allNiks.map(nik => {
         const row = [nik];
-        allDates.forEach(d => row.push((scheduleMap[nik] && scheduleMap[nik][d]) || ''));
+        allDates.forEach(d => row.push((scheduleMap[nik] && scheduleMap[nik][d]) || '-'));
         return row;
       });
 
