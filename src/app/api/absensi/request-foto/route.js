@@ -1,47 +1,18 @@
 import { NextResponse } from 'next/server';
-import { google } from 'googleapis';
-import { Readable } from 'stream';
+
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxnwV7dp9LKZyrPK6V1N9GwlnfcaYLmCUiE7lQyIV9DQSKqfrAPjXTrvA35cJIh4fuU/exec';
 
 export async function POST(req) {
   try {
     const { base64Data, nik, nama } = await req.json();
     
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
-    privateKey = privateKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
-
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: privateKey,
-      },
-      scopes: ['https://www.googleapis.com/auth/drive'],
+    const response = await fetch(GAS_WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'saveRequestFoto', base64Data, nik, nama })
     });
-
-    const drive = google.drive({ version: 'v3', auth });
-    const folderId = "1co5k5ihO-C4oawOIbCSUKC3v-S4gZHiD";
     
-    const buffer = Buffer.from(base64Data, 'base64');
-    const bufferStream = new Readable();
-    bufferStream.push(buffer);
-    bufferStream.push(null);
-    
-    const fileMetadata = {
-      name: `REQUEST_${nik}_${nama}.jpg`,
-      parents: [folderId]
-    };
-    
-    const media = {
-      mimeType: 'image/jpeg',
-      body: bufferStream
-    };
-
-    const file = await drive.files.create({
-      requestBody: fileMetadata,
-      media: media,
-      fields: 'id, webViewLink'
-    });
-
-    return NextResponse.json({ success: true, url: file.data.webViewLink });
+    const result = await response.json();
+    return NextResponse.json(result);
   } catch (e) {
     console.error("Upload error:", e);
     return NextResponse.json({ success: false, message: e.message }, { status: 500 });
