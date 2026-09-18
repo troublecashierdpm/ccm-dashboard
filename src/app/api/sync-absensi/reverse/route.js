@@ -85,12 +85,12 @@ export async function POST() {
     // Ambil data log per batch agar tidak terkena limit default Supabase (1000 baris)
     let logRows = [];
     let logRangeStart = 0;
-    const logPageSize = 1000;
+    const logPageSize = 500;
     while (true) {
       const { data, error } = await supabase
         .from('absensi_log')
         .select('*')
-        .order('tanggal', { ascending: false })
+        .order('id', { ascending: true })
         .range(logRangeStart, logRangeStart + logPageSize - 1);
       if (error) throw new Error("Gagal baca log: " + error.message);
       if (!data || data.length === 0) break;
