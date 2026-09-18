@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,14 @@ export async function POST() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+
     // 1. Ambil semua user yang punya email
     const { data: nikRows, error: nikErr } = await supabase
       .from('absensi_nik')
@@ -17,8 +26,6 @@ export async function POST() {
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
 
     const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "");
-    console.log(`[Diag] Total NIK: ${(nikRows||[]).length}, Punya email: ${users.length}`);
-    console.log(`[Diag] Sample NIK rows:`, JSON.stringify((nikRows || []).slice(0, 3)));
 
     // 2. Tentukan rentang tanggal: 1 bulan ini s/d kemarin
     const now = new Date();
@@ -83,7 +90,7 @@ export async function POST() {
 
     // 6. Kirim email ke setiap user
     let sentCount = 0;
-    let failCount = 0;
+    let failList = [];
 
     for (const userData of users) {
       try {
@@ -135,36 +142,23 @@ export async function POST() {
           </div>
         </div>`;
 
-        const emailResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            from: process.env.RESEND_FROM_EMAIL || "Absensi PPKK DPM <onboarding@resend.dev>",
-            to: userData.email,
-            subject: `[Absensi DPM] Rekapan Absensi ${strStart} - ${strEnd}`,
-            html
-          })
+        await transporter.sendMail({
+          from: process.env.GMAIL_USER,
+          to: userData.email,
+          subject: `[Absensi DPM] Rekapan Absensi ${strStart} - ${strEnd}`,
+          html
         });
-
-        const emailResult = await emailResponse.json();
-        if (emailResponse.ok) {
-          sentCount++;
-        } else {
-          console.error("Resend error detail:", emailResult);
-          failCount++;
-        }
+        sentCount++;
       } catch (e) {
-        console.error("Gagal kirim ke " + userData.email + ": " + e);
-        failCount++;
+        console.error("Gagal kirim ke " + userData.email + ": " + e.message);
+        failList.push({ email: userData.email, error: e.message });
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Diagnostic: ${users.length} user ditemukan. Berhasil mengirim ${sentCount} email${failCount > 0 ? `, ${failCount} gagal` : ''}.`
+      message: `Berhasil mengirim ${sentCount} email.`,
+      failed: failList
     });
   } catch (err) {
     console.error("Error sendWeeklyLogEmails:", err);
