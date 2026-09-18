@@ -33,11 +33,11 @@ export async function POST() {
     // ========================================================
     // 1. MASTER_SCHEDULE (long format Supabase -> wide format sheet)
     // ========================================================
-    // Ambil semua NIK dari absensi_nik
+    // Ambil NIK & Nama dari absensi_nik (hanya PPKK)
     const { data: allNiksData, error: nikErr } = await supabase
-      .from('absensi_nik').select('nik');
+      .from('absensi_nik').select('nik, nama').eq('status', 'PPKK');
     if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
-    const allNiks = allNiksData.map(r => r.nik).sort();
+    const allNiks = allNiksData.map(r => ({ nik: r.nik, nama: r.nama || '' })).sort((a, b) => a.nik.localeCompare(b.nik));
 
     // Ambil data schedule per batch
     let scheduleRows = [];
@@ -63,10 +63,10 @@ export async function POST() {
         scheduleMap[r.nik][r.tanggal] = r.shift_code;
       });
 
-      const header = ['NIK', ...allDates.map(d => isoToDdMmYyyy(d))];
-      const dataGrid = allNiks.map(nik => {
-        const row = [nik];
-        allDates.forEach(d => row.push((scheduleMap[nik] && scheduleMap[nik][d]) || '-'));
+      const header = ['NIK', 'Nama', ...allDates.map(d => isoToDdMmYyyy(d))];
+      const dataGrid = allNiks.map(item => {
+        const row = [item.nik, item.nama];
+        allDates.forEach(d => row.push((scheduleMap[item.nik] && scheduleMap[item.nik][d]) || '-'));
         return row;
       });
 
