@@ -29,6 +29,18 @@ export async function POST(req) {
       hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
     }).format(new Date());
 
+    // 1a. Fetch shift lama (sebelum di-update) untuk keperluan email
+    const reqType = reqData.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
+    let shiftLama = "-";
+    if (reqType === "Change Shift") {
+      const { data: schExisting } = await supabase
+        .from("absensi_master_schedule").select("shift_code")
+        .eq("nik", reqData.nik).eq("tanggal", reqData.tanggal_absen).limit(1);
+      if (schExisting && schExisting[0] && schExisting[0].shift_code) {
+        shiftLama = schExisting[0].shift_code;
+      }
+    }
+
     // 1. Update status request
     const { error: updReqErr } = await supabase.from("absensi_request").update({
       status: actionStatus,
@@ -107,7 +119,18 @@ export async function POST(req) {
           html += `<p>Halo <b>${reqData.nama}</b>,</p><p>Berikut update status pengajuan Anda:</p>`;
           html += `<table style="border-collapse:collapse;width:100%;font-size:14px;">`;
           html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;width:130px;color:#6b7280;"><b>Jenis</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;"><b>${reqType}</b></td></tr>`;
-          html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Tanggal Absen</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${reqData.tanggal_absen}</td></tr>`;
+          html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Tanggal</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${reqData.tanggal_absen}</td></tr>`;
+          
+          if (reqType === "Change Shift") {
+            html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Shift Lama</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${shiftLama}</td></tr>`;
+            html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Shift Baru</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${reqData.shift_baru}</td></tr>`;
+          } else {
+            const jamIn = reqData.jam_in_baru || "-";
+            const jamOut = reqData.jam_out_baru || "-";
+            html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Clock In</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${jamIn}</td></tr>`;
+            html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Clock Out</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${jamOut}</td></tr>`;
+          }
+
           if (adminMessage) {
             const lbl = actionStatus === "Approved" ? "Catatan Admin" : "Alasan Penolakan";
             html += `<tr><td style="padding:8px 0;color:#6b7280;"><b>${lbl}</b></td><td style="padding:8px 0;color:${color};"><i>"${adminMessage}"</i></td></tr>`;
