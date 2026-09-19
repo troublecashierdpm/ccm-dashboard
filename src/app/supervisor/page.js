@@ -508,7 +508,10 @@ setRawPwp(pwpData || []);
     });
 
     const smDataEmp = rawSalesMember.filter(r => normName(r.nama) === namaKey);
-const shDataEmp = rawSalesHourly.filter(r => normName(r.nama) === namaKey);
+    const shDataEmp = rawSalesHourly.filter(r => 
+      resolveNama(r.nama).toLowerCase().includes(normName(namaKey).toLowerCase()) && 
+      (!filterBulan || r.periode === filterBulan)
+    );
 let memberMapEmp = {};
 smDataEmp.forEach(r => {
   const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
