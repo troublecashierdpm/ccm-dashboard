@@ -119,9 +119,10 @@ export async function POST(req) {
           html += `<p>Halo <b>${reqData.nama}</b>,</p><p>Berikut update status pengajuan Anda:</p>`;
           html += `<table style="border-collapse:collapse;width:100%;font-size:14px;">`;
           html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;width:130px;color:#6b7280;"><b>Jenis</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;"><b>${reqType}</b></td></tr>`;
-          html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Tanggal</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${reqData.tanggal_absen}</td></tr>`;
-          
-          if (reqType === "Change Shift") {
+           html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Tanggal</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${reqData.tanggal_absen}</td></tr>`;
+           html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Shift</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${shiftLama || '-'}</td></tr>`;
+           
+           if (reqType === "Change Shift") {
             html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Shift Lama</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${shiftLama}</td></tr>`;
             html += `<tr><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;color:#6b7280;"><b>Shift Baru</b></td><td style="padding:8px 0;border-bottom:1px dashed #e5e7eb;">${reqData.shift_baru}</td></tr>`;
           } else {
