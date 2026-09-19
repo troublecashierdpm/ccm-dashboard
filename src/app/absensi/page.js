@@ -620,16 +620,29 @@ function getStatusBadgeClass(remarks) {
   useEffect(() => {
     if (step !== "camera") return;
     let cancelled = false;
+ 
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      alert(
+        "Kamera tidak bisa diakses di browser/koneksi ini.\n\n" +
+        "Pastikan Anda membuka halaman ini lewat HTTPS (bukan http://) dan pakai browser " +
+        "yang mendukung akses kamera (Chrome/Safari versi terbaru)."
+      );
+      setStep("map");
+      return;
+    }
+ 
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
       .then(stream => {
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
         if (videoRef.current) videoRef.current.srcObject = stream;
       })
-      .catch(() => {
-        alert("Tidak bisa mengakses kamera. Pastikan izin kamera diaktifkan.");
+      .catch((err) => {
+        console.error("Gagal akses kamera:", err);
+        alert("Tidak bisa mengakses kamera. Pastikan izin kamera diaktifkan di pengaturan browser/HP.");
         setStep("map");
       });
+ 
     return () => { cancelled = true; };
   }, [step]);
 
