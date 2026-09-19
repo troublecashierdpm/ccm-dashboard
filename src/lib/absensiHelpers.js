@@ -13,6 +13,11 @@ export function cleanData(val) {
 export function ddmmyyyyToIso(val) {
   if (!val) return null;
   const s = String(val).trim();
+  
+  // Jika sudah format yyyy-MM-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Jika format dd/MM/yyyy
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return null;
   const [, d, mo, y] = m;
