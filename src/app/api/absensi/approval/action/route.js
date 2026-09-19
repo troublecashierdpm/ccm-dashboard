@@ -1,7 +1,10 @@
 // src/app/api/absensi/approval/action/route.js
 export const dynamic = 'force-dynamic';
 
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import { hitungJamKerja, hitungLateEarlyDurasi, getRemarks } from '@/lib/absensiHelpers';
 
 export async function POST(req) {
   try {
