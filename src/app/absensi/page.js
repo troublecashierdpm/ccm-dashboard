@@ -106,6 +106,7 @@ function formatPhotoUrl(url) {
   return url;
 }
   const mapInstanceRef = useRef(null);
+  const mapRef = useRef(null);
   const userMarkerRef = useRef(null);
   const watchIdRef = useRef(null);
   const leafletRef = useRef(null);
