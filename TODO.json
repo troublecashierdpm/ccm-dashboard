@@ -1,0 +1,5 @@
+[
+  {"id": 1, "task": "Update UI for sync operations in src/app/absensi/page.js", "completed": false},
+  {"id": 2, "task": "Create individual API endpoints for specific syncs (NIK, Schedule, Log, Request)", "completed": false},
+  {"id": 3, "task": "Ensure sync progress and status display in UI", "completed": false}
+]

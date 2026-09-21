@@ -43,6 +43,8 @@ export async function GET(request, { params }) {
     if (table === 'master-schedule') {
         const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Master_Schedule!A1:ZZ' });
         const rows = response.data.values;
+        console.log(`Sync Master Schedule: Ambil ${rows?.length || 0} baris dari Sheets`);
+
         await supabase.from('absensi_master_schedule').delete().neq('id', 0);
         if (rows && rows.length > 1) {
             const headerRow = rows[0];
@@ -52,10 +54,20 @@ export async function GET(request, { params }) {
                 if (!nik) continue;
                 for (let c = 1; c < headerRow.length; c++) {
                     const tglIso = ddmmyyyyToIso(headerRow[c]);
-                    if (tglIso && rows[r][c]) data.push({ nik, tanggal: tglIso, shift_code: String(rows[r][c]).trim() });
+                    if (tglIso && rows[r][c]) {
+                        data.push({ 
+                            nik, 
+                            tanggal: tglIso, 
+                            shift_code: String(rows[r][c]).trim() 
+                        });
+                    }
                 }
             }
-            await supabase.from('absensi_master_schedule').insert(data);
+            console.log(`Sync Master Schedule: Siap insert ${data.length} records`);
+            if (data.length > 0) {
+                const { error: insErr } = await supabase.from('absensi_master_schedule').insert(data);
+                if (insErr) throw insErr;
+            }
         }
         return NextResponse.json({ success: true, message: "Sync Schedule Sukses!" });
     }

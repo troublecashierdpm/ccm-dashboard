@@ -19,13 +19,38 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+
+    if (!body.hari || !body.alasan || !body.nik) {
+      return NextResponse.json({ success: false, message: "Data tidak lengkap: hari, alasan, dan nik wajib diisi." }, { status: 400 });
+    }
+
+    const payload = {
+      action: 'submitScheduleRequest',
+      hari: String(body.hari),
+      alasan: String(body.alasan),
+      nik: String(body.nik),
+      nama: String(body.nama || ''),
+      under: String(body.under || ''),
+    };
+
     const response = await fetch(GAS_WEB_APP_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'submitScheduleRequest', ...body })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
-    const result = await response.json();
+
+    const text = await response.text();
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch {
+      console.error("GAS response bukan JSON:", text.slice(0, 500));
+      return NextResponse.json({ success: false, message: "Gagal memproses respon dari server jadwal." }, { status: 502 });
+    }
+
     return NextResponse.json(result);
   } catch (error) {
+    console.error("POST request-schedule error:", error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }

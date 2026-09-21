@@ -30,6 +30,10 @@ export default function App() {
 
   // Load status saat modal dibuka
   const handleOpenRequestModal = async () => {
+    if (!user) {
+      setRequestStatus({ status: "CLOSED", message: "Sesi belum valid, silakan login ulang.", availableDays: [], userHariLama: null, userExists: false });
+      return;
+    }
     setIsLoadingForm(true);
     setIsRequestModalOpen(true);
     setRequestResultMsg({ text: "", success: null });
@@ -41,11 +45,16 @@ export default function App() {
  
        // Pre-select hari yang sudah pernah diajukan user sebelumnya (kalau ada)
        if (data.status !== "CLOSED" && data.userExists && data.userHariLama && Array.isArray(data.availableDays)) {
-         const match = data.availableDays.find(
-           (d) => d && typeof d === 'string' && d.toUpperCase().replace(/\(.*?\)/g, "").trim() === String(data.userHariLama).toUpperCase().trim()
-         );
-         if (match) setRequestForm((prev) => ({ ...prev, hari: match }));
-       }
+          const oldDay = String(data.userHariLama).toUpperCase().trim();
+          const match = data.availableDays.find(
+            (d) => {
+              if (!d || typeof d !== 'string') return false;
+              const normalized = d.toUpperCase().replace(/\(.*?\)/g, "").trim();
+              return normalized === oldDay;
+            }
+          );
+          if (match) setRequestForm((prev) => ({ ...prev, hari: match }));
+        }
     } catch (err) {
       console.error(err);
       setRequestStatus({ status: "CLOSED", message: "Gagal memuat data: " + err.message });
@@ -55,6 +64,10 @@ export default function App() {
   };
 
   const handleSubmitRequest = async () => {
+    if (!user) {
+      setRequestResultMsg({ text: "❌ Sesi belum valid, silakan login ulang.", success: false });
+      return;
+    }
     if (!requestForm.hari) {
       setRequestResultMsg({ text: "❌ Wajib pilih hari request!", success: false });
       return;
@@ -71,15 +84,16 @@ export default function App() {
     setIsSubmittingRequest(true);
     setRequestResultMsg({ text: "", success: null });
     try {
+      const hariClean = requestForm.hari.replace(/\(.*?\)/g, "").trim();
       const res = await fetch("/api/request-schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...requestForm, nik: user.nik, nama: user.nama, under: user.under })
+        body: JSON.stringify({ hari: hariClean, alasan: requestForm.alasan.trim(), nik: user.nik, nama: user.nama, under: user.under })
       });
       const result = await res.json();
       if (result.success) {
         setRequestResultMsg({ text: result.message || "✅ Request berhasil dikirim!", success: true });
-        fetchDashboardData(); // refresh raport seperti manualRefresh() di versi lama
+        fetchDashboardData();
         setTimeout(() => setIsRequestModalOpen(false), 1800);
       } else {
         setRequestResultMsg({ text: result.message || "❌ Gagal mengirim request.", success: false });
