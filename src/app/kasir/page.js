@@ -42,7 +42,7 @@ export default function App() {
       // Pre-select hari yang sudah pernah diajukan user sebelumnya (kalau ada)
       if (data.status !== "CLOSED" && data.userExists && data.userHariLama && data.availableDays) {
         const match = data.availableDays.find(
-          (d) => d.toUpperCase().replace(/\(.*?\)/g, "").trim() === data.userHariLama
+          (d) => d && d.toUpperCase().replace(/\(.*?\)/g, "").trim() === data.userHariLama
         );
         if (match) setRequestForm((prev) => ({ ...prev, hari: match }));
       }
