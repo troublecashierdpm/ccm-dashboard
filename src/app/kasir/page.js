@@ -88,7 +88,7 @@ export default function App() {
       const res = await fetch("/api/request-schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hari: hariClean, alasan: requestForm.alasan.trim(), nik: user.nik, nama: user.nama, under: user.under })
+        body: JSON.stringify({ pilihHari: hariClean, request: requestForm.alasan.trim(), nik: user.nik, nama: user.nama, under: user.under })
       });
       const result = await res.json();
       if (result.success) {
