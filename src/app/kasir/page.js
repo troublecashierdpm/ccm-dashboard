@@ -39,13 +39,13 @@ export default function App() {
       const data = await res.json();
       setRequestStatus(data);
  
-      // Pre-select hari yang sudah pernah diajukan user sebelumnya (kalau ada)
-      if (data.status !== "CLOSED" && data.userExists && data.userHariLama && data.availableDays) {
-        const match = data.availableDays.find(
-          (d) => d && d.toUpperCase().replace(/\(.*?\)/g, "").trim() === data.userHariLama
-        );
-        if (match) setRequestForm((prev) => ({ ...prev, hari: match }));
-      }
+       // Pre-select hari yang sudah pernah diajukan user sebelumnya (kalau ada)
+       if (data.status !== "CLOSED" && data.userExists && data.userHariLama && Array.isArray(data.availableDays)) {
+         const match = data.availableDays.find(
+           (d) => d && typeof d === 'string' && d.toUpperCase().replace(/\(.*?\)/g, "").trim() === String(data.userHariLama).toUpperCase().trim()
+         );
+         if (match) setRequestForm((prev) => ({ ...prev, hari: match }));
+       }
     } catch (err) {
       console.error(err);
       setRequestStatus({ status: "CLOSED", message: "Gagal memuat data: " + err.message });
