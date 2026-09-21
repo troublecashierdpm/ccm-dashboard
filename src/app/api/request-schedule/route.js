@@ -20,14 +20,14 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    if (!body.hari || !body.alasan || !body.nik) {
-      return NextResponse.json({ success: false, message: "Data tidak lengkap: hari, alasan, dan nik wajib diisi." }, { status: 400 });
+    if (!body.pilihHari || !body.request || !body.nik) {
+      return NextResponse.json({ success: false, message: "Data tidak lengkap: pilihHari, request, dan nik wajib diisi." }, { status: 400 });
     }
 
     const payload = {
       action: 'submitScheduleRequest',
-      hari: String(body.hari),
-      alasan: String(body.alasan),
+      pilihHari: String(body.pilihHari),
+      request: String(body.request),
       nik: String(body.nik),
       nama: String(body.nama || ''),
       under: String(body.under || ''),
