@@ -507,11 +507,11 @@ setRawPwp(pwpData || []);
       spGroups[r.bulan].details.push({ tanggal: r.tanggal, jenis: r.jenis_pelanggaran, remarks: r.remarks, surat: r.surat_pernyataan, under: r.pic_under });
     });
 
-    const smDataEmp = rawSalesMember.filter(r => normName(r.nama) === namaKey);
+    const smDataEmp = rawSalesMember.filter(r => normName(resolveNama(r.nama)) === namaKey);
     const shDataEmp = rawSalesHourly.filter(r => 
-      resolveNama(r.nama).toLowerCase().includes(normName(namaKey).toLowerCase()) && 
-      (!filterBulan || r.periode === filterBulan)
-    );
+  normName(resolveNama(r.nama)) === namaKey && 
+  (!filterBulan || r.periode === filterBulan)
+);
 let memberMapEmp = {};
 smDataEmp.forEach(r => {
   const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
@@ -618,6 +618,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     if (k.nama) namaCanonicalMap[normName(k.nama)] = k.nama;
   });
   const resolveNama = (raw) => namaCanonicalMap[normName(raw)] || toTitleCase(raw);
+  const isNamaRecognized = (raw) => !!namaCanonicalMap[normName(raw)];
 
   // -------------------------------------------------------------
   // LOGIKA DIREKTORI STAFF: PENGELOMPOKAN & FILTER
@@ -689,7 +690,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   mFiltered.forEach(r => {
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
-    const key = normName(r.nama) + '|' + tgl;
+    const key = normName(resolveNama(r.nama)) + '|' + tgl;
     if (!memberMap[key]) memberMap[key] = { sales: 0, periode: r.periode || '', namaRaw: r.nama };
     memberMap[key].sales += parseFloat(r.total_sales) || 0;
   });
@@ -697,7 +698,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   hFiltered.forEach(r => {
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'MDY'); if (!tgl) return;
-    const key = normName(r.nama) + '|' + tgl;
+    const key = normName(resolveNama(r.nama)) + '|' + tgl;
     if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, periode: r.periode || '', namaRaw: r.nama };
     hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
     hourlyMap[key].count += parseInt(r.count_transaksi) || 0;
@@ -713,7 +714,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const periode = m.periode || h.periode || 'Unknown';
     const namaResolved = resolveNama(m.namaRaw || h.namaRaw);
     const gKey = namaKeyPart + '||' + periode;
-    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
+    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, unmatched, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
     groups[gKey].totalMemberSales += m.sales;
     groups[gKey].totalHourlySales += h.sales;
     groups[gKey].totalCount += h.count;
@@ -1086,8 +1087,13 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                         ))}
 
                         {activePanel === "sales" && sortedData.map((r, i) => (
-  <tr key={i} onClick={() => setActiveModalData({ type: 'global_sales', data: r })} className="hover:bg-indigo-50/50 transition-colors cursor-pointer group">
-    <td className="p-4 font-black group-hover:text-[#e20074] transition-colors">{r.nama}</td>
+  <tr key={i} onClick={() => setActiveModalData({ type: 'global_sales', data: r })} className={`hover:bg-indigo-50/50 transition-colors cursor-pointer group ${r.unmatched ? 'bg-amber-50' : ''}`}>
+    <td className="p-4 font-black group-hover:text-[#e20074] transition-colors">
+      {r.nama}
+      {r.unmatched && (
+        <span title="Ejaan nama ini tidak ditemukan persis di Direktori Staff — periksa data sumber." className="ml-2 inline-block text-[9px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full align-middle">⚠️ Nama tidak dikenal</span>
+      )}
+    </td>
     <td className="p-4 font-bold">{r.periode}</td>
     <td className="p-4 text-right text-pink-600 font-bold">{r.totalMemberSales.toLocaleString("id-ID")}</td>
     <td className="p-4 text-right text-indigo-600 font-bold">{r.totalHourlySales.toLocaleString("id-ID")}</td>
