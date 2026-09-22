@@ -50,7 +50,7 @@ export async function GET(request, { params }) {
       await supabase.from('nik').delete().not('nama', 'is', null);
     } else {
       await supabase.from(tables[table].supabase).delete().neq('id', 0);
-    
+        }
     console.log(`Syncing table: ${table} to Supabase: ${tables[table].supabase}`);
     const res = await sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID, range: tables[table].range });
     console.log(`Accessing spreadsheetId: ${process.env.GOOGLE_SPREADSHEET_ID}, range: ${tables[table].range}`);
