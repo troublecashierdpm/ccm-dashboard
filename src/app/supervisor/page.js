@@ -819,7 +819,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   const periodeOptions = getPeriodeOptions();
 
   const getGlobalSummary = () => {
-    let card1 = 0, card2 = 0, card3 = 0;
+    let card1 = 0, card2 = 0, card3 = 0, card4 = 0, card5 = 0;
     filteredData.forEach(r => {
       if (activePanel === "shortage") { 
         card1 += Math.abs(r.totalShort || 0); 
@@ -827,14 +827,20 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       }
       if (activePanel === "ecobag") card1 += r.total || 0;
       if (activePanel === "member") card1 += r.total || 0;
-      if (activePanel === "sales") { card1 += r.totalMemberSales || 0; card2 += r.totalHourlySales || 0; }
+      if (activePanel === "sales") { 
+        card1 += r.totalMemberSales || 0; 
+        card2 += r.totalHourlySales || 0; 
+        card4 += r.totalCount || 0; // total transaksi
+        // rata-rata transaksi = total hourly / total transaksi (nanti)
+      }
       if (activePanel === "pwp") card1 += r.totalQty || 0;
- 
+
     });
     if (activePanel === "sales") {
       card3 = card2 > 0 ? Math.round((card1 / card2) * 1000) / 10 : 0;
+      card5 = card4 > 0 ? Math.round(card2 / card4) : 0; // avg transaction overall
     }
-    return { card1, card2, card3 };
+    return { card1, card2, card3, card4, card5 };
   };
   
   if (!isSupervisorLoggedIn) {
@@ -1050,7 +1056,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                   <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-pink-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Baris</p><h3 className="text-2xl font-black mt-1 text-gray-800">{filteredData.length}</h3></div>
                   {activePanel === "shortage" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-red-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Short</p><h3 className="text-xl font-black text-red-600 mt-1">Rp {gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-green-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Over</p><h3 className="text-xl font-black text-green-600 mt-1">Rp {gSum.card2.toLocaleString("id-ID")}</h3></div></> )}
                   {(activePanel === "ecobag" || activePanel === "member") && ( <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-[#e20074] shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Kantong/Member</p><h3 className="text-2xl font-black text-[#e20074] mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div> )}
-                  {activePanel === "sales" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-pink-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Member</p><h3 className="text-lg font-black text-pink-600 mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-indigo-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Hourly</p><h3 className="text-lg font-black text-indigo-600 mt-1">{gSum.card2.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-purple-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">% Kontribusi Member</p><h3 className="text-lg font-black text-purple-600 mt-1">{gSum.card3}%</h3></div></> )}
+                  {activePanel === "sales" && ( <><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-pink-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Member</p><h3 className="text-lg font-black text-pink-600 mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-indigo-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Sales Hourly</p><h3 className="text-lg font-black text-indigo-600 mt-1">{gSum.card2.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-emerald-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Transaksi</p><h3 className="text-lg font-black text-emerald-600 mt-1">{gSum.card4.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-cyan-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Rata-rata/Tx</p><h3 className="text-lg font-black text-cyan-600 mt-1">{gSum.card5.toLocaleString("id-ID")}</h3></div><div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-purple-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">% Kontribusi Member</p><h3 className="text-lg font-black text-purple-600 mt-1">{gSum.card3}%</h3></div></> )}
                   {activePanel === "pwp" && ( <div className="glass-card p-5 rounded-[1.5rem] border-b-4 border-b-teal-500 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Total Qty PWP</p><h3 className="text-2xl font-black text-teal-600 mt-1">{gSum.card1.toLocaleString("id-ID")}</h3></div> )}
                 </div>
 
