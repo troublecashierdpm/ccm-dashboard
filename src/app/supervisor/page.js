@@ -1145,7 +1145,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
                         {empMenu === "shortage" && empHistory.shortage.map((h, i) => (<tr key={i} className="hover:bg-red-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-center text-gray-400 font-bold bg-gray-50/50">{h.frekuensi}x</td><td className="p-4 text-right text-red-600 font-black text-sm">{h.totalShort.toLocaleString("id-ID")}</td><td className="p-4 text-right text-green-600 font-black text-sm">+{h.totalOver.toLocaleString("id-ID")}</td></tr>))}
-                        {empMenu === "member" && empHistory.member.map((h, i) => (<tr key={i} className="hover:bg-pink-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-[#e20074] font-black text-lg">{h.totalPerBulan} <span className="text-[10px] text-gray-500">Member</span></td></tr>))}
+                        {empMenu === "member" && empHistory.member.map((h, i) => (<tr key={i} onClick={() => setActiveModalData({ type: 'global_member', data: { ...h, nama: selectedKaryawan?.nama || '' } })} className="hover:bg-pink-50/40 transition-colors cursor-pointer"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-[#e20074] font-black text-lg">{h.totalPerBulan} <span className="text-[10px] text-gray-500">Member</span></td></tr>))}
                         {empMenu === "ecobag" && empHistory.ecobag.map((h, i) => (<tr key={i} className="hover:bg-pink-50/40 transition-colors"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-red-500 font-bold">{h.la}</td><td className="p-4 text-right text-orange-500 font-bold">{h.me}</td><td className="p-4 text-right text-blue-500 font-bold">{h.sm}</td><td className="p-4 text-right text-[#e20074] font-black text-sm">{h.totalPerBulan} Pcs</td></tr>))}
                         {empMenu === "sales" && empHistory.sales.map((h, i) => (<tr key={i} onClick={() => setActiveModalData({ type: 'global_sales', data: { ...h, periode: h.bulan, nama: selectedKaryawan?.nama || '' } })} className="hover:bg-indigo-50/40 transition-colors cursor-pointer"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right text-pink-600 font-bold">{h.totalMemberSales.toLocaleString("id-ID")}</td><td className="p-4 text-right text-indigo-600 font-bold">{h.totalHourlySales.toLocaleString("id-ID")}</td><td className="p-4 text-center font-bold text-gray-500">{(h.totalCount || 0).toLocaleString("id-ID")}</td><td className="p-4 text-right font-bold text-green-600">{(h.avgTransaction || 0).toLocaleString("id-ID")}</td><td className="p-4 text-right text-orange-600 font-bold">{h.selisih.toLocaleString("id-ID")}</td><td className="p-4 text-right font-black text-purple-600">{h.ratio}%</td></tr>))}
                         {empMenu === "pwp" && empHistory.pwp.map((h, i) => (<tr key={i} onClick={() => setActiveModalData({ type: 'global_pwp', data: { periode: h.bulan, nama: selectedKaryawan?.nama || '', totalQty: h.totalPerBulan, details: h.details } })} className="hover:bg-teal-50/40 transition-colors cursor-pointer"><td className="p-4 font-black">{h.bulan}</td><td className="p-4 text-right font-black text-teal-600 text-lg">{h.totalPerBulan} <span className="text-[10px] text-gray-500">Pcs</span></td></tr>))}
@@ -1184,6 +1184,36 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         ))}
       </div>
       <div className="p-5 bg-white text-center font-black text-teal-600 border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">TOTAL: {activeModalData.data.totalQty} Pcs</div>
+    </div>
+  </div>
+)}
+
+      {/* ========================================================= */}
+      {/* MODAL POP-UP GLOBAL MEMBER PER DAY                        */}
+      {/* ========================================================= */}
+      {activeModalData?.type === 'global_member' && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+    <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+      <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center">
+        <h3 className="font-black text-sm uppercase tracking-wider">Detail Member {activeModalData.data.bulan}</h3>
+        <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+      </div>
+      <div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-800 uppercase tracking-widest">
+        {activeModalData.data.nama}
+      </div>
+      <div className="p-5 max-h-[50vh] overflow-y-auto space-y-3 bg-gray-50/50">
+        {activeModalData.data.details.map((det, i) => (
+          <div key={i} className="p-4 border border-pink-100 rounded-2xl bg-white shadow-sm text-[11px] space-y-1 border-l-[5px] border-l-[#e20074] hover:shadow-md transition-shadow">
+            <div className="flex justify-between font-bold text-gray-800 border-b pb-2">
+              <span>{det.tgl}</span>
+              <span className="bg-pink-50 text-[#e20074] px-2.5 py-1 rounded-lg font-black">{det.qty} Member</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="p-5 bg-white text-center font-black text-[#e20074] border-t text-lg shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+        TOTAL: {activeModalData.data.totalPerBulan} Member
+      </div>
     </div>
   </div>
 )}
