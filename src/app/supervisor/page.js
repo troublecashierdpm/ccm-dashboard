@@ -520,7 +520,7 @@ smDataEmp.forEach(r => {
 });
 let hourlyMapEmp = {};
 shDataEmp.forEach(r => {
-  const tgl = normalizeTgl(r.tanggal, 'MDY'); if (!tgl) return;
+  const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
   if (!hourlyMapEmp[tgl]) hourlyMapEmp[tgl] = { sales: 0, count: 0, periode: r.periode || '' };
   hourlyMapEmp[tgl].sales += parseFloat(r.total_sales) || 0;
   hourlyMapEmp[tgl].count += parseInt(r.count_transaksi) || 0;
@@ -696,7 +696,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   let hourlyMap = {};
   hFiltered.forEach(r => {
     if (!r.nama) return;
-    const tgl = normalizeTgl(r.tanggal, 'MDY'); if (!tgl) return;
+    const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
     const key = normName(r.nama) + '|' + tgl;
     if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, periode: r.periode || '', namaRaw: r.nama };
     hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
