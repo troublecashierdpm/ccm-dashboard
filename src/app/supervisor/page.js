@@ -687,6 +687,13 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       let totalHourlyRaw = hFiltered.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
       console.log(`Total Member Raw: ${totalMemberRaw.toLocaleString()}`);
       console.log(`Total Hourly Raw: ${totalHourlyRaw.toLocaleString()}`);
+      
+      // Cek sample data sales_hourly
+      console.log('Sample sales_hourly rows (first 5):', hFiltered.slice(0, 5).map(r => ({ tanggal: r.tanggal, nama: r.nama, pos: r.pos, count: r.count_transaksi, total_sales: r.total_sales, periode: r.periode })));
+      
+      // Cek apakah ada data dengan nama kosong atau tanggal invalid
+      const hFilteredInvalid = hFiltered.filter(r => !r.nama || !normalizeTgl(r.tanggal, 'DMY'));
+      console.log(`sales_hourly rows with invalid nama/tanggal: ${hFilteredInvalid.length}`);
  
   // PENTING: kunci digabung berdasarkan NAMA YANG DINORMALISASI
   // (uppercase + trim), bukan teks nama mentah dan bukan ID Swipe.
