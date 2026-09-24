@@ -634,6 +634,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } },
         scales: {
           y: { beginAtZero: true },
           y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } }
