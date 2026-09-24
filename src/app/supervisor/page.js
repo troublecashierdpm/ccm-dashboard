@@ -677,16 +677,6 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     if (activePanel === "sales") {
       const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
       const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
-      
-      console.log('=== DEBUG PANEL SALES RATIO ===');
-      console.log(`Total rawSalesMember: ${rawSalesMember.length}, after filter: ${mFiltered.length}`);
-      console.log(`Total rawSalesHourly: ${rawSalesHourly.length}, after filter: ${hFiltered.length}`);
-      console.log(`filterBulan: "${filterBulan}", searchNama: "${searchNama}"`);
-      
-      let totalMemberRaw = mFiltered.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
-      let totalHourlyRaw = hFiltered.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
-      console.log(`Total Member Raw: ${totalMemberRaw.toLocaleString()}`);
-      console.log(`Total Hourly Raw: ${totalHourlyRaw.toLocaleString()}`);
  
   // PENTING: kunci digabung berdasarkan NAMA YANG DINORMALISASI
   // (uppercase + trim), bukan teks nama mentah dan bukan ID Swipe.
@@ -734,44 +724,18 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const namaKey = g.namaKey;
     const periode = g.periode;
     
-    // Hitung total hourly sales langsung dari hFiltered untuk nama+periode ini
     const hourlyForGroup = hFiltered.filter(r => normName(r.nama) === namaKey && r.periode === periode);
     g.totalHourlySales = hourlyForGroup.reduce((sum, r) => sum + (parseFloat(r.total_sales) || 0), 0);
     g.totalCount = hourlyForGroup.reduce((sum, r) => sum + (parseInt(r.count_transaksi) || 0), 0);
   });
-  
-  // Debug: log detail per nama+periode
-  console.log('=== DEBUG GROUPED SALES ===');
-  Object.values(groups).slice(0, 10).forEach(g => {
-    const hourlyForGroup = hFiltered.filter(r => normName(r.nama) === g.namaKey && r.periode === g.periode);
-    const rawSum = hourlyForGroup.reduce((s, r) => s + parseFloat(r.total_sales || 0), 0);
-    console.log(`${g.nama} (${g.periode}): hourlyForGroup count=${hourlyForGroup.length}, rawSum=${rawSum.toLocaleString()}, finalTotal=${g.totalHourlySales.toLocaleString()}`);
-  });
-  console.log('=== END DEBUG ===');
  
-   const result = Object.values(groups).map(g => {
+   return Object.values(groups).map(g => {
      g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
      g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
      g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
      g.avgTransaction = g.totalCount > 0 ? Math.round(g.totalHourlySales / g.totalCount) : 0;
      return g;
    }).sort((a, b) => b.periode.localeCompare(a.periode));
-   
-    // Debug: log perhitungan untuk troubleshooting
-    console.log('=== DEBUG SALES RATIO CALCULATION ===');
-    let totalMemberGroup = 0, totalHourlyGroup = 0;
-    result.forEach(g => {
-      totalMemberGroup += g.totalMemberSales;
-      totalHourlyGroup += g.totalHourlySales;
-      console.log(`Kasir: ${g.nama}, Periode: ${g.periode}`);
-      console.log(`  MemberSales: ${g.totalMemberSales}, HourlySales: ${g.totalHourlySales}`);
-      console.log(`  Ratio: ${g.ratio}% (calc: ${g.totalMemberSales} / ${g.totalHourlySales} * 100)`);
-    });
-    console.log(`TOTAL Grouped - Member: ${totalMemberGroup.toLocaleString()}, Hourly: ${totalHourlyGroup.toLocaleString()}`);
-    console.log(`Diff from raw: Member ${totalMemberRaw - totalMemberGroup}, Hourly ${totalHourlyRaw - totalHourlyGroup}`);
-    console.log('=== END DEBUG ===');
-    
-    return result;
 }
 
     if (activePanel === "pwp") {
