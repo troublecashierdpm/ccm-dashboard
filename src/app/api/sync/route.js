@@ -146,12 +146,12 @@ export async function GET() {
     }
 
     // 8. SINKRONISASI SALES MEMBER
-    const responseSalesMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Member!A2:E' });
+    const responseSalesMember = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Member!A2:F' });
     const rowsSalesMember = responseSalesMember.data.values;
     if (rowsSalesMember && rowsSalesMember.length > 0) {
       const formattedSalesMember = rowsSalesMember.filter(row => row[0] && String(row[0]).toLowerCase() !== 'tanggal').map(row => ({
-        tanggal: row[0] || null, nama: row[1] || null, id_swipe: row[2] || null,
-        total_sales: parseFloat(cleanNum(row[3])) || 0, periode: row[4] || null
+        tanggal: row[0] || null, pos: row[1] || null, nama: row[2] || null, id_swipe: row[3] || null,
+        total_sales: parseFloat(cleanNum(row[4])) || 0, periode: row[5] || null
       }));
       for (let i = 0; i < formattedSalesMember.length; i += 2000) {
         const { error } = await supabase.from('sales_member').insert(formattedSalesMember.slice(i, i + 2000));

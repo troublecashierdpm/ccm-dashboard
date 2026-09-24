@@ -688,12 +688,13 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         hourlyTotals[key].totalCount += parseInt(r.count_transaksi) || 0;
       });
   
-  // Aggregate per tanggal untuk details
+  // Aggregate per tanggal+pos untuk details
   let memberMap = {};
   mFiltered.forEach(r => {
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
-    const key = normName(r.nama) + '|' + tgl;
+    const pos = r.pos || '-';
+    const key = normName(r.nama) + '|' + tgl + '|' + pos;
     if (!memberMap[key]) memberMap[key] = { sales: 0, periode: r.periode || '', namaRaw: r.nama };
     memberMap[key].sales += parseFloat(r.total_sales) || 0;
   });
@@ -701,8 +702,9 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   hFiltered.forEach(r => {
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
-    const key = normName(r.nama) + '|' + tgl;
-    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, pos: r.pos || null, periode: r.periode || '', namaRaw: r.nama };
+    const pos = r.pos || '-';
+    const key = normName(r.nama) + '|' + tgl + '|' + pos;
+    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, pos: pos, periode: r.periode || '', namaRaw: r.nama };
     hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
     hourlyMap[key].count += parseInt(r.count_transaksi) || 0;
   });
@@ -710,10 +712,12 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   const allKeys = new Set([...Object.keys(memberMap), ...Object.keys(hourlyMap)]);
   let groups = {};
   allKeys.forEach(key => {
-    const namaKeyPart = key.slice(0, key.lastIndexOf('|'));
-    const tgl = key.slice(namaKeyPart.length + 1);
+    const parts = key.split('|');
+    const namaKeyPart = parts[0];
+    const tgl = parts[1];
+    const pos = parts[2];
     const m = memberMap[key] || { sales: 0, periode: '', namaRaw: '' };
-    const h = hourlyMap[key] || { sales: 0, count: 0, pos: null, periode: '', namaRaw: '' };
+    const h = hourlyMap[key] || { sales: 0, count: 0, pos: '-', periode: '', namaRaw: '' };
     const periode = m.periode || h.periode || 'Unknown';
     const namaResolved = resolveNama(m.namaRaw || h.namaRaw);
     const gKey = namaKeyPart + '||' + periode;

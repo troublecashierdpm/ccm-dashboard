@@ -311,46 +311,54 @@ const salesHourlyData = await fetchUserRecords('sales_hourly', 'nama');
 let memberSalesMap = {};
 (salesMemberData || []).forEach(row => {
   const tgl = normalizeTgl(row.tanggal, 'DMY'); if (!tgl) return;
+  const pos = row.pos || '-';
+  const key = tgl + '|' + pos;
 
-  if (!memberSalesMap[tgl]) memberSalesMap[tgl] = { sales: 0, periode: row.periode || '' };
-  memberSalesMap[tgl].sales += parseFloat(row.total_sales) || 0;
+  if (!memberSalesMap[key]) memberSalesMap[key] = { sales: 0, periode: row.periode || '' };
+  memberSalesMap[key].sales += parseFloat(row.total_sales) || 0;
 });
- 
+
 let hourlySalesMap = {};
 (salesHourlyData || []).forEach(row => {
   const tgl = normalizeTgl(row.tanggal, 'MDY'); if (!tgl) return;
+  const pos = row.pos || '-';
+  const key = tgl + '|' + pos;
 
-  if (!hourlySalesMap[tgl]) hourlySalesMap[tgl] = { sales: 0, count: 0, pos: row.pos || null, periode: row.periode || '' };
-  hourlySalesMap[tgl].sales += parseFloat(row.total_sales) || 0;
-  hourlySalesMap[tgl].count += parseInt(row.count_transaksi) || 0;
+  if (!hourlySalesMap[key]) hourlySalesMap[key] = { sales: 0, count: 0, pos: pos, periode: row.periode || '' };
+  hourlySalesMap[key].sales += parseFloat(row.total_sales) || 0;
+  hourlySalesMap[key].count += parseInt(row.count_transaksi) || 0;
 });
  
-  const allSalesDates = new Set([...Object.keys(memberSalesMap), ...Object.keys(hourlySalesMap)]);
+  // Grouping per tgl+pos untuk detail sales
+  const allSalesKeys = new Set([...Object.keys(memberSalesMap), ...Object.keys(hourlySalesMap)]);
   let salesPeriodeGroups = {};
-let totalMemberSalesAll = 0, totalHourlySalesAll = 0;
- 
-allSalesDates.forEach(tgl => {
-  const m = memberSalesMap[tgl] || { sales: 0, periode: '' };
-  const h = hourlySalesMap[tgl] || { sales: 0, count: 0, periode: '' };
-  const periode = m.periode || h.periode || 'Unknown';
-  if (!salesPeriodeGroups[periode]) salesPeriodeGroups[periode] = { periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
- 
-  // Ratio = % kontribusi Sales Member dari Total Sales (Sales Hourly = total gabungan member + non-member)
-  const selisih = h.sales - m.sales; // sales yang TIDAK pakai member
-  const ratio = h.sales > 0 ? (m.sales / h.sales * 100) : 0;
- 
-  salesPeriodeGroups[periode].totalMemberSales += m.sales;
-  salesPeriodeGroups[periode].totalHourlySales += h.sales;
-  salesPeriodeGroups[periode].totalCount += h.count;
-  salesPeriodeGroups[periode].details.push({
-    tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count,
-    avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0,
-    selisih: Math.round(selisih * 100) / 100, ratio: Math.round(ratio * 10) / 10
+  let totalMemberSalesAll = 0, totalHourlySalesAll = 0;
+  
+  allSalesKeys.forEach(key => {
+    const parts = key.split('|');
+    const tgl = parts[0];
+    const pos = parts[1] || '-';
+    
+    const m = memberSalesMap[key] || { sales: 0, periode: '' };
+    const h = hourlySalesMap[key] || { sales: 0, count: 0, periode: '' };
+    const periode = m.periode || h.periode || 'Unknown';
+    if (!salesPeriodeGroups[periode]) salesPeriodeGroups[periode] = { periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
+    
+    const selisih = h.sales - m.sales;
+    const ratio = h.sales > 0 ? (m.sales / h.sales * 100) : 0;
+    
+    salesPeriodeGroups[periode].totalMemberSales += m.sales;
+    salesPeriodeGroups[periode].totalHourlySales += h.sales;
+    salesPeriodeGroups[periode].totalCount += h.count;
+    salesPeriodeGroups[periode].details.push({
+      tgl, pos, memberSales: m.sales, hourlySales: h.sales, count: h.count,
+      avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0,
+      selisih: Math.round(selisih * 100) / 100, ratio: Math.round(ratio * 10) / 10
+    });
+    
+    totalMemberSalesAll += m.sales;
+    totalHourlySalesAll += h.sales;
   });
- 
-  totalMemberSalesAll += m.sales;
-  totalHourlySalesAll += h.sales;
-});
  
 const finalSalesHistory = Object.values(salesPeriodeGroups).sort((a, b) => b.periode.localeCompare(a.periode)).map(group => {
   group.details.sort((a, b) => (b.tgl || '').localeCompare(a.tgl || ''));
