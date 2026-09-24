@@ -677,12 +677,18 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     if (activePanel === "sales") {
       const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
       const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
- 
-  // PENTING: kunci digabung berdasarkan NAMA YANG DINORMALISASI
-  // (uppercase + trim), bukan teks nama mentah dan bukan ID Swipe.
-  // Ini mencegah orang yang sama pecah jadi 2 baris ketika ID Swipe-nya
-  // berubah (mis. Ahmad Irfandi: 8001593 -> 8002017) atau ketika ejaan
-  // nama di sheet berbeda kapitalisasi (HUSNITA FEBIANA vs Husnita Febiana).
+  
+      // Build lookup map untuk total hourly per nama+periode (single pass)
+      const hourlyTotals = {};
+      hFiltered.forEach(r => {
+        if (!r.nama) return;
+        const key = normName(r.nama) + '||' + r.periode;
+        if (!hourlyTotals[key]) hourlyTotals[key] = { totalSales: 0, totalCount: 0 };
+        hourlyTotals[key].totalSales += parseFloat(r.total_sales) || 0;
+        hourlyTotals[key].totalCount += parseInt(r.count_transaksi) || 0;
+      });
+  
+  // Aggregate per tanggal untuk details
   let memberMap = {};
   mFiltered.forEach(r => {
     if (!r.nama) return;
@@ -700,7 +706,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
     hourlyMap[key].count += parseInt(r.count_transaksi) || 0;
   });
- 
+  
   const allKeys = new Set([...Object.keys(memberMap), ...Object.keys(hourlyMap)]);
   let groups = {};
   allKeys.forEach(key => {
@@ -711,24 +717,19 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const periode = m.periode || h.periode || 'Unknown';
     const namaResolved = resolveNama(m.namaRaw || h.namaRaw);
     const gKey = namaKeyPart + '||' + periode;
-    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [], namaKey: namaKeyPart };
+    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, details: [] };
     groups[gKey].totalMemberSales += m.sales;
-    groups[gKey].totalHourlySales += h.sales;
-    groups[gKey].totalCount += h.count;
     groups[gKey].details.push({ tanggal: tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
   });
 
-  // PERBAIKAN: Hitung ulang totalHourlySales dan totalCount dari raw data langsung per nama+periode
+  // Assign totalHourlySales dan totalCount dari lookup map
   Object.keys(groups).forEach(gKey => {
     const g = groups[gKey];
-    const namaKey = g.namaKey;
-    const periode = g.periode;
-    
-    const hourlyForGroup = hFiltered.filter(r => normName(r.nama) === namaKey && r.periode === periode);
-    g.totalHourlySales = hourlyForGroup.reduce((sum, r) => sum + (parseFloat(r.total_sales) || 0), 0);
-    g.totalCount = hourlyForGroup.reduce((sum, r) => sum + (parseInt(r.count_transaksi) || 0), 0);
+    const totals = hourlyTotals[gKey] || { totalSales: 0, totalCount: 0 };
+    g.totalHourlySales = totals.totalSales;
+    g.totalCount = totals.totalCount;
   });
- 
+  
    return Object.values(groups).map(g => {
      g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
      g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
