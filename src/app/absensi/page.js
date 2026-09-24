@@ -62,6 +62,8 @@ const [reqJamIn, setReqJamIn] = useState("");
 const [reqJamOut, setReqJamOut] = useState("");
 const [reqShiftBaru, setReqShiftBaru] = useState("");
 const [reqShiftManual, setReqShiftManual] = useState("");
+const [reqShiftSearch, setReqShiftSearch] = useState("");
+const [reqShiftOpen, setReqShiftOpen] = useState(false);
 const [reqAlasan, setReqAlasan] = useState("");
 const [reqSubmitting, setReqSubmitting] = useState(false);
 const [myRequests, setMyRequests] = useState(null);
@@ -266,7 +268,7 @@ function resetReqAttForm() {
 }
  
 function resetReqShiftForm() {
-  setReqTgl(""); setReqData(null); setReqShiftBaru(""); setReqShiftManual(""); setReqAlasan("");
+  setReqTgl(""); setReqData(null); setReqShiftBaru(""); setReqShiftManual(""); setReqAlasan(""); setReqShiftSearch(""); setReqShiftOpen(false);
 }
  
 async function submitReqAttendance() {
@@ -1060,13 +1062,38 @@ function getStatusBadgeClass(remarks) {
             </div>
           )}
 
-          <div>
+          <div className="relative">
             <label className="text-[10px] font-bold text-gray-400 uppercase">Kode Shift Baru</label>
-            <select value={reqShiftBaru} onChange={(e) => setReqShiftBaru(e.target.value)}
-              className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm">
-              <option value="" disabled>-- Pilih Shift Baru --</option>
-              {shiftOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <button type="button" onClick={() => { setReqShiftOpen(!reqShiftOpen); setReqShiftSearch(""); }}
+              className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm text-left flex justify-between items-center">
+              <span className={reqShiftBaru ? "text-gray-800 font-semibold" : "text-gray-400"}>
+                {reqShiftBaru ? (shiftOptions.find(o => o.value === reqShiftBaru)?.label || reqShiftBaru) : "-- Pilih Shift Baru --"}
+              </span>
+              <span className="text-gray-400 text-xs">{reqShiftOpen ? "▲" : "▼"}</span>
+            </button>
+            {reqShiftOpen && (
+              <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+                <div className="p-2 border-b border-gray-100">
+                  <input type="text" autoFocus value={reqShiftSearch} onChange={(e) => setReqShiftSearch(e.target.value.toUpperCase())}
+                    placeholder="Ketik kode shift... mis: BA, CF"
+                    className="w-full p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm uppercase outline-none focus:border-[#e20074]" />
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {shiftOptions
+                    .filter(o => (o.value + " " + o.label).toUpperCase().includes(reqShiftSearch.toUpperCase()))
+                    .map(o => (
+                      <button key={o.value} type="button"
+                        onClick={() => { setReqShiftBaru(o.value); setReqShiftOpen(false); setReqShiftSearch(""); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-pink-50 ${reqShiftBaru === o.value ? "bg-pink-50 font-bold text-[#e20074]" : "text-gray-700"}`}>
+                        {o.label}
+                      </button>
+                    ))}
+                  {shiftOptions.filter(o => (o.value + " " + o.label).toUpperCase().includes(reqShiftSearch.toUpperCase())).length === 0 && (
+                    <div className="px-4 py-6 text-center text-gray-400 text-sm">Shift tidak ditemukan.</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {reqShiftBaru === "MANUAL" && (
