@@ -698,7 +698,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     if (!r.nama) return;
     const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
     const key = normName(r.nama) + '|' + tgl;
-    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, periode: r.periode || '', namaRaw: r.nama };
+    if (!hourlyMap[key]) hourlyMap[key] = { sales: 0, count: 0, pos: r.pos || null, periode: r.periode || '', namaRaw: r.nama };
     hourlyMap[key].sales += parseFloat(r.total_sales) || 0;
     hourlyMap[key].count += parseInt(r.count_transaksi) || 0;
   });
@@ -717,7 +717,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     groups[gKey].totalMemberSales += m.sales;
     groups[gKey].totalHourlySales += h.sales;
     groups[gKey].totalCount += h.count;
-    groups[gKey].details.push({ tanggal: tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
+    groups[gKey].details.push({ tanggal: tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
   });
  
   return Object.values(groups).map(g => {
@@ -1243,7 +1243,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           const detRatio = det.hourlySales > 0 ? Math.round((det.memberSales / det.hourlySales) * 1000) / 10 : 0;
           return (
           <div key={i} className="p-4 border border-gray-200 rounded-2xl bg-white shadow-sm text-[11px] space-y-1 border-l-[5px] border-l-indigo-400 hover:shadow-md transition-shadow">
-            <div className="flex justify-between font-bold text-gray-800 border-b pb-2"><span>{det.tanggal}</span><span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">{det.count}x Transaksi</span></div>
+            <div className="flex justify-between font-bold text-gray-800 border-b pb-2"><span>{det.tanggal}</span><span className="bg-gray-100 px-2 py-0.5 rounded text-[9px] uppercase tracking-wide">POS: {det.pos || '-'} · {det.count}x Transaksi</span></div>
              <div className="flex justify-between pt-1"><span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Member:</span><span className="font-black text-pink-600">{det.memberSales.toLocaleString('id-ID')}</span></div>
              <div className="flex justify-between"><span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Hourly:</span><span className="font-black text-indigo-600">{det.hourlySales.toLocaleString('id-ID')}</span></div>
              <div className="flex justify-between"><span className="text-gray-500 font-bold uppercase tracking-wider text-[9px]">Rata-rata/Tx:</span><span className="font-black text-green-600">{(det.avgTransaction || 0).toLocaleString('id-ID')}</span></div>

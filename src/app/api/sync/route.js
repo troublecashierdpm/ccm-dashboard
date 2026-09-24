@@ -160,12 +160,12 @@ export async function GET() {
     }
 
     // 9. SINKRONISASI SALES HOURLY
-    const responseSalesHourly = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Hourly!A2:F' });
+    const responseSalesHourly = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Sales Hourly!A2:G' });
     const rowsSalesHourly = responseSalesHourly.data.values;
     if (rowsSalesHourly && rowsSalesHourly.length > 0) {
       const formattedSalesHourly = rowsSalesHourly.filter(row => row[0] && String(row[0]).toLowerCase() !== 'tanggal').map(row => ({
-        tanggal: row[0] || null, nama: row[1] || null, id_swipe: row[2] || null,
-        count_transaksi: parseInt(cleanNum(row[3])) || 0, total_sales: parseFloat(cleanNum(row[4])) || 0, periode: row[5] || null
+        tanggal: row[0] || null, pos: row[1] || null, nama: row[2] || null, id_swipe: row[3] || null,
+        count_transaksi: parseInt(cleanNum(row[4])) || 0, total_sales: parseFloat(cleanNum(row[5])) || 0, periode: row[6] || null
       }));
       for (let i = 0; i < formattedSalesHourly.length; i += 2000) {
         const { error } = await supabase.from('sales_hourly').insert(formattedSalesHourly.slice(i, i + 2000));

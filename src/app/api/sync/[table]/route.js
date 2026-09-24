@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
       under: row[8] || null, role: row[9] || null, trc_under: row[10] || null, email: row[11] || null
     }) },
     sales_member: { range: 'Sales Member!A2:E', supabase: 'sales_member', mapper: row => ({ tanggal: row[0], nama: row[1], id_swipe: row[2], total_sales: parseFloat(cleanNum(row[3])) || 0, periode: row[4] }) },
-    sales_hourly: { range: 'Sales Hourly!A2:F', supabase: 'sales_hourly', mapper: row => ({ tanggal: row[0], nama: row[1], id_swipe: row[2], count_transaksi: parseInt(cleanNum(row[3])) || 0, total_sales: parseFloat(cleanNum(row[4])) || 0, periode: row[5] }) },
+    sales_hourly: { range: 'Sales Hourly!A2:G', supabase: 'sales_hourly', mapper: row => ({ tanggal: row[0], pos: row[1], nama: row[2], id_swipe: row[3], count_transaksi: parseInt(cleanNum(row[4])) || 0, total_sales: parseFloat(cleanNum(row[5])) || 0, periode: row[6] }) },
     member_per_day: { range: 'MEMBER_PER_DAY!A2:F', supabase: 'member_per_day', mapper: row => ({ tanggal: row[0], nama: row[1], status: row[2], no_member: row[3], qty: parseInt(row[4]) || 0, bulan: row[5] }) },
     sp_ba_per_day: { range: "'SURAT PERNYATAAN & BERITA ACARA'!A2:I", supabase: 'sp_ba_per_day', mapper: row => ({ tanggal: row[0], nik: row[1], nama: row[2], status: row[3], remarks: row[4], jenis_pelanggaran: row[5], bulan: row[6], surat_pernyataan: row[7], pic_under: row[8] }) },
     pwp_kasir: { range: 'PWP KASIR!A2:G', supabase: 'pwp_kasir', mapper: row => ({ tanggal: row[0], nama: row[1], status: row[2], sku_produk: row[3], nama_barang: row[4], qty: parseInt(cleanNum(row[5])) || 0, periode: row[6] }) },

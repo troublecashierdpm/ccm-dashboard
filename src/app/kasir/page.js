@@ -320,7 +320,7 @@ let hourlySalesMap = {};
 (salesHourlyData || []).forEach(row => {
   const tgl = normalizeTgl(row.tanggal, 'MDY'); if (!tgl) return;
 
-  if (!hourlySalesMap[tgl]) hourlySalesMap[tgl] = { sales: 0, count: 0, periode: row.periode || '' };
+  if (!hourlySalesMap[tgl]) hourlySalesMap[tgl] = { sales: 0, count: 0, pos: row.pos || null, periode: row.periode || '' };
   hourlySalesMap[tgl].sales += parseFloat(row.total_sales) || 0;
   hourlySalesMap[tgl].count += parseInt(row.count_transaksi) || 0;
 });
@@ -352,7 +352,7 @@ allSalesDates.forEach(tgl => {
   salesPeriodeGroups[periode].totalHourlySales += h.sales;
   salesPeriodeGroups[periode].totalCount += h.count;
   salesPeriodeGroups[periode].details.push({
-    tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count,
+    tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count,
     avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0,
     selisih: Math.round(selisih * 100) / 100, ratio: Math.round(ratio * 10) / 10
   });
@@ -860,7 +860,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
           <div key={i} className="flex justify-between items-center p-4 border border-gray-100 rounded-2xl bg-white shadow-sm text-[11px] hover:shadow-md transition-shadow">
             <div>
               <p className="font-extrabold text-gray-900 text-xs mb-1">{det.tgl}</p>
-              <p className="text-[9px] text-gray-600 uppercase font-bold">Transaksi: {det.count}x</p>
+              <p className="text-[9px] text-gray-600 uppercase font-bold">POS: {det.pos || '-'} · Transaksi: {det.count}x</p>
             </div>
             <div className="text-right space-y-0.5">
               <p className="text-[9px] text-gray-500">Member: <span className="font-bold text-pink-600">{det.memberSales.toLocaleString('id-ID')}</span></p>
