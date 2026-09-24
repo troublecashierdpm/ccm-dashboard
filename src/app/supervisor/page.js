@@ -678,22 +678,23 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
       const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
       
-      console.log('=== DEBUG PANEL SALES RATIO ===');
-      console.log(`Total rawSalesMember: ${rawSalesMember.length}, after filter: ${mFiltered.length}`);
-      console.log(`Total rawSalesHourly: ${rawSalesHourly.length}, after filter: ${hFiltered.length}`);
-      console.log(`filterBulan: "${filterBulan}", searchNama: "${searchNama}"`);
+      // Hitung total langsung dari raw data (tanpa grouping)
+      const totalMemberAll = rawSalesMember.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
+      const totalHourlyAll = rawSalesHourly.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
+      const totalTransaksiAll = rawSalesHourly.reduce((s, r) => s + (parseInt(r.count_transaksi) || 0), 0);
       
-      let totalMemberRaw = mFiltered.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
-      let totalHourlyRaw = hFiltered.reduce((s, r) => s + (parseFloat(r.total_sales) || 0), 0);
-      console.log(`Total Member Raw: ${totalMemberRaw.toLocaleString()}`);
-      console.log(`Total Hourly Raw: ${totalHourlyRaw.toLocaleString()}`);
+      console.log('=== DEBUG SALES RATIO (RAW DATA) ===');
+      console.log(`rawSalesMember rows: ${rawSalesMember.length}`);
+      console.log(`rawSalesHourly rows: ${rawSalesHourly.length}`);
+      console.log(`Total Member (all): ${totalMemberAll.toLocaleString()}`);
+      console.log(`Total Hourly (all): ${totalHourlyAll.toLocaleString()}`);
+      console.log(`Total Transaksi (all): ${totalTransaksiAll.toLocaleString()}`);
       
-      // Cek sample data sales_hourly
-      console.log('Sample sales_hourly rows (first 5):', hFiltered.slice(0, 5).map(r => ({ tanggal: r.tanggal, nama: r.nama, pos: r.pos, count: r.count_transaksi, total_sales: r.total_sales, periode: r.periode })));
-      
-      // Cek apakah ada data dengan nama kosong atau tanggal invalid
-      const hFilteredInvalid = hFiltered.filter(r => !r.nama || !normalizeTgl(r.tanggal, 'DMY'));
-      console.log(`sales_hourly rows with invalid nama/tanggal: ${hFilteredInvalid.length}`);
+      if (rawSalesHourly.length > 0) {
+        const sample = rawSalesHourly.slice(0, 3);
+        console.log('Sample sales_hourly:', sample);
+      }
+      console.log('=== END DEBUG ===');
  
   // PENTING: kunci digabung berdasarkan NAMA YANG DINORMALISASI
   // (uppercase + trim), bukan teks nama mentah dan bukan ID Swipe.
