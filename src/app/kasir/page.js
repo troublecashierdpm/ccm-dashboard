@@ -361,7 +361,7 @@ let hourlySalesMap = {};
   });
  
 const finalSalesHistory = Object.values(salesPeriodeGroups).sort((a, b) => b.periode.localeCompare(a.periode)).map(group => {
-  group.details.sort((a, b) => (b.tgl || '').localeCompare(a.tgl || ''));
+  group.details.sort((a, b) => (b.tgl || '').localeCompare(a.tgl || '') || (a.pos || '').localeCompare(b.pos || ''));
   group.selisih = Math.round((group.totalHourlySales - group.totalMemberSales) * 100) / 100;
   group.ratio = group.totalHourlySales > 0 ? Math.round((group.totalMemberSales / group.totalHourlySales) * 1000) / 10 : 0;
   group.avgTransaction = group.totalCount > 0 ? Math.round(group.totalHourlySales / group.totalCount) : 0;

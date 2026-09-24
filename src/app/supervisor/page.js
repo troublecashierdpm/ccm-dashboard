@@ -723,7 +723,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const gKey = namaKeyPart + '||' + periode;
     if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, details: [] };
     groups[gKey].totalMemberSales += m.sales;
-    groups[gKey].details.push({ tanggal: tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
+    groups[gKey].details.push({ tanggal: tgl, pos: pos || h.pos || '-', memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
   });
 
   // Assign totalHourlySales dan totalCount dari lookup map
@@ -735,7 +735,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   });
   
    return Object.values(groups).map(g => {
-     g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
+      g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || '') || (a.pos || '').localeCompare(b.pos || ''));
      g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
      g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
      g.avgTransaction = g.totalCount > 0 ? Math.round(g.totalHourlySales / g.totalCount) : 0;
