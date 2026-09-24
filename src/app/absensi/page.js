@@ -65,6 +65,7 @@ const [reqShiftManual, setReqShiftManual] = useState("");
 const [reqShiftSearch, setReqShiftSearch] = useState("");
 const [reqShiftOpen, setReqShiftOpen] = useState(false);
 const [reqAlasan, setReqAlasan] = useState("");
+const [reqFoto, setReqFoto] = useState("");
 const [reqSubmitting, setReqSubmitting] = useState(false);
 const [myRequests, setMyRequests] = useState(null);
 const [myRequestsLoading, setMyRequestsLoading] = useState(false);
@@ -262,9 +263,32 @@ async function fetchRequestData(tgl) {
   }
 }
  
+function handleReqFotoChange(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1024;
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        const scale = maxDim / Math.max(w, h);
+        w = Math.round(w * scale); h = Math.round(h * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      setReqFoto(canvas.toDataURL("image/jpeg", 0.7));
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function resetReqAttForm() {
   setReqTgl(""); setReqData(null); setReqCheckIn(false); setReqCheckOut(false);
-  setReqJamIn(""); setReqJamOut(""); setReqAlasan("");
+  setReqJamIn(""); setReqJamOut(""); setReqAlasan(""); setReqFoto("");
 }
  
 function resetReqShiftForm() {
@@ -287,7 +311,8 @@ async function submitReqAttendance() {
         shiftCodeReq: "-",
         jamIn: reqCheckIn ? reqJamIn : "",
         jamOut: reqCheckOut ? reqJamOut : "",
-        alasan: "[ATTENDANCE] " + reqAlasan
+        alasan: "[ATTENDANCE] " + reqAlasan,
+        base64Photo: reqFoto || ""
       })
     });
     const json = await res.json();
@@ -1025,6 +1050,21 @@ function getStatusBadgeClass(remarks) {
             <textarea rows={3} value={reqAlasan} onChange={(e) => setReqAlasan(e.target.value)}
               placeholder="Contoh: Lupa absen pulang..."
               className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-gray-200 text-sm" />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Lampiran Foto (Opsional)</label>
+            {!reqFoto ? (
+              <label className="w-full mt-1 p-3.5 rounded-2xl bg-white border border-dashed border-gray-300 text-sm text-gray-400 flex items-center justify-center gap-2 cursor-pointer">
+                📷 Pilih Foto
+                <input type="file" accept="image/*" onChange={handleReqFotoChange} className="hidden" />
+              </label>
+            ) : (
+              <div className="mt-1 relative">
+                <img src={reqFoto} className="w-full rounded-2xl bg-gray-100 max-h-60 object-cover" />
+                <button onClick={() => setReqFoto("")} className="absolute top-2 right-2 bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-xl">✕ Hapus</button>
+              </div>
+            )}
           </div>
 
           <button onClick={submitReqAttendance} disabled={reqSubmitting}
