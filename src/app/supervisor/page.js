@@ -74,6 +74,7 @@ export default function SupervisorDashboard() {
 
 
   const [activeModalData, setActiveModalData] = useState(null);
+  const [salesChartPeriods, setSalesChartPeriods] = useState([]);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiChat, setAiChat] = useState([]);
@@ -287,6 +288,12 @@ export default function SupervisorDashboard() {
       renderIndividualChart();
     }
   }, [selectedKaryawan, empMenu]);
+
+  useEffect(() => {
+    if (activeModalData?.type === 'global_sales_chart') {
+      renderSalesChart(salesChartPeriods);
+    }
+  }, [activeModalData, salesChartPeriods, empHistory.sales]);
 
   // Reset sort setiap kali pindah panel, supaya sort dari panel lain tidak terbawa
   useEffect(() => {
@@ -600,6 +607,37 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       const totals = empHistory.ecobag.map(h => h.totalPerBulan).reverse();
       new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Total Ecobag", data: totals, backgroundColor: "#2ecc71", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false } });
     }
+  };
+
+  const renderSalesChart = (periods) => {
+    const canvas = document.getElementById("salesChartCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const existingChart = Chart.getChart("salesChartCanvas");
+    if (existingChart) existingChart.destroy();
+
+    const rows = empHistory.sales.filter(h => periods.includes(h.bulan)).sort((a, b) => (a.bulan || '').localeCompare(b.bulan || ''));
+    if (rows.length === 0) return;
+
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: rows.map(h => h.bulan),
+        datasets: [
+          { label: "Sales Member", data: rows.map(h => h.totalMemberSales), backgroundColor: "#e20074", borderRadius: 6 },
+          { label: "Sales Hourly", data: rows.map(h => h.totalHourlySales), backgroundColor: "#6366f1", borderRadius: 6 },
+          { label: "% Member", data: rows.map(h => h.ratio), type: "line", borderColor: "#9333ea", backgroundColor: "#9333ea", tension: 0.3, yAxisID: "y1" }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+          y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } }
+        }
+      }
+    });
   };
 
   const getPhotoUrl = (fileId, nama) => {
@@ -1148,6 +1186,12 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
 
                 {["shortage", "member", "ecobag"].includes(empMenu) && ( <div className="glass-card p-6 rounded-[2rem] shadow-sm"><div className="h-64 relative w-full"><canvas id="individualChartCanvas"></canvas></div></div> )}
 
+                {empMenu === "sales" && (
+                  <div className="flex justify-end">
+                    <button onClick={() => { const latest = [...empHistory.sales].sort((a, b) => (b.bulan || '').localeCompare(a.bulan || '')).slice(0, 3).map(h => h.bulan); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: selectedKaryawan?.nama || '' } }); }} className="px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-indigo-500 text-white shadow-md hover:bg-indigo-600 transition-all active:scale-95">📊 Grafik</button>
+                  </div>
+                )}
+
                 <div className="glass-card rounded-[2rem] shadow-xl overflow-hidden">
                   <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
                     <table className="w-full text-left text-xs min-w-[400px]">
@@ -1268,6 +1312,35 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           </div>
           );
         })}
+      </div>
+    </div>
+  </div>
+)}
+
+      {activeModalData?.type === 'global_sales_chart' && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-6 text-white flex justify-between items-center">
+        <h3 className="font-black text-sm uppercase tracking-wider">Grafik Sales Ratio</h3>
+        <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+      </div>
+      <div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-800 uppercase tracking-widest">
+        {activeModalData.data.nama}
+      </div>
+      <div className="p-4 bg-white border-b flex flex-wrap gap-2 justify-center">
+        {[...empHistory.sales].sort((a, b) => (b.bulan || '').localeCompare(a.bulan || '')).map(h => (
+          <label key={h.bulan} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold cursor-pointer border transition-all ${salesChartPeriods.includes(h.bulan) ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+            <input type="checkbox" checked={salesChartPeriods.includes(h.bulan)} onChange={() => setSalesChartPeriods(prev => prev.includes(h.bulan) ? prev.filter(p => p !== h.bulan) : [...prev, h.bulan])} className="accent-indigo-500" />
+            {h.bulan}
+          </label>
+        ))}
+      </div>
+      <div className="p-5 bg-gray-50/50">
+        {salesChartPeriods.length === 0 ? (
+          <p className="p-8 text-center text-gray-400 font-bold text-xs">Pilih minimal 1 periode untuk melihat grafik.</p>
+        ) : (
+          <div className="h-64 relative w-full bg-white rounded-2xl border border-gray-100 p-3"><canvas id="salesChartCanvas"></canvas></div>
+        )}
       </div>
     </div>
   </div>
