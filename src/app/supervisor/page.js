@@ -720,13 +720,24 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     groups[gKey].details.push({ tanggal: tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
   });
  
-  return Object.values(groups).map(g => {
-    g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
-    g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
-    g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
-    g.avgTransaction = g.totalCount > 0 ? Math.round(g.totalHourlySales / g.totalCount) : 0;
-    return g;
-  }).sort((a, b) => b.periode.localeCompare(a.periode));
+   const result = Object.values(groups).map(g => {
+     g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
+     g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
+     g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
+     g.avgTransaction = g.totalCount > 0 ? Math.round(g.totalHourlySales / g.totalCount) : 0;
+     return g;
+   }).sort((a, b) => b.periode.localeCompare(a.periode));
+   
+   // Debug: log perhitungan untuk troubleshooting
+   console.log('=== DEBUG SALES RATIO CALCULATION ===');
+   result.forEach(g => {
+     console.log(`Kasir: ${g.nama}, Periode: ${g.periode}`);
+     console.log(`  MemberSales: ${g.totalMemberSales}, HourlySales: ${g.totalHourlySales}`);
+     console.log(`  Ratio: ${g.ratio}% (calc: ${g.totalMemberSales} / ${g.totalHourlySales} * 100)`);
+   });
+   console.log('=== END DEBUG ===');
+   
+   return result;
 }
 
     if (activePanel === "pwp") {
