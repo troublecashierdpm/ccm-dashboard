@@ -717,16 +717,37 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const namaKeyPart = key.slice(0, key.lastIndexOf('|'));
     const tgl = key.slice(namaKeyPart.length + 1);
     const m = memberMap[key] || { sales: 0, periode: '', namaRaw: '' };
-    const h = hourlyMap[key] || { sales: 0, count: 0, periode: '', namaRaw: '' };
+    const h = hourlyMap[key] || { sales: 0, count: 0, pos: null, periode: '', namaRaw: '' };
     const periode = m.periode || h.periode || 'Unknown';
     const namaResolved = resolveNama(m.namaRaw || h.namaRaw);
     const gKey = namaKeyPart + '||' + periode;
-    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
+    if (!groups[gKey]) groups[gKey] = { nama: namaResolved, periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [], namaKey: namaKeyPart };
     groups[gKey].totalMemberSales += m.sales;
     groups[gKey].totalHourlySales += h.sales;
     groups[gKey].totalCount += h.count;
     groups[gKey].details.push({ tanggal: tgl, pos: h.pos, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
   });
+
+  // PERBAIKAN: Hitung ulang totalHourlySales dan totalCount dari raw data langsung per nama+periode
+  Object.keys(groups).forEach(gKey => {
+    const g = groups[gKey];
+    const namaKey = g.namaKey;
+    const periode = g.periode;
+    
+    // Hitung total hourly sales langsung dari hFiltered untuk nama+periode ini
+    const hourlyForGroup = hFiltered.filter(r => normName(r.nama) === namaKey && r.periode === periode);
+    g.totalHourlySales = hourlyForGroup.reduce((sum, r) => sum + (parseFloat(r.total_sales) || 0), 0);
+    g.totalCount = hourlyForGroup.reduce((sum, r) => sum + (parseInt(r.count_transaksi) || 0), 0);
+  });
+  
+  // Debug: log detail per nama+periode
+  console.log('=== DEBUG GROUPED SALES ===');
+  Object.values(groups).slice(0, 10).forEach(g => {
+    const hourlyForGroup = hFiltered.filter(r => normName(r.nama) === g.namaKey && r.periode === g.periode);
+    const rawSum = hourlyForGroup.reduce((s, r) => s + parseFloat(r.total_sales || 0), 0);
+    console.log(`${g.nama} (${g.periode}): hourlyForGroup count=${hourlyForGroup.length}, rawSum=${rawSum.toLocaleString()}, finalTotal=${g.totalHourlySales.toLocaleString()}`);
+  });
+  console.log('=== END DEBUG ===');
  
    const result = Object.values(groups).map(g => {
      g.details.sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
@@ -846,7 +867,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     let card1 = 0, card2 = 0, card3 = 0, card4 = 0, card5 = 0;
     
     if (activePanel === "sales") {
-      // PERBAIKAN: hitung dari raw data yang sudah difilter, bukan dari grouped data
+      // PERBAIKAN: total sales hourly = sum langsung dari raw data yang sudah difilter (tanpa grouping tanggal)
       const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
       const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
       
