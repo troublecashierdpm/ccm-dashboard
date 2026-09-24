@@ -831,26 +831,29 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
 
   const getGlobalSummary = () => {
     let card1 = 0, card2 = 0, card3 = 0, card4 = 0, card5 = 0;
-    filteredData.forEach(r => {
-      if (activePanel === "shortage") { 
-        card1 += Math.abs(r.totalShort || 0); 
-        card2 += (r.totalOver || 0); 
-      }
-      if (activePanel === "ecobag") card1 += r.total || 0;
-      if (activePanel === "member") card1 += r.total || 0;
-      if (activePanel === "sales") { 
-        card1 += r.totalMemberSales || 0; 
-        card2 += r.totalHourlySales || 0; 
-        card4 += r.totalCount || 0; // total transaksi
-        // rata-rata transaksi = total hourly / total transaksi (nanti)
-      }
-      if (activePanel === "pwp") card1 += r.totalQty || 0;
-
-    });
+    
     if (activePanel === "sales") {
+      // PERBAIKAN: hitung dari raw data yang sudah difilter, bukan dari grouped data
+      const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
+      const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
+      
+      card1 = mFiltered.reduce((sum, r) => sum + (parseFloat(r.total_sales) || 0), 0);
+      card2 = hFiltered.reduce((sum, r) => sum + (parseFloat(r.total_sales) || 0), 0);
+      card4 = hFiltered.reduce((sum, r) => sum + (parseInt(r.count_transaksi) || 0), 0);
       card3 = card2 > 0 ? Math.round((card1 / card2) * 1000) / 10 : 0;
-      card5 = card4 > 0 ? Math.round(card2 / card4) : 0; // avg transaction overall
+      card5 = card4 > 0 ? Math.round(card2 / card4) : 0;
+    } else {
+      filteredData.forEach(r => {
+        if (activePanel === "shortage") { 
+          card1 += Math.abs(r.totalShort || 0); 
+          card2 += (r.totalOver || 0); 
+        }
+        if (activePanel === "ecobag") card1 += r.total || 0;
+        if (activePanel === "member") card1 += r.total || 0;
+        if (activePanel === "pwp") card1 += r.totalQty || 0;
+      });
     }
+    
     return { card1, card2, card3, card4, card5 };
   };
   
