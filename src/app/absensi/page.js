@@ -256,10 +256,24 @@ async function fetchRequestData(tgl) {
   try {
     const res = await fetch(`/api/absensi/request-data?nik=${user.nik}&tanggal=${tgl}`);
     const json = await res.json();
-    if (json.success) setReqData(json);
+    if (json.success) {
+      setReqData(json);
+      setReqCheckIn(false); setReqCheckOut(false);
+      setReqJamIn(""); setReqJamOut("");
+    }
     else alert(json.message);
   } catch (err) {
     alert("Gagal cek data: " + err.message);
+  }
+}
+
+function applyShiftDefault(kind, checked, data) {
+  if (kind === "in") {
+    setReqCheckIn(checked);
+    setReqJamIn(checked && data && data.expIn ? data.expIn : "");
+  } else {
+    setReqCheckOut(checked);
+    setReqJamOut(checked && data && data.expOut ? data.expOut : "");
   }
 }
  
@@ -1031,7 +1045,7 @@ function getStatusBadgeClass(remarks) {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-4">
             <label className="flex items-center gap-3">
-              <input type="checkbox" checked={reqCheckIn} onChange={(e) => setReqCheckIn(e.target.checked)} className="w-5 h-5 accent-[#e20074]" />
+              <input type="checkbox" checked={reqCheckIn} onChange={(e) => applyShiftDefault("in", e.target.checked, reqData)} className="w-5 h-5 accent-[#e20074]" />
               <span className="font-bold text-sm">Ajukan Jam Clock In Baru</span>
             </label>
             {reqCheckIn && <input type="time" value={reqJamIn} onChange={(e) => setReqJamIn(e.target.value)} className="w-full mt-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50" />}
@@ -1039,7 +1053,7 @@ function getStatusBadgeClass(remarks) {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-4">
             <label className="flex items-center gap-3">
-              <input type="checkbox" checked={reqCheckOut} onChange={(e) => setReqCheckOut(e.target.checked)} className="w-5 h-5 accent-[#e20074]" />
+              <input type="checkbox" checked={reqCheckOut} onChange={(e) => applyShiftDefault("out", e.target.checked, reqData)} className="w-5 h-5 accent-[#e20074]" />
               <span className="font-bold text-sm">Ajukan Jam Clock Out Baru</span>
             </label>
             {reqCheckOut && <input type="time" value={reqJamOut} onChange={(e) => setReqJamOut(e.target.value)} className="w-full mt-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50" />}
