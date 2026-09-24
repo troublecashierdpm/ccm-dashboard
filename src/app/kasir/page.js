@@ -320,7 +320,7 @@ let memberSalesMap = {};
 
 let hourlySalesMap = {};
 (salesHourlyData || []).forEach(row => {
-  const tgl = normalizeTgl(row.tanggal, 'MDY'); if (!tgl) return;
+  const tgl = normalizeTgl(row.tanggal, 'DMY'); if (!tgl) return;
   const pos = row.pos || '-';
   const key = tgl + '|' + pos;
 
