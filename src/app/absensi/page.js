@@ -102,6 +102,8 @@ const [teamPhotoModal, setTeamPhotoModal] = useState(null);
   const [syncingSchedule, setSyncingSchedule] = useState(false);
   const [syncingLog, setSyncingLog] = useState(false);
   const [syncingRequest, setSyncingRequest] = useState(false);
+  const [syncingReverse, setSyncingReverse] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ text: "", success: null });
 const [emailNik, setEmailNik] = useState("");
 const [previewFoto, setPreviewFoto] = useState(null);
@@ -177,19 +179,24 @@ function formatPhotoUrl(url) {
 
   async function triggerSync(type) {
     const map = {
-      'NIK': '/api/sync-absensi/nik',
-      'Master Schedule': '/api/sync-absensi/master-schedule',
-      'Log Absensi': '/api/sync-absensi/log-absensi',
-      'Data Request': '/api/sync-absensi/data-request'
+      'NIK': { url: '/api/sync-absensi/nik', set: setSyncingNik },
+      'Master Schedule': { url: '/api/sync-absensi/master-schedule', set: setSyncingSchedule },
+      'Log Absensi': { url: '/api/sync-absensi/log-absensi', set: setSyncingLog },
+      'Data Request': { url: '/api/sync-absensi/data-request', set: setSyncingRequest }
     };
-    if (!map[type]) return;
+    const target = map[type];
+    if (!target) return;
+    target.set(true);
     setSyncStatus({ text: `Syncing ${type}...`, success: null });
     try {
-      const res = await fetch(map[type]);
+      const res = await fetch(target.url);
       const json = await res.json();
-      setSyncStatus({ text: json.message || `${type} ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
+      const detail = json.count !== undefined ? ` (${json.count} records)` : '';
+      setSyncStatus({ text: json.message || `${type}${detail} ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
     } catch (err) {
-      setSyncStatus({ text: `Error: ${err.message}`, success: false });
+      setSyncStatus({ text: `Error ${type}: ${err.message}`, success: false });
+    } finally {
+      target.set(false);
     }
   }
 
@@ -219,10 +226,13 @@ function formatPhotoUrl(url) {
       setSyncStatus({ text: json.message || `${label} ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
     } catch (err) {
       setSyncStatus({ text: `Error: ${err.message}`, success: false });
+    } finally {
+      setSyncingReverse(false);
     }
   }
 
   async function triggerSendLogEmail() {
+    setSendingEmail(true);
     setSyncStatus({ text: `Mengirim email rekapan ke ${emailNik || 'semua staff'}...`, success: null });
     try {
       const url = emailNik ? `/api/absensi/send-log-email?nik=${emailNik}` : '/api/absensi/send-log-email';
@@ -231,6 +241,8 @@ function formatPhotoUrl(url) {
       setSyncStatus({ text: json.message || "Selesai", success: json.success });
     } catch (err) {
       setSyncStatus({ text: `Error: ${err.message}`, success: false });
+    } finally {
+      setSendingEmail(false);
     }
   }
 
@@ -1677,8 +1689,16 @@ function getStatusBadgeClass(remarks) {
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Sync (Sheet → DB)</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {['NIK', 'Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
-                      <button key={t} onClick={() => triggerSync(t)} className="w-full py-2.5 bg-cyan-50 text-cyan-700 font-bold text-[10px] rounded-lg">{t}</button>
+                    {[
+                      { label: 'NIK', loading: syncingNik },
+                      { label: 'Master Schedule', loading: syncingSchedule },
+                      { label: 'Log Absensi', loading: syncingLog },
+                      { label: 'Data Request', loading: syncingRequest }
+                    ].map(t => (
+                      <button key={t.label} onClick={() => triggerSync(t.label)} disabled={t.loading || syncingNik || syncingSchedule || syncingLog || syncingRequest}
+                        className={`w-full py-2.5 font-bold text-[10px] rounded-lg disabled:opacity-60 ${t.loading ? 'bg-cyan-100 text-cyan-800' : 'bg-cyan-50 text-cyan-700'}`}>
+                        {t.loading ? '⏳ Syncing...' : t.label}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1699,7 +1719,10 @@ function getStatusBadgeClass(remarks) {
                 <div className="pt-2 border-t border-gray-100">
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Tools Email</p>
                   <input type="text" placeholder="NIK (opsional)" value={emailNik} onChange={(e) => setEmailNik(e.target.value)} className="w-full p-2 rounded-lg border border-gray-200 text-xs mb-2" />
-                  <button onClick={triggerSendLogEmail} className="w-full py-3 bg-orange-50 text-orange-700 font-bold text-xs rounded-xl">Kirim Rekap Email</button>
+                  <button onClick={triggerSendLogEmail} disabled={sendingEmail}
+                    className="w-full py-3 bg-orange-50 text-orange-700 font-bold text-xs rounded-xl disabled:opacity-60">
+                    {sendingEmail ? '⏳ Mengirim...' : 'Kirim Rekap Email'}
+                  </button>
                 </div>
               </div>
               {syncStatus.text && (
