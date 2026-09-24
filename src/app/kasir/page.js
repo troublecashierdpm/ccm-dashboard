@@ -193,7 +193,11 @@ export default function App() {
     } else if (detailType === "member") {
       datasets = [{ label: "Total Member", data: rows.map(h => h.totalPerBulan), backgroundColor: "#C80082", borderRadius: 6 }];
     } else if (detailType === "sp") {
-      datasets = [{ label: "Frekuensi SP/BA", data: rows.map(h => h.totalPerBulan), backgroundColor: "#f39c12", borderRadius: 6 }];
+      const kinds = [...new Set(rows.flatMap(h => (h.details || []).map(d => ((d.jenis || 'Lainnya').trim() || 'Lainnya'))))].sort();
+      const SP_COLORS = ["#e74c3c", "#3498db", "#f39c12", "#2ecc71", "#9b59b6", "#1abc9c", "#e20074", "#6366f1", "#14b8a6", "#e67e22"];
+      datasets = kinds.map((k, i) => ({ label: k, data: rows.map(h => (h.details || []).filter(d => ((d.jenis || 'Lainnya').trim() || 'Lainnya') === k).length), backgroundColor: SP_COLORS[i % SP_COLORS.length], borderRadius: 6 }));
+      scales.x = { stacked: true };
+      scales.y = { beginAtZero: true, stacked: true };
     } else if (detailType === "sakit") {
       datasets = [{ label: "Frekuensi Sakit/Izin", data: rows.map(h => h.totalPerBulan), backgroundColor: "#3498db", borderRadius: 6 }];
     } else if (detailType === "pwp") {

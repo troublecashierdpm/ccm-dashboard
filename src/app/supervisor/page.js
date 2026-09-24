@@ -611,8 +611,9 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Large", data: la, backgroundColor: "#e74c3c", borderRadius: 6 }, { label: "Medium", data: me, backgroundColor: "#f39c12", borderRadius: 6 }, { label: "Small", data: sm, backgroundColor: "#3498db", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
     } else if (empMenu === "sp") {
       const labels = empHistory.sp.map(h => h.bulan).reverse();
-      const totals = empHistory.sp.map(h => h.totalPerBulan).reverse();
-      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Frekuensi SP/BA", data: totals, backgroundColor: "#f39c12", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
+      const kinds = [...new Set(empHistory.sp.flatMap(h => (h.details || []).map(d => ((d.jenis || 'Lainnya').trim() || 'Lainnya'))))].sort();
+      const datasets = kinds.map((k, i) => ({ label: k, data: empHistory.sp.map(h => (h.details || []).filter(d => ((d.jenis || 'Lainnya').trim() || 'Lainnya') === k).length).reverse(), backgroundColor: CHART_COLORS[i % CHART_COLORS.length], borderRadius: 6 }));
+      new Chart(ctx, { type: "bar", data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { x: { stacked: true }, y: { beginAtZero: true, stacked: true } } } });
     } else if (empMenu === "sakit") {
       const labels = empHistory.sakit.map(h => h.bulan).reverse();
       const totals = empHistory.sakit.map(h => h.totalPerBulan).reverse();
@@ -625,6 +626,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   };
 
   const LEGEND_OPTS = { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } };
+  const CHART_COLORS = ["#e74c3c", "#3498db", "#f39c12", "#2ecc71", "#9b59b6", "#1abc9c", "#e20074", "#6366f1", "#14b8a6", "#e67e22"];
 
   const renderSalesChart = (periods) => {
     const canvas = document.getElementById("salesChartCanvas");
@@ -663,7 +665,10 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     } else if (panel === "member") {
       datasets = [{ label: "Total Member", data: rows.map(h => h.total), backgroundColor: "#C80082", borderRadius: 6 }];
     } else if (panel === "sp") {
-      datasets = [{ label: "Frekuensi SP/BA", data: rows.map(h => h.total), backgroundColor: "#f39c12", borderRadius: 6 }];
+      const kinds = salesChartData?.kinds || [];
+      datasets = kinds.map((k, i) => ({ label: k, data: rows.map(h => (h.byJenis && h.byJenis[k]) || 0), backgroundColor: CHART_COLORS[i % CHART_COLORS.length], borderRadius: 6 }));
+      scales.x = { stacked: true };
+      scales.y = { beginAtZero: true, stacked: true };
     }
 
     new Chart(ctx, {
@@ -1157,6 +1162,9 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                   <div className="p-4 bg-white/40 border-b flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider">
                     <span>{filteredData.length} Data Terangkum</span>
                     <div className="flex gap-2">
+                    {activePanel === "shortage" && (
+                      <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.periode || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, short: 0, over: 0 }; agg[p].short += Math.abs(r.totalShort || 0); agg[p].over += r.totalOver || 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "shortage", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik Shortage' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                    )}
                     {activePanel === "sales" && (
                       <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.periode || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0 }; agg[p].totalMemberSales += r.totalMemberSales || 0; agg[p].totalHourlySales += r.totalHourlySales || 0; agg[p].totalCount += r.totalCount || 0; }); Object.values(agg).forEach(g => { g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "sales", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik Sales Ratio' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
                     )}
@@ -1167,7 +1175,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                       <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.bulan || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, total: 0 }; agg[p].total += r.total || 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "member", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik Member' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
                     )}
                     {activePanel === "sp" && (
-                      <button onClick={() => { const agg = {}; filteredData.forEach(r => { const p = r.bulan || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, total: 0 }; agg[p].total += 1; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "sp", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik SP/BA' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                      <button onClick={() => { const agg = {}; filteredData.forEach(r => { const p = r.bulan || 'Unknown'; const j = (r.jenis_pelanggaran || 'Lainnya').trim() || 'Lainnya'; if (!agg[p]) agg[p] = { periode: p, total: 0, byJenis: {} }; agg[p].total += 1; agg[p].byJenis[j] = (agg[p].byJenis[j] || 0) + 1; }); const kinds = [...new Set(filteredData.map(r => ((r.jenis_pelanggaran || 'Lainnya').trim() || 'Lainnya')))].sort(); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "sp", rows, kinds }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik SP/BA per Jenis' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
                     )}
                     <button onClick={() => exportToExcel(filteredData, `Data_${activePanel}`, activePanel.toUpperCase())} className="bg-[#e20074] text-white hover:bg-pink-700 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">Export Panel ke Excel</button>
                     </div>
