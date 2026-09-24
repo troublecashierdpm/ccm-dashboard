@@ -75,6 +75,7 @@ export default function SupervisorDashboard() {
 
   const [activeModalData, setActiveModalData] = useState(null);
   const [salesChartPeriods, setSalesChartPeriods] = useState([]);
+  const [salesChartData, setSalesChartData] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiChat, setAiChat] = useState([]);
@@ -293,7 +294,7 @@ export default function SupervisorDashboard() {
     if (activeModalData?.type === 'global_sales_chart') {
       renderSalesChart(salesChartPeriods);
     }
-  }, [activeModalData, salesChartPeriods, empHistory.sales]);
+  }, [activeModalData, salesChartPeriods, empHistory.sales, salesChartData]);
 
   // Reset sort setiap kali pindah panel, supaya sort dari panel lain tidak terbawa
   useEffect(() => {
@@ -616,13 +617,14 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const existingChart = Chart.getChart("salesChartCanvas");
     if (existingChart) existingChart.destroy();
 
-    const rows = empHistory.sales.filter(h => periods.includes(h.bulan)).sort((a, b) => (a.bulan || '').localeCompare(b.bulan || ''));
+    const src = salesChartData || empHistory.sales.map(h => ({ periode: h.bulan, totalMemberSales: h.totalMemberSales, totalHourlySales: h.totalHourlySales, ratio: h.ratio }));
+    const rows = src.filter(h => periods.includes(h.periode)).sort((a, b) => (a.periode || '').localeCompare(b.periode || ''));
     if (rows.length === 0) return;
 
     new Chart(ctx, {
       type: "bar",
       data: {
-        labels: rows.map(h => h.bulan),
+        labels: rows.map(h => h.periode),
         datasets: [
           { label: "Sales Member", data: rows.map(h => h.totalMemberSales), backgroundColor: "#e20074", borderRadius: 6 },
           { label: "Sales Hourly", data: rows.map(h => h.totalHourlySales), backgroundColor: "#6366f1", borderRadius: 6 },
@@ -1118,7 +1120,12 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                 <div className="glass-card rounded-[2rem] shadow-xl overflow-hidden anim-pop-in">
                   <div className="p-4 bg-white/40 border-b flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider">
                     <span>{filteredData.length} Data Terangkum</span>
+                    <div className="flex gap-2">
+                    {activePanel === "sales" && (
+                      <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.periode || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0 }; agg[p].totalMemberSales += r.totalMemberSales || 0; agg[p].totalHourlySales += r.totalHourlySales || 0; agg[p].totalCount += r.totalCount || 0; }); Object.values(agg).forEach(g => { g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData(rows); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                    )}
                     <button onClick={() => exportToExcel(filteredData, `Data_${activePanel}`, activePanel.toUpperCase())} className="bg-[#e20074] text-white hover:bg-pink-700 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">Export Panel ke Excel</button>
+                    </div>
                   </div>
                   <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                     <table className="w-full text-left text-xs min-w-[500px]">
@@ -1188,7 +1195,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
 
                 {empMenu === "sales" && (
                   <div className="flex justify-end">
-                    <button onClick={() => { const latest = [...empHistory.sales].sort((a, b) => (b.bulan || '').localeCompare(a.bulan || '')).slice(0, 3).map(h => h.bulan); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: selectedKaryawan?.nama || '' } }); }} className="px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-indigo-500 text-white shadow-md hover:bg-indigo-600 transition-all active:scale-95">📊 Grafik</button>
+                    <button onClick={() => { const latest = [...empHistory.sales].sort((a, b) => (b.bulan || '').localeCompare(a.bulan || '')).slice(0, 3).map(h => h.bulan); setSalesChartData(null); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: selectedKaryawan?.nama || '' } }); }} className="px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-indigo-500 text-white shadow-md hover:bg-indigo-600 transition-all active:scale-95">📊 Grafik</button>
                   </div>
                 )}
 
@@ -1328,10 +1335,10 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         {activeModalData.data.nama}
       </div>
       <div className="p-4 bg-white border-b flex flex-wrap gap-2 justify-center">
-        {[...empHistory.sales].sort((a, b) => (b.bulan || '').localeCompare(a.bulan || '')).map(h => (
-          <label key={h.bulan} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold cursor-pointer border transition-all ${salesChartPeriods.includes(h.bulan) ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
-            <input type="checkbox" checked={salesChartPeriods.includes(h.bulan)} onChange={() => setSalesChartPeriods(prev => prev.includes(h.bulan) ? prev.filter(p => p !== h.bulan) : [...prev, h.bulan])} className="accent-indigo-500" />
-            {h.bulan}
+        {(salesChartData || empHistory.sales.map(h => ({ periode: h.bulan }))).slice().sort((a, b) => (b.periode || '').localeCompare(a.periode || '')).map(h => (
+          <label key={h.periode} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold cursor-pointer border transition-all ${salesChartPeriods.includes(h.periode) ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+            <input type="checkbox" checked={salesChartPeriods.includes(h.periode)} onChange={() => setSalesChartPeriods(prev => prev.includes(h.periode) ? prev.filter(p => p !== h.periode) : [...prev, h.periode])} className="accent-indigo-500" />
+            {h.periode}
           </label>
         ))}
       </div>
