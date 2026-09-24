@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Chart from "chart.js/auto";
 import { supabase } from "@/lib/supabaseClient";
 import { useActiveSession } from "@/lib/useActiveSession";
 import { isSupervisorWhitelisted } from "@/lib/accessControl";
@@ -153,6 +154,58 @@ export default function App() {
   
   const [detailType, setDetailType] = useState(null);
   const [activeModalData, setActiveModalData] = useState(null);
+  const [kasirChartPeriods, setKasirChartPeriods] = useState([]);
+
+  const LEGEND_OPTS = { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } };
+
+  const renderKasirChart = () => {
+    const canvas = document.getElementById("kasirChartCanvas");
+    if (!canvas || !detailType) return;
+    const ctx = canvas.getContext("2d");
+    const existing = Chart.getChart("kasirChartCanvas");
+    if (existing) existing.destroy();
+
+    const keyOf = (h) => h.periode || h.bulan;
+    const rows = (history[detailType] || []).filter(h => kasirChartPeriods.includes(keyOf(h))).sort((a, b) => (keyOf(a) || '').localeCompare(keyOf(b) || ''));
+    if (rows.length === 0) return;
+    const labels = rows.map(keyOf);
+    let datasets = [];
+    let scales = { y: { beginAtZero: true } };
+
+    if (detailType === "sales") {
+      datasets = [
+        { label: "Sales Member", data: rows.map(h => h.totalMemberSales), backgroundColor: "#e20074", borderRadius: 6 },
+        { label: "Sales Hourly", data: rows.map(h => h.totalHourlySales), backgroundColor: "#6366f1", borderRadius: 6 },
+        { label: "% Member", data: rows.map(h => h.ratio), type: "line", borderColor: "#9333ea", backgroundColor: "#9333ea", tension: 0.3, yAxisID: "y1" }
+      ];
+      scales.y1 = { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } };
+    } else if (detailType === "shortage") {
+      datasets = [
+        { label: "Short", data: rows.map(h => Math.abs(h.totalShort || 0)), backgroundColor: "#e74c3c", borderRadius: 6 },
+        { label: "Over", data: rows.map(h => h.totalOver || 0), backgroundColor: "#3498db", borderRadius: 6 }
+      ];
+    } else if (detailType === "ecobag") {
+      datasets = [
+        { label: "Large", data: rows.map(h => h.la || 0), backgroundColor: "#e74c3c", borderRadius: 6 },
+        { label: "Medium", data: rows.map(h => h.me || 0), backgroundColor: "#f39c12", borderRadius: 6 },
+        { label: "Small", data: rows.map(h => h.sm || 0), backgroundColor: "#3498db", borderRadius: 6 }
+      ];
+    } else if (detailType === "member") {
+      datasets = [{ label: "Total Member", data: rows.map(h => h.totalPerBulan), backgroundColor: "#C80082", borderRadius: 6 }];
+    } else if (detailType === "sp") {
+      datasets = [{ label: "Frekuensi SP/BA", data: rows.map(h => h.totalPerBulan), backgroundColor: "#f39c12", borderRadius: 6 }];
+    } else if (detailType === "sakit") {
+      datasets = [{ label: "Frekuensi Sakit/Izin", data: rows.map(h => h.totalPerBulan), backgroundColor: "#3498db", borderRadius: 6 }];
+    } else if (detailType === "pwp") {
+      datasets = [{ label: "Total PWP", data: rows.map(h => h.totalPerBulan), backgroundColor: "#14b8a6", borderRadius: 6 }];
+    }
+
+    new Chart(ctx, { type: "bar", data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: LEGEND_OPTS }, scales } });
+  };
+
+  useEffect(() => {
+    if (activeModalData?.type === 'kasir_chart') renderKasirChart();
+  }, [activeModalData, kasirChartPeriods, history, detailType]);
 
   // --- LOGIKA MATA MENGIKUTI KURSOR / SENTUHAN ---
   useEffect(() => {
@@ -782,7 +835,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
               {/* TABEL RANGKUMAN */}
               {detailType && (
                 <div className="glass-card p-6 rounded-[2.5rem] mt-6 shadow-xl shadow-gray-200/50 border border-white/60 anim-pop-in">
-                  <div className="flex justify-between items-center mb-5"><h4 className="font-black text-gray-800 text-sm uppercase tracking-wide">Tabel {detailType}</h4><button onClick={() => setDetailType(null)} className="bg-gray-100 hover:bg-gray-200 p-2.5 rounded-xl text-gray-500 transition-colors active:scale-90">✕</button></div>
+                  <div className="flex justify-between items-center mb-5"><h4 className="font-black text-gray-800 text-sm uppercase tracking-wide">Tabel {detailType}</h4><div className="flex gap-2"><button onClick={() => { const keyOf = (h) => h.periode || h.bulan; const latest = [...(history[detailType] || [])].sort((a, b) => (keyOf(b) || '').localeCompare(keyOf(a) || '')).slice(0, 3).map(keyOf); setKasirChartPeriods(latest); setActiveModalData({ type: 'kasir_chart', data: { title: 'Grafik ' + detailType } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-2 rounded-xl font-black text-[10px] uppercase transition shadow-sm active:scale-90">📊 Grafik</button><button onClick={() => setDetailType(null)} className="bg-gray-100 hover:bg-gray-200 p-2.5 rounded-xl text-gray-500 transition-colors active:scale-90">✕</button></div></div>
                   <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white/50">
                     <table className="w-full text-[11px] text-left min-w-[300px]">
                         <thead className="bg-gray-50 text-[#e20074] font-extrabold border-b border-gray-100 uppercase tracking-wider text-[9px]">
@@ -870,6 +923,31 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  </div>
+)}
+    {activeModalData?.type === 'kasir_chart' && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
+      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-6 text-white flex justify-between items-center">
+        <h3 className="font-black text-sm uppercase tracking-wider">{activeModalData.data.title || 'Grafik'}</h3>
+        <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
+      </div>
+      <div className="p-4 bg-white border-b flex flex-wrap gap-2 justify-center">
+        {[...(history[detailType] || [])].map(h => h.periode || h.bulan).map(p => (
+          <label key={p} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold cursor-pointer border transition-all ${kasirChartPeriods.includes(p) ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+            <input type="checkbox" checked={kasirChartPeriods.includes(p)} onChange={() => setKasirChartPeriods(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])} className="accent-indigo-500" />
+            {p}
+          </label>
+        ))}
+      </div>
+      <div className="p-5 bg-gray-50/50">
+        {kasirChartPeriods.length === 0 ? (
+          <p className="p-8 text-center text-gray-400 font-bold text-xs">Pilih minimal 1 periode untuk melihat grafik.</p>
+        ) : (
+          <div className="h-64 relative w-full bg-white rounded-2xl border border-gray-100 p-3"><canvas id="kasirChartCanvas"></canvas></div>
+        )}
       </div>
     </div>
   </div>

@@ -598,17 +598,33 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       const labels = empHistory.shortage.map(h => h.bulan).reverse();
       const shorts = empHistory.shortage.map(h => Math.abs(h.totalShort)).reverse();
       const overs = empHistory.shortage.map(h => h.totalOver).reverse();
-      new Chart(ctx, { type: "line", data: { labels, datasets: [ { label: "Short", data: shorts, borderColor: "#e74c3c", tension: 0.3, fill: true, backgroundColor: "rgba(231,76,60,0.05)" }, { label: "Over", data: overs, borderColor: "#3498db", tension: 0.3, fill: true, backgroundColor: "rgba(52,152,219,0.05)" } ] }, options: { responsive: true, maintainAspectRatio: false } });
+      new Chart(ctx, { type: "line", data: { labels, datasets: [ { label: "Short", data: shorts, borderColor: "#e74c3c", tension: 0.3, fill: true, backgroundColor: "rgba(231,76,60,0.05)" }, { label: "Over", data: overs, borderColor: "#3498db", tension: 0.3, fill: true, backgroundColor: "rgba(52,152,219,0.05)" } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
     } else if (empMenu === "member") {
       const labels = empHistory.member.map(h => h.bulan).reverse();
       const totals = empHistory.member.map(h => h.totalPerBulan).reverse();
-      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Total Member", data: totals, backgroundColor: "#C80082", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false } });
+      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Total Member", data: totals, backgroundColor: "#C80082", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
     } else if (empMenu === "ecobag") {
       const labels = empHistory.ecobag.map(h => h.bulan).reverse();
-      const totals = empHistory.ecobag.map(h => h.totalPerBulan).reverse();
-      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Total Ecobag", data: totals, backgroundColor: "#2ecc71", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false } });
+      const la = empHistory.ecobag.map(h => h.la || 0).reverse();
+      const me = empHistory.ecobag.map(h => h.me || 0).reverse();
+      const sm = empHistory.ecobag.map(h => h.sm || 0).reverse();
+      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Large", data: la, backgroundColor: "#e74c3c", borderRadius: 6 }, { label: "Medium", data: me, backgroundColor: "#f39c12", borderRadius: 6 }, { label: "Small", data: sm, backgroundColor: "#3498db", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
+    } else if (empMenu === "sp") {
+      const labels = empHistory.sp.map(h => h.bulan).reverse();
+      const totals = empHistory.sp.map(h => h.totalPerBulan).reverse();
+      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Frekuensi SP/BA", data: totals, backgroundColor: "#f39c12", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
+    } else if (empMenu === "sakit") {
+      const labels = empHistory.sakit.map(h => h.bulan).reverse();
+      const totals = empHistory.sakit.map(h => h.totalPerBulan).reverse();
+      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Frekuensi Sakit/Izin", data: totals, backgroundColor: "#3498db", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
+    } else if (empMenu === "pwp") {
+      const labels = empHistory.pwp.map(h => h.bulan).reverse();
+      const totals = empHistory.pwp.map(h => h.totalPerBulan).reverse();
+      new Chart(ctx, { type: "bar", data: { labels, datasets: [{ label: "Total PWP", data: totals, backgroundColor: "#14b8a6", borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } } } });
     }
   };
+
+  const LEGEND_OPTS = { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } };
 
   const renderSalesChart = (periods) => {
     const canvas = document.getElementById("salesChartCanvas");
@@ -617,28 +633,47 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     const existingChart = Chart.getChart("salesChartCanvas");
     if (existingChart) existingChart.destroy();
 
-    const src = salesChartData || empHistory.sales.map(h => ({ periode: h.bulan, totalMemberSales: h.totalMemberSales, totalHourlySales: h.totalHourlySales, ratio: h.ratio }));
+    const panel = salesChartData?.panel || "sales";
+    const src = salesChartData?.rows || empHistory.sales.map(h => ({ periode: h.bulan, totalMemberSales: h.totalMemberSales, totalHourlySales: h.totalHourlySales, ratio: h.ratio }));
     const rows = src.filter(h => periods.includes(h.periode)).sort((a, b) => (a.periode || '').localeCompare(b.periode || ''));
     if (rows.length === 0) return;
 
+    const labels = rows.map(h => h.periode);
+    let datasets = [];
+    let scales = { y: { beginAtZero: true } };
+
+    if (panel === "sales") {
+      datasets = [
+        { label: "Sales Member", data: rows.map(h => h.totalMemberSales), backgroundColor: "#e20074", borderRadius: 6 },
+        { label: "Sales Hourly", data: rows.map(h => h.totalHourlySales), backgroundColor: "#6366f1", borderRadius: 6 },
+        { label: "% Member", data: rows.map(h => h.ratio), type: "line", borderColor: "#9333ea", backgroundColor: "#9333ea", tension: 0.3, yAxisID: "y1" }
+      ];
+      scales.y1 = { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } };
+    } else if (panel === "shortage") {
+      datasets = [
+        { label: "Short", data: rows.map(h => h.short), backgroundColor: "#e74c3c", borderRadius: 6 },
+        { label: "Over", data: rows.map(h => h.over), backgroundColor: "#3498db", borderRadius: 6 }
+      ];
+    } else if (panel === "ecobag") {
+      datasets = [
+        { label: "Large", data: rows.map(h => h.la), backgroundColor: "#e74c3c", borderRadius: 6 },
+        { label: "Medium", data: rows.map(h => h.me), backgroundColor: "#f39c12", borderRadius: 6 },
+        { label: "Small", data: rows.map(h => h.sm), backgroundColor: "#3498db", borderRadius: 6 }
+      ];
+    } else if (panel === "member") {
+      datasets = [{ label: "Total Member", data: rows.map(h => h.total), backgroundColor: "#C80082", borderRadius: 6 }];
+    } else if (panel === "sp") {
+      datasets = [{ label: "Frekuensi SP/BA", data: rows.map(h => h.total), backgroundColor: "#f39c12", borderRadius: 6 }];
+    }
+
     new Chart(ctx, {
       type: "bar",
-      data: {
-        labels: rows.map(h => h.periode),
-        datasets: [
-          { label: "Sales Member", data: rows.map(h => h.totalMemberSales), backgroundColor: "#e20074", borderRadius: 6 },
-          { label: "Sales Hourly", data: rows.map(h => h.totalHourlySales), backgroundColor: "#6366f1", borderRadius: 6 },
-          { label: "% Member", data: rows.map(h => h.ratio), type: "line", borderColor: "#9333ea", backgroundColor: "#9333ea", tension: 0.3, yAxisID: "y1" }
-        ]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: true, position: "top", labels: { usePointStyle: true, boxWidth: 8 } } },
-        scales: {
-          y: { beginAtZero: true },
-          y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, ticks: { callback: v => v + "%" } }
-        }
+        plugins: { legend: LEGEND_OPTS },
+        scales
       }
     });
   };
@@ -1123,7 +1158,16 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                     <span>{filteredData.length} Data Terangkum</span>
                     <div className="flex gap-2">
                     {activePanel === "sales" && (
-                      <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.periode || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0 }; agg[p].totalMemberSales += r.totalMemberSales || 0; agg[p].totalHourlySales += r.totalHourlySales || 0; agg[p].totalCount += r.totalCount || 0; }); Object.values(agg).forEach(g => { g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData(rows); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                      <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.periode || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0 }; agg[p].totalMemberSales += r.totalMemberSales || 0; agg[p].totalHourlySales += r.totalHourlySales || 0; agg[p].totalCount += r.totalCount || 0; }); Object.values(agg).forEach(g => { g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "sales", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik Sales Ratio' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                    )}
+                    {activePanel === "ecobag" && (
+                      <button onClick={() => { const agg = {}; filteredData.forEach(r => { const p = r.year_month || r.month || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, la: 0, me: 0, sm: 0 }; agg[p].la += r.bag_la || 0; agg[p].me += r.bag_me || 0; agg[p].sm += r.bag_sm || 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "ecobag", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik Ecobag' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                    )}
+                    {activePanel === "member" && (
+                      <button onClick={() => { const agg = {}; sortedData.forEach(r => { const p = r.bulan || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, total: 0 }; agg[p].total += r.total || 0; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "member", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik Member' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
+                    )}
+                    {activePanel === "sp" && (
+                      <button onClick={() => { const agg = {}; filteredData.forEach(r => { const p = r.bulan || 'Unknown'; if (!agg[p]) agg[p] = { periode: p, total: 0 }; agg[p].total += 1; }); const rows = Object.values(agg).sort((a, b) => (b.periode || '').localeCompare(a.periode || '')); const latest = rows.slice(0, 3).map(g => g.periode); setSalesChartData({ panel: "sp", rows }); setSalesChartPeriods(latest); setActiveModalData({ type: 'global_sales_chart', data: { nama: searchNama || 'Semua Kasir', title: 'Grafik SP/BA' } }); }} className="bg-indigo-500 text-white hover:bg-indigo-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">📊 Grafik</button>
                     )}
                     <button onClick={() => exportToExcel(filteredData, `Data_${activePanel}`, activePanel.toUpperCase())} className="bg-[#e20074] text-white hover:bg-pink-700 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase transition shadow-sm">Export Panel ke Excel</button>
                     </div>
@@ -1192,7 +1236,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                   ))}
                 </div>
 
-                {["shortage", "member", "ecobag"].includes(empMenu) && ( <div className="glass-card p-6 rounded-[2rem] shadow-sm"><div className="h-64 relative w-full"><canvas id="individualChartCanvas"></canvas></div></div> )}
+                {["shortage", "member", "ecobag", "sp", "sakit", "pwp"].includes(empMenu) && ( <div className="glass-card p-6 rounded-[2rem] shadow-sm"><div className="h-64 relative w-full"><canvas id="individualChartCanvas"></canvas></div></div> )}
 
                 {empMenu === "sales" && (
                   <div className="flex justify-end">
@@ -1329,14 +1373,14 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
     <div className="bg-white w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl anim-pop-in">
       <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-6 text-white flex justify-between items-center">
-        <h3 className="font-black text-sm uppercase tracking-wider">Grafik Sales Ratio</h3>
+        <h3 className="font-black text-sm uppercase tracking-wider">{activeModalData.data.title || 'Grafik Sales Ratio'}</h3>
         <button onClick={() => setActiveModalData(null)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors active:scale-90">✕</button>
       </div>
       <div className="p-4 bg-gray-50 border-b text-center text-xs font-black text-gray-800 uppercase tracking-widest">
         {activeModalData.data.nama}
       </div>
       <div className="p-4 bg-white border-b flex flex-wrap gap-2 justify-center">
-        {(salesChartData || empHistory.sales.map(h => ({ periode: h.bulan }))).slice().sort((a, b) => (b.periode || '').localeCompare(a.periode || '')).map(h => (
+        {((salesChartData?.rows) || empHistory.sales.map(h => ({ periode: h.bulan }))).slice().sort((a, b) => (b.periode || '').localeCompare(a.periode || '')).map(h => (
           <label key={h.periode} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold cursor-pointer border transition-all ${salesChartPeriods.includes(h.periode) ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
             <input type="checkbox" checked={salesChartPeriods.includes(h.periode)} onChange={() => setSalesChartPeriods(prev => prev.includes(h.periode) ? prev.filter(p => p !== h.periode) : [...prev, h.periode])} className="accent-indigo-500" />
             {h.periode}
