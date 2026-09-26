@@ -586,7 +586,7 @@ function getStatusBadgeClass(remarks) {
 
       if (!mapInstanceRef.current && mapRef.current) {
         const map = L.map(mapRef.current, { zoomControl: false }).setView([-6.982823, 110.411941], 17);
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
         ALLOWED_LOCATIONS.forEach(loc => {
           L.circle([loc.lat, loc.lon], { color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.15, radius: MAX_DISTANCE }).addTo(map);
         });
