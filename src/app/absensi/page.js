@@ -947,6 +947,12 @@ function getStatusBadgeClass(remarks) {
               <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
               <h4 className="text-lg font-black text-amber-500">{logData.stats.noIn}</h4>
             </div>
+            {logData.isCurrentMonth && (
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-3 border-t-2 border-t-blue-500">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">Next Workday</p>
+                <h4 className="text-lg font-black text-blue-600">{logData.stats.nextWorkday} <span className="text-[10px] font-bold text-gray-400">hari kerja tersisa</span></h4>
+              </div>
+            )}
           </div>
         )}
 

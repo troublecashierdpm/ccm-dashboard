@@ -52,7 +52,7 @@ export async function GET(req) {
     const isCurrentMonth = (targetYear === now.getFullYear() && targetMonth === now.getMonth());
     const todayNow = now.getDate();
 
-    let statLate = 0, statEarly = 0, statAbsent = 0, statNoIn = 0, statPresent = 0;
+    let statLate = 0, statEarly = 0, statAbsent = 0, statNoIn = 0, statPresent = 0, nextWorkday = 0;
     const resultList = [];
 
     for (let d = 1; d <= lastDay; d++) {
@@ -86,6 +86,9 @@ export async function GET(req) {
         if (remarks === "Present" || remarks === "Normal" || remarks === "Perubahan Schedule") statPresent++;
       }
 
+      // Next Workday: sisa hari kerja (non-OFF) dari besok s/d akhir bulan, hanya bulan berjalan
+      if (isCurrentMonth && d > todayNow && !shiftDetails.isOff) nextWorkday++;
+
       resultList.push({
         date: displayDate, fullDate: fullDisplayDate,
         shift: shiftDetails.isOff ? "Day off" : shiftCode,
@@ -96,8 +99,8 @@ export async function GET(req) {
     }
 
     return NextResponse.json({
-      success: true, month: monthYearStr,
-      stats: { late: statLate, early: statEarly, absent: statAbsent, noIn: statNoIn, present: statPresent },
+      success: true, month: monthYearStr, isCurrentMonth,
+      stats: { late: statLate, early: statEarly, absent: statAbsent, noIn: statNoIn, present: statPresent, nextWorkday },
       logs: resultList
     });
   } catch (err) {
