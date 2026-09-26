@@ -1637,18 +1637,16 @@ function getStatusBadgeClass(remarks) {
       <div className="p-6 space-y-3">
         {toast && <div className="bg-green-100 text-green-700 font-bold text-sm p-3 rounded-xl text-center">{toast}</div>}
 
-        {!user.isOff && (
-          <div className="flex gap-3">
-            <button onClick={() => startAttendanceFlow("Clock In")}
-              className="flex-1 py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg shadow-pink-200">
-              📷 Clock In
-            </button>
-            <button onClick={() => startAttendanceFlow("Clock Out")}
-              className="flex-1 py-4 bg-white border border-gray-200 text-gray-800 font-bold rounded-2xl shadow-sm">
-              📷 Clock Out
-            </button>
-          </div>
-        )}
+        <div className="flex gap-3">
+          <button onClick={() => startAttendanceFlow("Clock In")}
+            className="flex-1 py-4 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg shadow-pink-200">
+            📷 Clock In
+          </button>
+          <button onClick={() => startAttendanceFlow("Clock Out")}
+            className="flex-1 py-4 bg-white border border-gray-200 text-gray-800 font-bold rounded-2xl shadow-sm">
+            📷 Clock Out
+          </button>
+        </div>
 
                 <div className="bg-white rounded-2xl p-4 shadow-sm flex justify-between text-sm">
           <span className="text-gray-500 font-semibold">Clock In</span>
