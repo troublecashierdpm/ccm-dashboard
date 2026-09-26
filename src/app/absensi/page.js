@@ -943,14 +943,14 @@ function getStatusBadgeClass(remarks) {
               <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
               <h4 className="text-lg font-black text-red-600">{logData.stats.absent}</h4>
             </div>
-            <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-2">
+            <div className={`bg-white rounded-xl p-3 text-center shadow-sm ${logData.isCurrentMonth ? "" : "col-span-2"}`}>
               <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
               <h4 className="text-lg font-black text-amber-500">{logData.stats.noIn}</h4>
             </div>
             {logData.isCurrentMonth && (
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-3 border-t-2 border-t-blue-500">
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm border-t-2 border-t-blue-500">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">Next Workday</p>
-                <h4 className="text-lg font-black text-blue-600">{logData.stats.nextWorkday} <span className="text-[10px] font-bold text-gray-400">hari kerja tersisa</span></h4>
+                <h4 className="text-lg font-black text-blue-600">{logData.stats.nextWorkday}<span className="text-[10px] font-bold text-gray-400"> hari</span></h4>
               </div>
             )}
           </div>
@@ -1472,10 +1472,16 @@ function getStatusBadgeClass(remarks) {
               <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
               <h4 className="text-lg font-black text-red-600">{staffStats.absent}</h4>
             </div>
-            <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-2">
+            <div className={`bg-white rounded-xl p-3 text-center shadow-sm ${staffDetailData?.isCurrentMonth ? "" : "col-span-2"}`}>
               <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
               <h4 className="text-lg font-black text-amber-500">{staffStats.noIn}</h4>
             </div>
+            {staffDetailData?.isCurrentMonth && (
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm border-t-2 border-t-blue-500">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">Next Workday</p>
+                <h4 className="text-lg font-black text-blue-600">{staffDetailData.stats.nextWorkday}<span className="text-[10px] font-bold text-gray-400"> hari</span></h4>
+              </div>
+            )}
           </div>
 
           {staffDetailLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
