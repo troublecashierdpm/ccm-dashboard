@@ -15,7 +15,8 @@ export async function GET() {
       .from('absensi_request')
       .select('*')
       .eq('status', 'Pending')
-      .order('waktu_submit', { ascending: false });
+      .order('tanggal_absen', { ascending: false })
+      .order('req_id', { ascending: false });
     if (error) throw new Error(error.message);
     if (!requests || requests.length === 0) return NextResponse.json({ success: true, data: [] });
 

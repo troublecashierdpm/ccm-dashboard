@@ -83,6 +83,7 @@ const [reqFoto, setReqFoto] = useState("");
 const [reqSubmitting, setReqSubmitting] = useState(false);
 const [myRequests, setMyRequests] = useState(null);
 const [myRequestsLoading, setMyRequestsLoading] = useState(false);
+const [myReqBulan, setMyReqBulan] = useState("");
 const [approvalList, setApprovalList] = useState(null);
 const [approvalLoading, setApprovalLoading] = useState(false);
 const [approvalFilter, setApprovalFilter] = useState("All");
@@ -447,6 +448,7 @@ async function submitReqShift() {
  
 async function openMyRequests() {
   setStep("my-requests");
+  setMyReqBulan("");
   setMyRequestsLoading(true);
   try {
     const res = await fetch(`/api/absensi/my-requests?nik=${user.nik}`);
@@ -1257,18 +1259,27 @@ function getStatusBadgeClass(remarks) {
 
   // STEP: MY REQUESTS
   if (step === "my-requests") {
+    const myReqBulanOptions = [...new Set((myRequests || []).map(r => String(r.tglAbsen || "").slice(0, 7)).filter(Boolean))].sort().reverse();
+    const myReqFiltered = (myRequests || []).filter(r => !myReqBulan || String(r.tglAbsen || "").startsWith(myReqBulan));
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
-        <div className="bg-white p-5 flex items-center gap-4 shadow-sm sticky top-0 z-10">
-          <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
-          <h2 className="font-bold text-gray-800">My Requests</h2>
+        <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
+          <div className="flex items-center gap-4 mb-4">
+            <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
+            <h2 className="font-bold text-gray-800">My Requests</h2>
+          </div>
+          <select value={myReqBulan} onChange={(e) => setMyReqBulan(e.target.value)}
+            className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+            <option value="">Semua Bulan</option>
+            {myReqBulanOptions.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
         </div>
         <div className="p-5 space-y-3">
           {myRequestsLoading && <div className="text-center text-gray-400 text-sm py-10">Memuat...</div>}
-          {!myRequestsLoading && myRequests && myRequests.length === 0 && (
+          {!myRequestsLoading && myReqFiltered.length === 0 && (
             <div className="text-center text-gray-400 text-sm py-10">Belum ada pengajuan.</div>
           )}
-          {!myRequestsLoading && myRequests && myRequests.map((r, i) => {
+          {!myRequestsLoading && myReqFiltered.map((r, i) => {
             const jenis = r.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
             const alasanTampil = r.alasan.replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim();
             const badge = r.statusReq === "Approved" ? "bg-green-100 text-green-700"
@@ -1280,7 +1291,7 @@ function getStatusBadgeClass(remarks) {
                   <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase ${badge}`}>{r.statusReq}</span>
                 </div>
                 <div className="text-xs space-y-1">
-                  <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
+                  <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong> <span className="text-[10px] text-gray-400">(submit: {r.submitTgl || "-"})</span></p>
                   {jenis === "Change Shift"
                     ? <p><span className="text-gray-500">Shift Baru:</span> <strong className="text-[#e20074]">{r.shiftBaru}</strong></p>
                     : <p><span className="text-gray-500">Jam Diajukan:</span> In ({r.jamIn}) | Out ({r.jamOut})</p>}

@@ -19,7 +19,7 @@ export async function GET(req) {
       .from("absensi_request")
       .select("*")
       .eq("nik", nik)
-      .order("waktu_submit", { ascending: false });
+      .order("req_id", { ascending: false });
     if (error) throw new Error(error.message);
 
     const list = (data || []).map(r => ({
