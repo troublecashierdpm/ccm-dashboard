@@ -149,6 +149,17 @@ function formatPhotoUrl(url) {
     }
   }
 
+  async function triggerBackfillWaktu() {
+    setSyncStatus({ text: "Normalisasi format waktu request...", success: null });
+    try {
+      const res = await fetch('/api/sync-absensi/backfill-waktu', { method: "POST" });
+      const json = await res.json();
+      setSyncStatus({ text: json.message || `Backfill ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
+    } catch (err) {
+      setSyncStatus({ text: `Error: ${err.message}`, success: false });
+    }
+  }
+
   async function triggerReverseSync(type) {
     const map = {
       'Master Schedule': '/api/sync-absensi/reverse/master-schedule',
@@ -1626,6 +1637,7 @@ function getStatusBadgeClass(remarks) {
                       <button key={t} onClick={() => triggerReverseSync(t)} className="w-full py-2.5 bg-purple-50 text-purple-700 font-bold text-[10px] rounded-lg">{t}</button>
                     ))}
                     <button onClick={() => triggerReverseSync()} className="col-span-2 w-full py-3 bg-purple-600 text-white font-bold text-xs rounded-xl">Reverse Sync All</button>
+                    <button onClick={triggerBackfillWaktu} className="col-span-2 w-full py-2.5 bg-amber-50 text-amber-700 font-bold text-[10px] rounded-lg">Normalisasi Format Waktu Request</button>
                   </div>
                 </div>
 

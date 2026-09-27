@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
-import { ddmmyyyyToIso } from '@/lib/absensiHelpers';
+import { ddmmyyyyToIso, formatWaktuDb } from '@/lib/absensiHelpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,18 +100,18 @@ export async function GET(request, { params }) {
                 if (!reqId || existingIds.has(reqId)) continue;
                 if (isShiftBaruFormat) {
                     data.push({
-                        req_id: reqId, waktu_submit: cleanVal(row[1]), nik: cleanVal(row[2]), nama: row[3] || null,
+                        req_id: reqId, waktu_submit: formatWaktuDb(cleanVal(row[1])), nik: cleanVal(row[2]), nama: row[3] || null,
                         tanggal_absen: ddmmyyyyToIso(row[4]), shift_baru: row[5] || '-',
                         jam_in_baru: cleanVal(row[6]) || '-', jam_out_baru: cleanVal(row[7]) || '-',
-                        alasan: row[8] || '', status: row[9] || 'Pending', tanggal_action: cleanVal(row[10]) || '-',
+                        alasan: row[8] || '', status: row[9] || 'Pending', tanggal_action: formatWaktuDb(cleanVal(row[10]) || '-'),
                         foto_lampiran: row[11] || null, catatan_admin: row[12] || '-'
                     });
                 } else {
                     data.push({
-                        req_id: reqId, waktu_submit: cleanVal(row[1]), nik: cleanVal(row[2]), nama: row[3] || null,
+                        req_id: reqId, waktu_submit: formatWaktuDb(cleanVal(row[1])), nik: cleanVal(row[2]), nama: row[3] || null,
                         tanggal_absen: ddmmyyyyToIso(row[4]), shift_baru: '-',
                         jam_in_baru: cleanVal(row[5]) || '-', jam_out_baru: cleanVal(row[6]) || '-',
-                        alasan: row[7] || '', status: row[8] || 'Pending', tanggal_action: cleanVal(row[9]) || '-',
+                        alasan: row[7] || '', status: row[8] || 'Pending', tanggal_action: formatWaktuDb(cleanVal(row[9]) || '-'),
                         foto_lampiran: row[10] || null, catatan_admin: row[11] || '-'
                     });
                 }

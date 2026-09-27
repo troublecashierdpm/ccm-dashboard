@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
-import { ddmmyyyyToIso } from '@/lib/absensiHelpers';
+import { ddmmyyyyToIso, formatWaktuDb } from '@/lib/absensiHelpers';
 
 export async function GET() {
   try {
@@ -135,7 +135,7 @@ export async function GET() {
           if (isShiftBaruFormat) {
             return {
               req_id: reqId,
-              waktu_submit: cleanVal(row[1]),
+              waktu_submit: formatWaktuDb(cleanVal(row[1])),
               nik: cleanVal(row[2]),
               nama: row[3] || null,
               tanggal_absen: ddmmyyyyToIso(row[4]),
@@ -144,7 +144,7 @@ export async function GET() {
               jam_out_baru: cleanVal(row[7]) || '-',
               alasan: row[8] || '',
               status: row[9] || 'Pending',
-              tanggal_action: cleanVal(row[10]) || '-',
+              tanggal_action: formatWaktuDb(cleanVal(row[10]) || '-'),
               foto_lampiran: row[11] || null,
               catatan_admin: row[12] || '-'
             };
@@ -152,7 +152,7 @@ export async function GET() {
           // Format lama: tidak ada kolom "Kode Shift Baru"
           return {
             req_id: reqId,
-            waktu_submit: cleanVal(row[1]),
+            waktu_submit: formatWaktuDb(cleanVal(row[1])),
             nik: cleanVal(row[2]),
             nama: row[3] || null,
             tanggal_absen: ddmmyyyyToIso(row[4]),
@@ -161,7 +161,7 @@ export async function GET() {
             jam_out_baru: cleanVal(row[6]) || '-',
             alasan: row[7] || '',
             status: row[8] || 'Pending',
-            tanggal_action: cleanVal(row[9]) || '-',
+            tanggal_action: formatWaktuDb(cleanVal(row[9]) || '-'),
             foto_lampiran: row[10] || null,
             catatan_admin: row[11] || '-'
           };

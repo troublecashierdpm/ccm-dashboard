@@ -31,11 +31,15 @@ export function isoToDdMmYyyy(iso) {
   return `${d}/${m}/${y}`;
 }
 
-// Nilai datetime apapun (ISO / sv-SE / timestamp) -> "yyyy-mm-dd hh:mm:ss" WIB.
-// Dipakai agar kolom Waktu Submit / Tanggal Action di sheet konsisten.
+// Nilai datetime apapun (ISO / sv-SE / dd/mm/yyyy) -> "yyyy-mm-dd hh:mm:ss" WIB.
+// Idempoten: nilai yang sudah "yyyy-mm-dd hh:mm:ss" dikembalikan apa adanya.
 export function formatWaktuDb(val) {
   if (!val || val === "-") return "-";
   const raw = String(val).trim();
+  const already = raw.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (already) {
+    return `${already[1]}-${already[2]}-${already[3]} ${already[4]}:${already[5]}:${already[6] || "00"}`;
+  }
   const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
   if (m) {
     const dd = m[1].padStart(2, "0"), mm = m[2].padStart(2, "0"), yyyy = m[3];
