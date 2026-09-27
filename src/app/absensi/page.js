@@ -135,12 +135,19 @@ function formatPhotoUrl(url) {
     }
   }
 
-  async function triggerReverseSync() {
-    setSyncStatus({ text: "Syncing Reverse (Supabase → Sheet)...", success: null });
+  async function triggerReverseSync(type) {
+    const map = {
+      'Master Schedule': '/api/sync-absensi/reverse/master-schedule',
+      'Log Absensi': '/api/sync-absensi/reverse/log-absensi',
+      'Data Request': '/api/sync-absensi/reverse/data-request'
+    };
+    const url = (type && map[type]) ? map[type] : '/api/sync-absensi/reverse';
+    const label = (type && map[type]) ? `Reverse ${type}` : 'Reverse All';
+    setSyncStatus({ text: `Syncing ${label} (Supabase → Sheet)...`, success: null });
     try {
-      const res = await fetch('/api/sync-absensi/reverse', { method: "POST" });
+      const res = await fetch(url, { method: "POST" });
       const json = await res.json();
-      setSyncStatus({ text: json.message || `Reverse sync ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
+      setSyncStatus({ text: json.message || `${label} ${json.success ? 'berhasil' : 'gagal'}`, success: json.success });
     } catch (err) {
       setSyncStatus({ text: `Error: ${err.message}`, success: false });
     }
@@ -1600,7 +1607,12 @@ function getStatusBadgeClass(remarks) {
                 {/* GROUP 2: Reverse Sync */}
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Reverse (DB → Sheet)</p>
-                  <button onClick={triggerReverseSync} className="w-full py-3 bg-purple-50 text-purple-700 font-bold text-xs rounded-xl">Reverse Sync</button>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Master Schedule', 'Log Absensi', 'Data Request'].map(t => (
+                      <button key={t} onClick={() => triggerReverseSync(t)} className="w-full py-2.5 bg-purple-50 text-purple-700 font-bold text-[10px] rounded-lg">{t}</button>
+                    ))}
+                    <button onClick={() => triggerReverseSync()} className="col-span-2 w-full py-3 bg-purple-600 text-white font-bold text-xs rounded-xl">Reverse Sync All</button>
+                  </div>
                 </div>
 
                 {/* GROUP 3: Email Tools */}

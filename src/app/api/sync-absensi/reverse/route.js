@@ -2,174 +2,26 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { google } from 'googleapis';
-import { createClient } from '@supabase/supabase-js';
-import { hitungJamKerja } from '@/lib/absensiHelpers';
-function toYyyyMmDd(iso) {
-  if (!iso) return '';
-  return String(iso).slice(0, 10);
-}
+import {
+  getSupabase, spreadsheet,
+  reverseMasterSchedule, reverseLogAbsensi, reverseDataRequest
+} from './lib';
 
 export async function POST() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
-    privateKey = privateKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
-
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: privateKey,
-      },
-      // PERLU scope penuh (bukan readonly) karena ini MENULIS balik ke sheet
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID_ABSENSI;
+    const supabase = getSupabase();
+    const { sheets, spreadsheetId } = spreadsheet();
 
     let ringkasan = [];
 
-    // ========================================================
-    // 1. MASTER_SCHEDULE (long format Supabase -> wide format sheet)
-    // ========================================================
-    // Ambil NIK & Nama dari absensi_nik (hanya PPKK)
-    const { data: allNiksData, error: nikErr } = await supabase
-      .from('absensi_nik').select('nik, nama').eq('status', 'PPKK');
-    if (nikErr) throw new Error("Gagal baca NIK: " + nikErr.message);
-    const allNiks = allNiksData.map(r => ({ nik: r.nik, nama: r.nama || '' })).sort((a, b) => a.nik.localeCompare(b.nik));
+    const master = await reverseMasterSchedule(supabase, sheets, spreadsheetId);
+    ringkasan.push(master.summary);
 
-    // Ambil data schedule per batch
-    let scheduleRows = [];
-    let rangeStart = 0;
-    const pageSize = 1000;
-    while (true) {
-      const { data, error } = await supabase
-        .from('absensi_master_schedule')
-        .select('nik, tanggal, shift_code')
-        .range(rangeStart, rangeStart + pageSize - 1);
-      if (error) throw new Error("Gagal baca schedule: " + error.message);
-      if (!data || data.length === 0) break;
-      scheduleRows.push(...data);
-      if (data.length < pageSize) break;
-      rangeStart += pageSize;
-    }
+    const log = await reverseLogAbsensi(supabase, sheets, spreadsheetId, master.scheduleMap);
+    ringkasan.push(log.summary);
 
-    let scheduleMap = {};
-    if (allNiks.length > 0) {
-      const allDates = [...new Set(scheduleRows.map(r => toYyyyMmDd(r.tanggal)))].sort();
-      scheduleRows.forEach(r => {
-        const d = toYyyyMmDd(r.tanggal);
-        if (!scheduleMap[r.nik]) scheduleMap[r.nik] = {};
-        scheduleMap[r.nik][d] = r.shift_code;
-      });
-
-      const header = ['NIK', 'Nama', ...allDates.map(d => toYyyyMmDd(d))];
-      const dataGrid = allNiks.map(item => {
-        const row = [item.nik, item.nama];
-        allDates.forEach(d => row.push((scheduleMap[item.nik] && scheduleMap[item.nik][d]) || '-'));
-        return row;
-      });
-
-      await sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Master_Schedule' });
-      await sheets.spreadsheets.values.update({
-        spreadsheetId, range: 'Master_Schedule!A1',
-        valueInputOption: 'RAW',
-        requestBody: { values: [header, ...dataGrid] }
-      });
-      ringkasan.push(`Master_Schedule: ${allNiks.length} karyawan x ${allDates.length} tanggal`);
-    }
-
-    // ========================================================
-    // 2. LOG_ABSENSI
-    // ========================================================
-    // Ambil data log per batch agar tidak terkena limit default Supabase (1000 baris)
-    let logRows = [];
-    let logRangeStart = 0;
-    const logPageSize = 500;
-    while (true) {
-      const { data, error } = await supabase
-        .from('absensi_log')
-        .select('*')
-        .order('id', { ascending: true })
-        .range(logRangeStart, logRangeStart + logPageSize - 1);
-      if (error) throw new Error("Gagal baca log: " + error.message);
-      if (!data || data.length === 0) break;
-      logRows.push(...data);
-      if (data.length < logPageSize) break;
-      logRangeStart += logPageSize;
-    }
-
-    const logHeader = ["Date","NIK","Nama Lengkap","Shift","Remarks","Clock In","Clock Out","Late In","Early Out","Durasi Kerja","Foto In","Foto Out"];
-    const logGrid = (logRows || []).map(r => [
-      toYyyyMmDd(r.tanggal), r.nik, r.nama || '', r.shift || '', r.remarks || '',
-      r.clock_in || '', r.clock_out || '', r.late_in || '', r.early_out || '', r.durasi_kerja || '',
-      r.foto_in || '', r.foto_out || ''
-    ]);
-
-    // Generate baris Alpha: NIK x tanggal kerja (non-OFF) bulan berjalan tanpa baris log
-    const todayJakarta = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
-    const monthPrefix = todayJakarta.slice(0, 7);
-    const todayDay = parseInt(todayJakarta.slice(8, 10), 10);
-    const pad2 = (n) => String(n).padStart(2, '0');
-    const logKeySet = new Set((logRows || []).map(r => `${r.nik}|${toYyyyMmDd(r.tanggal)}`));
-    let alphaCount = 0;
-    for (const item of allNiks) {
-      for (let d = 1; d <= todayDay; d++) {
-        const dateIso = `${monthPrefix}-${pad2(d)}`;
-        if (logKeySet.has(`${item.nik}|${dateIso}`)) continue;
-        const shiftCode = (scheduleMap[item.nik] && scheduleMap[item.nik][dateIso]) || null;
-        if (!shiftCode || hitungJamKerja(shiftCode).isOff) continue;
-        logGrid.push([dateIso, item.nik, item.nama, shiftCode, 'Alpha', '', '', '', '', '', '', '']);
-        alphaCount++;
-      }
-    }
-    logGrid.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1])));
-
-    await sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Log_Absensi' });
-    await sheets.spreadsheets.values.update({
-      spreadsheetId, range: 'Log_Absensi!A1',
-      valueInputOption: 'RAW',
-      requestBody: { values: [logHeader, ...logGrid] }
-    });
-    ringkasan.push(`Log_Absensi: ${logGrid.length} baris (${alphaCount} Alpha)`);
-
-    // ========================================================
-    // 3. DATA_REQUEST (dengan pagination agar tidak kepotong limit 1000)
-    // ========================================================
-    let reqRows = [];
-    let reqRangeStart = 0;
-    const reqPageSize = 500;
-    while (true) {
-      const { data, error } = await supabase
-        .from('absensi_request').select('*')
-        .order('waktu_submit', { ascending: true })
-        .range(reqRangeStart, reqRangeStart + reqPageSize - 1);
-      if (error) throw new Error("Gagal baca request: " + error.message);
-      if (!data || data.length === 0) break;
-      reqRows.push(...data);
-      if (data.length < reqPageSize) break;
-      reqRangeStart += reqPageSize;
-    }
-
-    const reqHeader = ["ID Request","Waktu Submit","NIK","Nama Lengkap","Tanggal Absen","Kode Shift Baru","Jam In Baru","Jam Out Baru","Alasan","Status","Tanggal Action","Foto Lampiran","Pesan/Catatan Admin"];
-    const reqGrid = (reqRows || []).map(r => [
-      r.req_id, r.waktu_submit, r.nik, r.nama || '', toYyyyMmDd(r.tanggal_absen),
-      r.shift_baru || '-', r.jam_in_baru || '-', r.jam_out_baru || '-', r.alasan || '',
-      r.status || 'Pending', r.tanggal_action || '-', r.foto_lampiran || '', r.catatan_admin || '-'
-    ]);
-
-    await sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Data_Request' });
-    await sheets.spreadsheets.values.update({
-      spreadsheetId, range: 'Data_Request!A1',
-      valueInputOption: 'RAW',
-      requestBody: { values: [reqHeader, ...reqGrid] }
-    });
-    ringkasan.push(`Data_Request: ${reqGrid.length} baris`);
+    const req = await reverseDataRequest(supabase, sheets, spreadsheetId);
+    ringkasan.push(req.summary);
 
     return NextResponse.json({
       success: true,
