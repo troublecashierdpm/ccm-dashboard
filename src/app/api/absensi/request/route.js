@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { formatWaktuDb } from '@/lib/absensiHelpers';
 
 export async function POST(req) {
   try {
@@ -33,10 +34,7 @@ export async function POST(req) {
     }
 
     const reqId = "REQ-" + Date.now();
-    const nowStr = new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
-    }).format(new Date());
+    const nowStr = formatWaktuDb(new Date().toISOString());
 
     const { error: insErr } = await supabase.from("absensi_request").insert({
       req_id: reqId,

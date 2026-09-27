@@ -31,6 +31,26 @@ export function isoToDdMmYyyy(iso) {
   return `${d}/${m}/${y}`;
 }
 
+// Nilai datetime apapun (ISO / sv-SE / timestamp) -> "yyyy-mm-dd hh:mm:ss" WIB.
+// Dipakai agar kolom Waktu Submit / Tanggal Action di sheet konsisten.
+export function formatWaktuDb(val) {
+  if (!val || val === "-") return "-";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) {
+      const s = String(val).trim().replace("T", " ").slice(0, 19);
+      return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s) ? s : "-";
+    }
+    const parts = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+    }).format(d);
+    return parts.replace("T", " ");
+  } catch {
+    return "-";
+  }
+}
+
 // Persis logika hitungJamKerja di Code.gs
 export function hitungJamKerja(code) {
   if (code === "XX") return { jam: "09:00 - 18:00", isOff: false };

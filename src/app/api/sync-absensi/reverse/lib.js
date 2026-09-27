@@ -2,7 +2,7 @@
 // Fungsi bersama untuk reverse sync (DB -> Sheet), dipakai Reverse All + single per tabel.
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
-import { hitungJamKerja } from '@/lib/absensiHelpers';
+import { hitungJamKerja, formatWaktuDb } from '@/lib/absensiHelpers';
 
 export function toYyyyMmDd(iso) {
   if (!iso) return '';
@@ -160,9 +160,9 @@ export async function reverseDataRequest(supabase, sheets, spreadsheetId) {
 
   const reqHeader = ["ID Request","Waktu Submit","NIK","Nama Lengkap","Tanggal Absen","Kode Shift Baru","Jam In Baru","Jam Out Baru","Alasan","Status","Tanggal Action","Foto Lampiran","Pesan/Catatan Admin"];
   const reqGrid = (reqRows || []).map(r => [
-    r.req_id, r.waktu_submit, r.nik, r.nama || '', toYyyyMmDd(r.tanggal_absen),
+    r.req_id, formatWaktuDb(r.waktu_submit), r.nik, r.nama || '', toYyyyMmDd(r.tanggal_absen),
     r.shift_baru || '-', r.jam_in_baru || '-', r.jam_out_baru || '-', r.alasan || '',
-    r.status || 'Pending', r.tanggal_action || '-', r.foto_lampiran || '', r.catatan_admin || '-'
+    r.status || 'Pending', formatWaktuDb(r.tanggal_action), r.foto_lampiran || '', r.catatan_admin || '-'
   ]);
 
   await writeTab(sheets, spreadsheetId, 'Data_Request', reqHeader, reqGrid);

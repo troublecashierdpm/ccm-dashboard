@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
-import { hitungJamKerja, hitungLateEarlyDurasi, getRemarks } from '@/lib/absensiHelpers';
+import { hitungJamKerja, hitungLateEarlyDurasi, getRemarks, formatWaktuDb } from '@/lib/absensiHelpers';
 
 export async function POST(req) {
   try {
@@ -24,10 +24,7 @@ export async function POST(req) {
     const reqData = reqRows && reqRows[0];
     if (!reqData) return NextResponse.json({ success: false, message: "Request tidak ditemukan!" });
 
-    const nowStr = new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
-    }).format(new Date());
+    const nowStr = formatWaktuDb(new Date().toISOString());
 
     // 1a. Fetch shift lama (sebelum di-update) untuk keperluan email
     const reqType = reqData.alasan.indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";

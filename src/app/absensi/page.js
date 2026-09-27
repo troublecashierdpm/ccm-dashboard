@@ -36,6 +36,20 @@ export default function AbsensiPage() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [toast, setToast] = useState("");
+  const [nowWib, setNowWib] = useState("");
+
+  useEffect(() => {
+    const tick = () => {
+      try {
+        setNowWib(new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+        }).format(new Date()));
+      } catch { setNowWib(""); }
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // step: 'home' | 'map' | 'camera'
   const [step, setStep] = useState("home");
@@ -1636,6 +1650,9 @@ function getStatusBadgeClass(remarks) {
             {user.isHeadDept && (
               <button onClick={() => setSidebarOpen(true)} className="p-2 bg-white/20 rounded-xl">≡</button>
             )}
+            {user.photoUrl
+              ? <img src={formatPhotoUrl(user.photoUrl)} className="w-11 h-11 rounded-2xl object-cover border-2 border-white/40" />
+              : <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg">{(user.nama || "?").charAt(0).toUpperCase()}</div>}
             <div>
               <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
               <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
@@ -1655,6 +1672,7 @@ function getStatusBadgeClass(remarks) {
           <p className="text-[10px] uppercase opacity-70 font-bold mb-1">Jadwal {user.tanggalHariIni}</p>
           <h3 className="text-xl font-black">{user.isOff ? "Hari Ini Libur" : user.shiftCode}</h3>
           <p className="text-sm opacity-90">{user.shiftJam}</p>
+          <p className="text-2xl font-black tabular-nums mt-2">🕐 {nowWib || "--:--:--"}</p>
         </div>
       </div>
 
