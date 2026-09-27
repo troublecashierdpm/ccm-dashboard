@@ -35,6 +35,13 @@ export function isoToDdMmYyyy(iso) {
 // Dipakai agar kolom Waktu Submit / Tanggal Action di sheet konsisten.
 export function formatWaktuDb(val) {
   if (!val || val === "-") return "-";
+  const raw = String(val).trim();
+  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) {
+    const dd = m[1].padStart(2, "0"), mm = m[2].padStart(2, "0"), yyyy = m[3];
+    const hh = (m[4] || "00").padStart(2, "0"), mi = m[5] || "00", ss = m[6] || "00";
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  }
   try {
     const d = new Date(val);
     if (isNaN(d.getTime())) {
