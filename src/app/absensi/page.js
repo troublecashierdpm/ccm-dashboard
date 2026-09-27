@@ -1715,9 +1715,12 @@ function getStatusBadgeClass(remarks) {
             {user.isHeadDept && (
               <button onClick={() => setSidebarOpen(true)} className="p-2 bg-white/20 rounded-xl">≡</button>
             )}
-            {user.photoUrl
-              ? <img src={formatPhotoUrl(user.photoUrl)} onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl object-cover border-2 border-white/40 cursor-pointer" title="Klik untuk Request Ganti Foto" />
-              : <div onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg cursor-pointer" title="Klik untuk Request Ganti Foto">{(user.nama || "?").charAt(0).toUpperCase()}</div>}
+            <div className="flex flex-col items-center gap-1">
+              {user.photoUrl
+                ? <img src={formatPhotoUrl(user.photoUrl)} onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl object-cover border-2 border-white/40 cursor-pointer" title="Klik untuk Request Ganti Foto" />
+                : <div onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg cursor-pointer" title="Klik untuk Request Ganti Foto">{(user.nama || "?").charAt(0).toUpperCase()}</div>}
+              <button onClick={() => fotoInputRef.current?.click()} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg font-bold text-[8px] uppercase whitespace-nowrap">Request/Ganti Foto</button>
+            </div>
             <input type="file" ref={fotoInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
             <div>
               <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
@@ -1739,7 +1742,6 @@ function getStatusBadgeClass(remarks) {
           <h3 className="text-xl font-black">{user.isOff ? "Hari Ini Libur" : user.shiftCode}</h3>
           <p className="text-sm opacity-90">{user.shiftJam}</p>
           <p className="text-2xl font-black tabular-nums mt-2">🕐 {nowWib || "--:--:--"}</p>
-          <button onClick={() => fotoInputRef.current?.click()} className="mt-3 bg-white/20 hover:bg-white/30 px-3.5 py-1.5 rounded-xl font-bold text-[10px] uppercase">📷 Ganti Foto</button>
         </div>
       </div>
 
