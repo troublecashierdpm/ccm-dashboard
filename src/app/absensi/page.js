@@ -102,6 +102,48 @@ const [teamPhotoModal, setTeamPhotoModal] = useState(null);
   const [syncingRequest, setSyncingRequest] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ text: "", success: null });
 const [emailNik, setEmailNik] = useState("");
+const [previewFoto, setPreviewFoto] = useState(null);
+const [isUploadingFoto, setIsUploadingFoto] = useState(false);
+const fotoInputRef = useRef(null);
+
+// --- LOGIKA REQUEST GANTI FOTO (sama seperti kasir/page.js) ---
+const handleFileSelect = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewFoto(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+const executeUploadFoto = async () => {
+  if (!previewFoto) return;
+  setIsUploadingFoto(true);
+  try {
+    const res = await fetch("/api/absensi/request-foto", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        base64Data: previewFoto.split(',')[1],
+        nik: user.nik,
+        nama: user.nama
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ Request ganti foto berhasil dikirim!");
+      setPreviewFoto(null);
+    } else {
+      alert("❌ Gagal: " + data.message);
+    }
+  } catch (err) {
+    alert("Error: " + err.message);
+  } finally {
+    setIsUploadingFoto(false);
+  }
+};
 
 
 
@@ -1663,8 +1705,9 @@ function getStatusBadgeClass(remarks) {
               <button onClick={() => setSidebarOpen(true)} className="p-2 bg-white/20 rounded-xl">≡</button>
             )}
             {user.photoUrl
-              ? <img src={formatPhotoUrl(user.photoUrl)} className="w-11 h-11 rounded-2xl object-cover border-2 border-white/40" />
-              : <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg">{(user.nama || "?").charAt(0).toUpperCase()}</div>}
+              ? <img src={formatPhotoUrl(user.photoUrl)} onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl object-cover border-2 border-white/40 cursor-pointer" title="Klik untuk Request Ganti Foto" />
+              : <div onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg cursor-pointer" title="Klik untuk Request Ganti Foto">{(user.nama || "?").charAt(0).toUpperCase()}</div>}
+            <input type="file" ref={fotoInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
             <div>
               <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
               <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
@@ -1685,8 +1728,35 @@ function getStatusBadgeClass(remarks) {
           <h3 className="text-xl font-black">{user.isOff ? "Hari Ini Libur" : user.shiftCode}</h3>
           <p className="text-sm opacity-90">{user.shiftJam}</p>
           <p className="text-2xl font-black tabular-nums mt-2">🕐 {nowWib || "--:--:--"}</p>
+          <button onClick={() => fotoInputRef.current?.click()} className="mt-3 bg-white/20 hover:bg-white/30 px-3.5 py-1.5 rounded-xl font-bold text-[10px] uppercase">📷 Ganti Foto</button>
         </div>
       </div>
+
+      {previewFoto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white text-center">
+              <h3 className="font-black text-sm uppercase">Request Ganti Foto</h3>
+              <p className="text-[9px] opacity-70 mt-1">Konfirmasi foto baru Anda</p>
+            </div>
+            <div className="p-6 space-y-4 flex flex-col items-center">
+              <img src={previewFoto} className="w-48 h-48 object-cover rounded-2xl border border-gray-100 shadow-sm" alt="Preview" />
+              <div className="flex gap-3 w-full mt-2">
+                <button onClick={() => setPreviewFoto(null)} className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs">
+                  Batal
+                </button>
+                <button
+                  onClick={executeUploadFoto}
+                  disabled={isUploadingFoto}
+                  className="flex-1 py-3.5 bg-[#e20074] text-white rounded-2xl font-bold text-xs shadow-lg shadow-pink-100 disabled:opacity-60"
+                >
+                  {isUploadingFoto ? "Mengirim..." : "Ya, Kirim"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-6 space-y-3">
         {toast && <div className="bg-green-100 text-green-700 font-bold text-sm p-3 rounded-xl text-center">{toast}</div>}
