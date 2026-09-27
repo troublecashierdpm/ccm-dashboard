@@ -85,6 +85,47 @@ export async function GET(request, { params }) {
         return NextResponse.json({ success: true, message: "Sync Log Sukses!" });
     }
 
+    if (table === 'data-request') {
+        const response = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Data_Request!A1:M' });
+        const rowsAll = response.data.values;
+        if (rowsAll && rowsAll.length > 1) {
+            const headerRow = rowsAll[0];
+            const isShiftBaruFormat = headerRow.length > 5 && String(headerRow[5]).indexOf("Shift") !== -1;
+            const { data: existingReq } = await supabase.from('absensi_request').select('req_id');
+            const existingIds = new Set((existingReq || []).map(r => r.req_id));
+            const cleanVal = (v) => (v !== undefined && v !== null ? String(v).replace(/^'/, '').trim() : '');
+            const data = [];
+            for (const row of rowsAll.slice(1)) {
+                const reqId = cleanVal(row[0]);
+                if (!reqId || existingIds.has(reqId)) continue;
+                if (isShiftBaruFormat) {
+                    data.push({
+                        req_id: reqId, waktu_submit: cleanVal(row[1]), nik: cleanVal(row[2]), nama: row[3] || null,
+                        tanggal_absen: ddmmyyyyToIso(row[4]), shift_baru: row[5] || '-',
+                        jam_in_baru: cleanVal(row[6]) || '-', jam_out_baru: cleanVal(row[7]) || '-',
+                        alasan: row[8] || '', status: row[9] || 'Pending', tanggal_action: cleanVal(row[10]) || '-',
+                        foto_lampiran: row[11] || null, catatan_admin: row[12] || '-'
+                    });
+                } else {
+                    data.push({
+                        req_id: reqId, waktu_submit: cleanVal(row[1]), nik: cleanVal(row[2]), nama: row[3] || null,
+                        tanggal_absen: ddmmyyyyToIso(row[4]), shift_baru: '-',
+                        jam_in_baru: cleanVal(row[5]) || '-', jam_out_baru: cleanVal(row[6]) || '-',
+                        alasan: row[7] || '', status: row[8] || 'Pending', tanggal_action: cleanVal(row[9]) || '-',
+                        foto_lampiran: row[10] || null, catatan_admin: row[11] || '-'
+                    });
+                }
+            }
+            const valid = data.filter(r => r.req_id && r.nik && r.tanggal_absen);
+            if (valid.length > 0) {
+                const { error: insErr } = await supabase.from('absensi_request').insert(valid);
+                if (insErr) throw insErr;
+            }
+            return NextResponse.json({ success: true, message: `Sync Data Request Sukses! ${valid.length} baru.` });
+        }
+        return NextResponse.json({ success: true, message: "Sync Data Request Sukses! 0 baru." });
+    }
+
     return NextResponse.json({ success: false, error: "Tabel tidak ditemukan" }, { status: 404 });
 
   } catch (e) {

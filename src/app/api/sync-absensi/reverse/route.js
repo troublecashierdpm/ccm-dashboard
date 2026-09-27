@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
+import { hitungJamKerja } from '@/lib/absensiHelpers';
 function toYyyyMmDd(iso) {
   if (!iso) return '';
   return String(iso).slice(0, 10);
@@ -58,12 +59,13 @@ export async function POST() {
       rangeStart += pageSize;
     }
 
+    let scheduleMap = {};
     if (allNiks.length > 0) {
-      const allDates = [...new Set(scheduleRows.map(r => r.tanggal))].sort();
-      const scheduleMap = {};
+      const allDates = [...new Set(scheduleRows.map(r => toYyyyMmDd(r.tanggal)))].sort();
       scheduleRows.forEach(r => {
+        const d = toYyyyMmDd(r.tanggal);
         if (!scheduleMap[r.nik]) scheduleMap[r.nik] = {};
-        scheduleMap[r.nik][r.tanggal] = r.shift_code;
+        scheduleMap[r.nik][d] = r.shift_code;
       });
 
       const header = ['NIK', 'Nama', ...allDates.map(d => toYyyyMmDd(d))];
@@ -109,20 +111,50 @@ export async function POST() {
       r.foto_in || '', r.foto_out || ''
     ]);
 
+    // Generate baris Alpha: NIK x tanggal kerja (non-OFF) bulan berjalan tanpa baris log
+    const todayJakarta = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
+    const monthPrefix = todayJakarta.slice(0, 7);
+    const todayDay = parseInt(todayJakarta.slice(8, 10), 10);
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const logKeySet = new Set((logRows || []).map(r => `${r.nik}|${toYyyyMmDd(r.tanggal)}`));
+    let alphaCount = 0;
+    for (const item of allNiks) {
+      for (let d = 1; d <= todayDay; d++) {
+        const dateIso = `${monthPrefix}-${pad2(d)}`;
+        if (logKeySet.has(`${item.nik}|${dateIso}`)) continue;
+        const shiftCode = (scheduleMap[item.nik] && scheduleMap[item.nik][dateIso]) || null;
+        if (!shiftCode || hitungJamKerja(shiftCode).isOff) continue;
+        logGrid.push([dateIso, item.nik, item.nama, shiftCode, 'Alpha', '', '', '', '', '', '', '']);
+        alphaCount++;
+      }
+    }
+    logGrid.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1])));
+
     await sheets.spreadsheets.values.clear({ spreadsheetId, range: 'Log_Absensi' });
     await sheets.spreadsheets.values.update({
       spreadsheetId, range: 'Log_Absensi!A1',
       valueInputOption: 'RAW',
       requestBody: { values: [logHeader, ...logGrid] }
     });
-    ringkasan.push(`Log_Absensi: ${logGrid.length} baris`);
+    ringkasan.push(`Log_Absensi: ${logGrid.length} baris (${alphaCount} Alpha)`);
 
     // ========================================================
-    // 3. DATA_REQUEST
+    // 3. DATA_REQUEST (dengan pagination agar tidak kepotong limit 1000)
     // ========================================================
-    const { data: reqRows, error: reqErr } = await supabase
-      .from('absensi_request').select('*').order('waktu_submit', { ascending: true });
-    if (reqErr) throw new Error("Gagal baca request: " + reqErr.message);
+    let reqRows = [];
+    let reqRangeStart = 0;
+    const reqPageSize = 500;
+    while (true) {
+      const { data, error } = await supabase
+        .from('absensi_request').select('*')
+        .order('waktu_submit', { ascending: true })
+        .range(reqRangeStart, reqRangeStart + reqPageSize - 1);
+      if (error) throw new Error("Gagal baca request: " + error.message);
+      if (!data || data.length === 0) break;
+      reqRows.push(...data);
+      if (data.length < reqPageSize) break;
+      reqRangeStart += reqPageSize;
+    }
 
     const reqHeader = ["ID Request","Waktu Submit","NIK","Nama Lengkap","Tanggal Absen","Kode Shift Baru","Jam In Baru","Jam Out Baru","Alasan","Status","Tanggal Action","Foto Lampiran","Pesan/Catatan Admin"];
     const reqGrid = (reqRows || []).map(r => [
