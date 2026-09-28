@@ -37,6 +37,7 @@ export default function AbsensiPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [toast, setToast] = useState("");
   const [nowWib, setNowWib] = useState("");
+  const [showPanduan, setShowPanduan] = useState(false);
 
   useEffect(() => {
     const tick = () => {
@@ -1728,6 +1729,7 @@ function getStatusBadgeClass(remarks) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowPanduan(true)} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">❓ Panduan</button>
             <a href="/kasir" onClick={() => {
               localStorage.setItem("ccm_user", JSON.stringify(user));
               localStorage.setItem("ccm_sup", JSON.stringify(user));
@@ -1744,6 +1746,57 @@ function getStatusBadgeClass(remarks) {
           <p className="text-2xl font-black tabular-nums mt-2">🕐 {nowWib || "--:--:--"}</p>
         </div>
       </div>
+
+      {showPanduan && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] p-6 text-white flex justify-between items-center">
+              <div>
+                <h3 className="font-black text-sm uppercase">Panduan Absensi PPKK</h3>
+                <p className="text-[9px] opacity-70 mt-1">Cara menggunakan halaman absensi</p>
+              </div>
+              <button onClick={() => setShowPanduan(false)} className="p-1.5 bg-white/20 rounded-xl hover:bg-white/30 transition-colors">✕</button>
+            </div>
+            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4 text-xs text-gray-700">
+              <div>
+                <p className="font-black text-gray-800 mb-1">1️⃣ Login</p>
+                <p>Masuk dengan NIK dan Password / ID Swipe. Foto profil, jadwal shift hari ini, dan jam real-time (WIB) tampil di halaman utama.</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">2️⃣ Clock In / Clock Out</p>
+                <p>Tekan tombol 📷 Clock In saat masuk dan 📷 Clock Out saat pulang. <strong>Step 1:</strong> pastikan GPS dalam radius area (status hijau) lalu lanjut. <strong>Step 2:</strong> posisikan wajah di bingkai lalu Submit. Tombol tetap tampil walau jadwal libur (X) — cocok untuk yang dipanggil masuk saat off, tercatat sebagai Perubahan Schedule.</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">3️⃣ Request Attendance (lupa absen)</p>
+                <p>Pilih tanggal lupa absen, centang pengajuan Clock In / Clock Out — jam otomatis terisi sesuai jam shift dan bisa diubah manual. Isi alasan, lampirkan foto bila perlu (opsional), lalu kirim.</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">4️⃣ Request Change Shift</p>
+                <p>Pilih tanggal jadwal, ketik kode shift baru di kolom pencarian (misal BA, CF) lalu pilih dari daftar, isi alasan, dan kirim.</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">5️⃣ My Requests</p>
+                <p>Lihat semua pengajuan Anda beserta statusnya (Pending / Approved / Rejected). Gunakan filter bulan untuk mencari cepat. Tanggal submit tampil di tiap kartu.</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">6️⃣ Log Absensi Saya</p>
+                <p>Riwayat absen per bulan: geser bulan dengan tombol ‹ ›, buka detail harian dengan klik kartu, dan lihat statistik (Present, Late, Absent, Next Workday = sisa hari kerja bulan berjalan).</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">7️⃣ Request / Ganti Foto</p>
+                <p>Klik foto profil atau tombol Request/Ganti Foto di dekat foto, pilih foto baru, konfirmasi di modal, lalu Ya Kirim.</p>
+              </div>
+              <div>
+                <p className="font-black text-gray-800 mb-1">8️⃣ Khusus Head Dept</p>
+                <p><strong>Approvals:</strong> setujui / tolak pengajuan tim (bisa filter jenis dan cari nama). <strong>Team Monitor:</strong> pantau status tim harian dan buka detail per karyawan. <strong>Menu Sync (≡):</strong> sinkron Sheet ke DB, reverse DB ke Sheet, dan kirim rekap email.</p>
+              </div>
+            </div>
+            <div className="p-5 bg-white border-t">
+              <button onClick={() => setShowPanduan(false)} className="w-full py-3.5 bg-[#e20074] text-white rounded-2xl font-bold text-xs">Mengerti 👍</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewFoto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-6">
