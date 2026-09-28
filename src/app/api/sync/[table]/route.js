@@ -41,33 +41,49 @@ export async function GET(request, { params }) {
   if (!tables[table]) return NextResponse.json({ error: 'Invalid table' }, { status: 400 });
 
   try {
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+    const supabase = createClient(supabaseUrl, serviceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
     let privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
     const auth = new google.auth.GoogleAuth({ credentials: { client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL, private_key: privateKey }, scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'] });
     const sheets = google.sheets({ version: 'v4', auth });
 
-        if (table === 'nik') {
-      await supabase.from('nik').delete().not('nama', 'is', null);
+    const target = tables[table].supabase;
+    let delError = null;
+    if (table === 'nik') {
+      ({ error: delError } = await supabase.from('nik').delete().not('nama', 'is', null));
     } else {
-      await supabase.from(tables[table].supabase).delete().neq('id', 0);
-        }
-    console.log(`Syncing table: ${table} to Supabase: ${tables[table].supabase}`);
+      ({ error: delError } = await supabase.from(target).delete().neq('id', 0));
+    }
+    if (delError) {
+      console.error(`Delete gagal untuk ${target}:`, delError);
+      throw new Error(`Gagal hapus data lama ${target}: ${delError.message}`);
+    }
+    console.log(`Syncing table: ${table} to Supabase: ${target}`);
     const res = await sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID, range: tables[table].range });
     console.log(`Accessing spreadsheetId: ${process.env.GOOGLE_SPREADSHEET_ID}, range: ${tables[table].range}`);
     const rows = res.data.values;
+    let inserted = 0;
     if (rows) {
       console.log(`Found ${rows.length} rows`);
-      const data = rows.filter(r => r[0]).map(tables[table].mapper);
+      const seen = new Set();
+      const data = rows.filter(r => r[0]).map(tables[table].mapper).filter(r => {
+        const k = JSON.stringify(r);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
       for (let i = 0; i < data.length; i += 2000) {
         const chunk = data.slice(i, i + 2000);
-        const { error: insertError } = await supabase.from(tables[table].supabase).insert(chunk);
+        const { error: insertError } = await supabase.from(target).insert(chunk);
         if (insertError) {
           console.error(`Error inserting chunk ${i/2000}:`, insertError);
           throw insertError;
         }
+        inserted += chunk.length;
       }
     }
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: `Sync ${table} sukses! ${inserted} baris.` });
   } catch (e) {
     console.error(`Sync error for table ${table}:`, e);
     return NextResponse.json({ error: e.message }, { status: 500 });
