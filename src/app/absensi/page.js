@@ -1663,7 +1663,7 @@ function getStatusBadgeClass(remarks) {
 
   // STEP: HOME
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="min-h-screen bg-[#f8fafc] overflow-x-hidden max-w-full">
         {sidebarOpen && (
           <div className="fixed inset-0 z-[100] flex">
             <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
@@ -1710,33 +1710,33 @@ function getStatusBadgeClass(remarks) {
             </div>
           </div>
         )}
-        <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-8 rounded-b-[2.5rem] shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-4 sm:px-6 py-8 rounded-b-[2.5rem] shadow-lg overflow-hidden">
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {user.isHeadDept && (
-              <button onClick={() => setSidebarOpen(true)} className="p-2 bg-white/20 rounded-xl">≡</button>
+              <button onClick={() => setSidebarOpen(true)} className="p-2 bg-white/20 rounded-xl shrink-0">≡</button>
             )}
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex flex-col items-center gap-1 shrink-0">
               {user.photoUrl
                 ? <img src={formatPhotoUrl(user.photoUrl)} onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl object-cover border-2 border-white/40 cursor-pointer" title="Klik untuk Request Ganti Foto" />
                 : <div onClick={() => fotoInputRef.current?.click()} className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center font-black text-lg cursor-pointer" title="Klik untuk Request Ganti Foto">{(user.nama || "?").charAt(0).toUpperCase()}</div>}
-              <button onClick={() => fotoInputRef.current?.click()} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg font-bold text-[8px] uppercase whitespace-nowrap">Request/Ganti Foto</button>
+              <button onClick={() => fotoInputRef.current?.click()} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg font-bold text-[8px] uppercase text-center leading-tight">Request/Ganti<br />Foto</button>
             </div>
             <input type="file" ref={fotoInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] uppercase opacity-70 font-bold">Absensi PPKK DPM</p>
-              <h2 className="text-lg font-extrabold">Halo, {user.nama}</h2>
+              <h2 className="text-base sm:text-lg font-extrabold truncate">Halo, {user.nama}</h2>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowPanduan(true)} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">❓ Panduan</button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button onClick={() => setShowPanduan(true)} className="bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">❓</button>
             <a href="/kasir" onClick={() => {
               localStorage.setItem("ccm_user", JSON.stringify(user));
               localStorage.setItem("ccm_sup", JSON.stringify(user));
-            }} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">
+            }} className="bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">
               Kasir →
             </a>
-            <button onClick={logout} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white">Logout</button>
+            <button onClick={logout} className="bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white">Logout</button>
           </div>
         </div>
         <div className="bg-white/10 rounded-2xl p-4">
