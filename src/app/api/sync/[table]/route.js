@@ -49,15 +49,34 @@ export async function GET(request, { params }) {
     const sheets = google.sheets({ version: 'v4', auth });
 
     const target = tables[table].supabase;
-    let delError = null;
-    if (table === 'nik') {
-      ({ error: delError } = await supabase.from('nik').delete().not('nama', 'is', null));
-    } else {
-      ({ error: delError } = await supabase.from(target).delete().neq('id', 0));
+
+    // Hitung isi lama untuk laporan
+    let deleted = 0;
+    try {
+      const { count } = await supabase.from(target).select('*', { count: 'exact', head: true });
+      deleted = count || 0;
+    } catch { deleted = 0; }
+
+    // Hapus semua baris tanpa asumsi kolom `id` (member_per_day tidak punya id).
+    // Baca 1 baris contoh untuk tahu kolom yang ada, lalu hapus non-null + null.
+    const { data: sample, error: sampleErr } = await supabase.from(target).select('*').limit(1);
+    if (sampleErr) {
+      console.error(`Gagal baca struktur ${target}:`, sampleErr);
+      throw new Error(`Gagal baca struktur ${target}: ${sampleErr.message}`);
     }
-    if (delError) {
-      console.error(`Delete gagal untuk ${target}:`, delError);
-      throw new Error(`Gagal hapus data lama ${target}: ${delError.message}`);
+    if (sample && sample.length > 0) {
+      const cols = Object.keys(sample[0]);
+      const delCol = cols.includes('id') ? 'id' : (cols.find(c => c !== 'created_at' && c !== 'updated_at') || cols[0]);
+      const { error: delErr1 } = await supabase.from(target).delete().not(delCol, 'is', null);
+      if (delErr1) {
+        console.error(`Delete gagal untuk ${target}:`, delErr1);
+        throw new Error(`Gagal hapus data lama ${target}: ${delErr1.message}`);
+      }
+      const { error: delErr2 } = await supabase.from(target).delete().is(delCol, null);
+      if (delErr2) {
+        console.error(`Delete null gagal untuk ${target}:`, delErr2);
+        throw new Error(`Gagal hapus data lama ${target}: ${delErr2.message}`);
+      }
     }
     console.log(`Syncing table: ${table} to Supabase: ${target}`);
     const res = await sheets.spreadsheets.values.get({ spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID, range: tables[table].range });
@@ -66,8 +85,21 @@ export async function GET(request, { params }) {
     let inserted = 0;
     if (rows) {
       console.log(`Found ${rows.length} rows`);
+      // Filter header disamakan dengan all sync (sync/route.js)
+      const headerFilter = {
+        nik: r => r[0] && String(r[0]).toUpperCase() !== 'NAMA',
+        sales_member: r => r[0] && String(r[0]).toLowerCase() !== 'tanggal',
+        sales_hourly: r => r[0] && String(r[0]).toLowerCase() !== 'tanggal',
+        member_per_day: r => r[0] && String(r[0]).toLowerCase() !== 'tanggal',
+        sp_ba_per_day: r => r[0] && String(r[0]).toUpperCase() !== 'TANGGAL',
+        pwp_kasir: r => r[0] && String(r[0]).toUpperCase() !== 'TGL',
+        shortage_per_day: r => r[1] && String(r[1]).toUpperCase() !== 'POS' && String(r[0] || '').toUpperCase() !== 'TANGGAL',
+        ecobag_per_day: r => r[0] && String(r[0]).toUpperCase() !== 'YEAR',
+        sakit_per_day: r => r[0] && String(r[0]).toUpperCase() !== 'NIK',
+      };
+      const keep = headerFilter[table] || (r => r[0]);
       const seen = new Set();
-      const data = rows.filter(r => r[0]).map(tables[table].mapper).filter(r => {
+      const data = rows.filter(keep).map(tables[table].mapper).filter(r => {
         const k = JSON.stringify(r);
         if (seen.has(k)) return false;
         seen.add(k);
@@ -83,7 +115,7 @@ export async function GET(request, { params }) {
         inserted += chunk.length;
       }
     }
-    return NextResponse.json({ success: true, message: `Sync ${table} sukses! ${inserted} baris.` });
+    return NextResponse.json({ success: true, message: `Sync ${table} sukses! Hapus ${deleted}, isi ${inserted} baris.` });
   } catch (e) {
     console.error(`Sync error for table ${table}:`, e);
     return NextResponse.json({ error: e.message }, { status: 500 });
