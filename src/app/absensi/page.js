@@ -1729,7 +1729,6 @@ function getStatusBadgeClass(remarks) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button onClick={() => setShowPanduan(true)} className="bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">❓</button>
             <a href="/kasir" onClick={() => {
               localStorage.setItem("ccm_user", JSON.stringify(user));
               localStorage.setItem("ccm_sup", JSON.stringify(user));
@@ -1785,10 +1784,6 @@ function getStatusBadgeClass(remarks) {
               <div>
                 <p className="font-black text-gray-800 mb-1">7️⃣ Request / Ganti Foto</p>
                 <p>Klik foto profil atau tombol Request/Ganti Foto di dekat foto, pilih foto baru, konfirmasi di modal, lalu Ya Kirim.</p>
-              </div>
-              <div>
-                <p className="font-black text-gray-800 mb-1">8️⃣ Khusus Head Dept</p>
-                <p><strong>Approvals:</strong> setujui / tolak pengajuan tim (bisa filter jenis dan cari nama). <strong>Team Monitor:</strong> pantau status tim harian dan buka detail per karyawan. <strong>Menu Sync (≡):</strong> sinkron Sheet ke DB, reverse DB ke Sheet, dan kirim rekap email.</p>
               </div>
             </div>
             <div className="p-5 bg-white border-t">
@@ -1846,6 +1841,16 @@ function getStatusBadgeClass(remarks) {
           <span className="text-gray-500 font-semibold">Clock Out</span>
           <span className="font-black text-gray-800">{user.actualOut}</span>
         </div>
+
+        <button onClick={() => setShowPanduan(true)}
+          className="w-full p-4 bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white rounded-2xl shadow-lg shadow-pink-200 flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
+          <span className="text-2xl">❓</span>
+          <span className="flex-1">
+            <span className="block font-black text-sm">Panduan Penggunaan</span>
+            <span className="block text-[11px] opacity-80">Cara pakai absensi, request & log</span>
+          </span>
+          <span className="text-xl font-black">›</span>
+        </button>
 
         <button onClick={openLogView}
           className="w-full py-4 bg-white border border-gray-200 rounded-2xl shadow-sm font-bold text-gray-700 text-sm flex items-center justify-center gap-2">
