@@ -76,11 +76,15 @@ async function writeTab(sheets, spreadsheetId, tab, header, grid) {
 
 export async function fetchNikMap(supabase) {
   const { data, error } = await supabase
-    .from('absensi_nik').select('nik, nama').eq('status', 'PPKK');
+    .from('absensi_nik').select('nik, nama, status').in('status', ['PPKK', 'RESIGN']);
   if (error) throw new Error("Gagal baca NIK: " + error.message);
-  const allNiks = (data || []).map(r => ({ nik: r.nik, nama: r.nama || '' }))
-    .sort((a, b) => a.nik.localeCompare(b.nik));
-  return allNiks;
+  const norm = (data || []).map(r => ({
+    nik: r.nik, nama: r.nama || '',
+    status: String(r.status || 'PPKK').trim().toUpperCase()
+  }));
+  const ppkk = norm.filter(r => r.status === 'PPKK').sort((a, b) => a.nik.localeCompare(b.nik));
+  const resign = norm.filter(r => r.status !== 'PPKK').sort((a, b) => a.nik.localeCompare(b.nik));
+  return [...ppkk, ...resign];
 }
 
 export async function fetchScheduleMap(supabase) {
@@ -95,6 +99,7 @@ export async function fetchScheduleMap(supabase) {
 }
 
 // 1. MASTER_SCHEDULE (long format Supabase -> wide format sheet)
+// PPKK dulu A-Z, lalu RESIGN A-Z di bawah dengan kolom A-B merah.
 export async function reverseMasterSchedule(supabase, sheets, spreadsheetId) {
   const allNiks = await fetchNikMap(supabase);
   const { rows: scheduleRows, map: scheduleMap } = await fetchScheduleMap(supabase);
@@ -109,8 +114,32 @@ export async function reverseMasterSchedule(supabase, sheets, spreadsheetId) {
   });
 
   await writeTab(sheets, spreadsheetId, 'Master_Schedule', header, dataGrid);
+
+  // Tandai baris RESIGN: kolom A-B merah (clear menghapus format, jadi tulis ulang tiap reverse)
+  const resignIdx = [];
+  allNiks.forEach((item, i) => { if (item.status !== 'PPKK') resignIdx.push(i); });
+  if (resignIdx.length > 0) {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' });
+    const tab = (meta.data.sheets || []).find(s => s.properties && s.properties.title === 'Master_Schedule');
+    if (tab && tab.properties && tab.properties.sheetId !== undefined) {
+      const sheetId = tab.properties.sheetId;
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: resignIdx.map(i => ({
+            repeatCell: {
+              range: { sheetId, startRowIndex: i + 1, endRowIndex: i + 2, startColumnIndex: 0, endColumnIndex: 2 },
+              cell: { userEnteredFormat: { backgroundColor: { red: 0.957, green: 0.8, blue: 0.8 } } },
+              fields: 'userEnteredFormat.backgroundColor'
+            }
+          }))
+        }
+      });
+    }
+  }
+  const resignCount = resignIdx.length;
   return {
-    summary: `Master_Schedule: ${allNiks.length} karyawan x ${allDates.length} tanggal`,
+    summary: `Master_Schedule: ${allNiks.length} karyawan x ${allDates.length} tanggal${resignCount ? ` (${resignCount} RESIGN)` : ''}`,
     scheduleMap
   };
 }
