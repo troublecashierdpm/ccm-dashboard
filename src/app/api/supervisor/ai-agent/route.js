@@ -71,23 +71,75 @@ export async function POST(req) {
   try {
     const { query, context, history } = await req.json();
     const cleanHistory = Array.isArray(history)
-      ? history.filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.text).slice(-6)
+      ? history.filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.text).slice(-4)
           .map(m => ({ role: m.role, text: String(m.text).slice(0, 500) }))
       : [];
 
     const kpi = context.kpi || {};
     const ev = context.evidence || {};
     const intent = context.intent || {};
+    const jp = context.jawabanPasti || null;
+
+    // ===== FASE FINAL: jawaban deterministik dari frontend =====
+    // LLM hanya mengubahnya jadi bahasa natural. Dilarang hitung ulang / ubah angka / ubah urutan.
+    const fmtNum = (n) => Number(n || 0).toLocaleString("id-ID");
+    const renderTemplate = (j) => {
+      if (!j) return null;
+      if (j.tipe === "kosong") return `Tidak ada data ${j.panelLabel} pada periode ${j.periode}. Sumber: Ranking ${j.panelLabel}.`;
+      if (j.tipe === "ranking") {
+        const lines = [`${j.panelLabel} ${j.arah} periode ${j.periode} adalah ${j.rank1.nama} dengan ${fmtNum(j.rank1.nilai)}${j.rank1.satuan ? " " + j.rank1.satuan : ""}.`];
+        j.top5.slice(1).forEach(r => lines.push(`Rank ${r.rank}: ${r.nama} — ${fmtNum(r.nilai)}${r.satuan ? " " + r.satuan : ""}.`));
+        lines.push(`Sumber: ${j.sumber}.`);
+        return lines.join("\n");
+      }
+      if (j.tipe === "tren") {
+        const lines = [`Tren ${j.panelLabel} periode ${j.trenRows[0]?.periode || ""} s/d ${j.trenRows[j.trenRows.length - 1]?.periode || ""}: ${j.arahTren} (selisih ${fmtNum(j.selisih)}).`];
+        j.trenRows.forEach(r => lines.push(`${r.periode}: ${fmtNum(r.nilai)}${r.satuan ? " " + r.satuan : ""}.`));
+        lines.push(`Sumber: ${j.sumber}.`);
+        return lines.join("\n");
+      }
+      if (j.tipe === "detail_nama") {
+        const r = j.ringkas;
+        const lines = [`Ringkasan ${j.nama} periode ${j.periode}:`];
+        lines.push(`Member ${fmtNum(r.member)}, Ecobag ${fmtNum(r.ecobag)} pcs, PWP ${fmtNum(r.pwp)} pcs, Shortage ${fmtNum(r.shortageAbs)}.`);
+        if (r.salesRatioTerakhir) lines.push(`Sales ratio terakhir ${r.salesRatioTerakhir.periode}: ${r.salesRatioTerakhir.ratio}% (member ${fmtNum(r.salesRatioTerakhir.memberSales)} / hourly ${fmtNum(r.salesRatioTerakhir.hourlySales)}).`);
+        lines.push(`Sumber: ${j.sumber}.`);
+        return lines.join("\n");
+      }
+      return null;
+    };
+    const templateJawaban = renderTemplate(jp);
+    const validReply = (reply) => {
+      if (!jp || jp.tipe === "kosong") return true;
+      if (jp.tipe === "ranking") {
+        return reply.includes(jp.rank1.nama) && reply.replace(/\D/g, "").includes(String(jp.rank1.nilai).replace(/\D/g, "").slice(0, 3));
+      }
+      if (jp.tipe === "detail_nama") return reply.includes(jp.nama);
+      if (jp.tipe === "tren") return jp.trenRows.every(r => reply.includes(r.periode));
+      return true;
+    };
     const fmtEv = (section) => {
       if (!section) return "(tidak diminta untuk pertanyaan ini)";
       const rows = JSON.stringify(section.data ?? section);
       const extra = section.total !== undefined ? `\n(menampilkan ${section.ditampilkan} dari ${section.total} baris)` : "";
       return rows + extra;
     };
-    const namedStr = ev.namedDetails ? JSON.stringify(ev.namedDetails) : "(tidak ada nama karyawan yang disebut)";
-    const salesTrendStr = ev.salesTrend ? JSON.stringify(ev.salesTrend) : "(tidak diminta)";
-    const candidatesStr = ev.namaCandidates ? JSON.stringify(ev.namaCandidates) : null;
-    const sysRules = `Anda adalah AI Assistant cerdas untuk Dashboard Supervisor Kasir AEON.
+    const pangkas = !!(jp && templateJawaban);
+    const namedStr = pangkas ? "(lihat JAWABAN PASTI)" : (ev.namedDetails ? JSON.stringify(ev.namedDetails) : "(tidak ada nama karyawan yang disebut)");
+    const salesTrendStr = pangkas ? "(lihat JAWABAN PASTI)" : (ev.salesTrend ? JSON.stringify(ev.salesTrend) : "(tidak diminta)");
+    const candidatesStr = !pangkas && ev.namaCandidates ? JSON.stringify(ev.namaCandidates) : null;
+    const sec = (label, val) => pangkas ? `${label}: (lihat JAWABAN PASTI)` : `${label}: ${val}`;
+    // Jika jawaban pasti ada: prompt dipangkas — tinggal peran + jawaban + aturan bahasa.
+    const sysRules = jp && templateJawaban ? `Anda adalah AI Assistant Dashboard Supervisor Kasir AEON.
+Tugas: ubah JAWABAN PASTI di bawah menjadi Bahasa Indonesia yang natural dan ringkas.
+DILARANG: menghitung ulang, mengubah angka/nama/periode/urutan, menambah data dari luar, atau menjawab hal lain.
+
+JAWABAN PASTI (jangan diubah isinya):
+${JSON.stringify(jp)}
+
+ATURAN:
+- Baris 1 = jawaban langsung dari template. Boleh rapikan bahasa, angka/nama/periode/rank HARUS sama persis.
+- Maksimal tambah 1 kalimat konteks. Akhiri dengan baris Sumber persis seperti template.` : `Anda adalah AI Assistant cerdas untuk Dashboard Supervisor Kasir AEON.
 Tugas: Membantu supervisor menganalisis data karyawan kasir secara akurat.
 Jawab dalam Bahasa Indonesia, singkat, jelas, langsung pada intinya. Gunakan angka dan data yang diberikan.
 
@@ -119,7 +171,7 @@ KONTEKS TAMPILAN USER:
 - Panel tunggal terdeteksi: ${intent.panelTunggal || "-"} (jika ada, evidence panel lain sengaja disembunyikan)
 - Terdeteksi maksud pertanyaan: ${JSON.stringify(intent)}
 
-Data yang tersedia:
+${pangkas ? "" : `Data yang tersedia:
 
 1. Total Karyawan: ${context.totalKaryawan}
 
@@ -161,7 +213,8 @@ Data yang tersedia:
 
 17. Ranking Ecobag (top5/bottom5 total): ${ev.rankingEcobag ? JSON.stringify(ev.rankingEcobag) : "(tidak diminta)"}
 
-${candidatesStr ? `KANDIDAT NAMA (nama yang diketik cocok dengan >1 karyawan — JANGAN menebak, tanyakan klarifikasi): ${candidatesStr}\n\n` : ""}Panduan menjawab:
+${candidatesStr ? `KANDIDAT NAMA (nama yang diketik cocok dengan >1 karyawan — JANGAN menebak, tanyakan klarifikasi): ${candidatesStr}\n\n` : ""}`}
+${pangkas ? "" : `Panduan menjawab:
 - "Tertinggi" = karyawan dengan angka paling tinggi (buruk untuk shortage/SP/sakit).
 - "Terendah" = karyawan TERBAIK: zero shortage, zero SP, zero sakit.
 - Jika user tanya "siapa yang terbaik", gabungkan data terendah dari SP, Sakit, dan Shortage.
@@ -170,7 +223,7 @@ ${candidatesStr ? `KANDIDAT NAMA (nama yang diketik cocok dengan >1 karyawan —
 - Jika user tanya tren/grafik/naik-turun, pakai bagian 4 (tren global) + bagian 9 untuk per karyawan.
 - Jika user tanya POS/transaksi, pakai bagian 5.
 - Jika user tanya PWP, pakai bagian 10.
-- Selalu sertakan nama dan angka spesifik.`;
+- Selalu sertakan nama dan angka spesifik.`}`;
 
     const geminiKey = process.env.GEMINI_API_KEY;
     const geminiModel = process.env.GEMINI_MODEL || GEMINI_MODEL_DEFAULT;
@@ -182,11 +235,18 @@ ${candidatesStr ? `KANDIDAT NAMA (nama yang diketik cocok dengan >1 karyawan —
     }
 
     const errs = [];
+    const answerWithValidation = (reply) => {
+      if (templateJawaban && !validReply(reply || "")) {
+        console.warn("AI reply gagal validasi, pakai template deterministik.");
+        return templateJawaban;
+      }
+      return reply;
+    };
 
     if (geminiKey) {
       try {
         const reply = await callGemini(geminiKey, geminiModel, systemPrompt, query, cleanHistory);
-        return NextResponse.json({ success: true, reply });
+        return NextResponse.json({ success: true, reply: answerWithValidation(reply) });
       } catch (e) {
         console.error("Gemini API Error:", e.message);
         errs.push(`Gemini: ${e.message}`);
@@ -196,12 +256,14 @@ ${candidatesStr ? `KANDIDAT NAMA (nama yang diketik cocok dengan >1 karyawan —
     if (orKey) {
       try {
         const reply = await callOpenRouter(orKey, orModel, systemPrompt, query, cleanHistory);
-        return NextResponse.json({ success: true, reply });
+        return NextResponse.json({ success: true, reply: answerWithValidation(reply) });
       } catch (e) {
         console.error("OpenRouter API Error:", e.message);
         errs.push(`OpenRouter: ${e.message}`);
       }
     }
+    // Semua provider gagal tapi jawaban pasti ada: kembalikan template deterministik.
+    if (templateJawaban) return NextResponse.json({ success: true, reply: templateJawaban });
 
     return NextResponse.json({ success: false, message: errs.join(" | ") || "Semua provider AI gagal." }, { status: 500 });
   } catch (err) {

@@ -112,14 +112,39 @@ export default function SupervisorDashboard() {
     setAiLoading(true);
 
     try {
+      // ===== FASE FINAL: HYGIENE + NORMALISASI =====
+      // 1) Direktori = sumber kebenaran nama. Baris sampah (nama tak terdaftar di nik)
+      //    disembunyikan dari AI (dashboard tetap tampil apa adanya).
+      const direktoriSet = new Set(allKaryawan.map(k => normName(k.nama)).filter(Boolean));
+      const namaCanonical = {};
+      allKaryawan.forEach(k => { if (k.nama) namaCanonical[normName(k.nama)] = k.nama; });
+      const resolveAiNama = (raw) => namaCanonical[normName(raw)] || null;
+      // 2) Normalisasi semua varian bulan/periode ke YYYY-MM agar filter periode tidak bocor.
+      const MONTHS_ID = { januari: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06", juli: "07", agustus: "08", september: "09", sep: "09", oktober: "10", okt: "10", november: "11", nov: "11", desember: "12", des: "12" };
+      const normPeriode = (v) => {
+        if (!v) return "";
+        if (v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        const s = String(v).trim();
+        let m = s.match(/^(20\d\d)[-\/](0[1-9]|1[0-2])/);
+        if (m) return `${m[1]}-${m[2]}`;
+        m = s.toLowerCase().match(/^([a-z]+)\s+(20\d\d)$/);
+        if (m && MONTHS_ID[m[1]]) return `${m[2]}-${MONTHS_ID[m[1]]}`;
+        m = s.match(/^(0[1-9]|1[0-2])[-\/](20\d\d)$/);
+        if (m) return `${m[2]}-${m[1]}`;
+        return s;
+      };
+      const inDirektori = (namaNorm) => direktoriSet.has(namaNorm);
+      let barisKotorTerbuang = 0;
+
       // PRE-AGGREGATE: Hitung ringkasan data sebelum dikirim ke AI
       // Shortage per karyawan per periode
       const shortageSummary = {};
       rawShortage.forEach(r => {
         const nama = normName(r.nama || r.nama_1 || "");
-        const periode = r.periode || "";
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const periode = normPeriode(r.periode);
         const key = nama + "|" + periode;
-        if (!shortageSummary[key]) shortageSummary[key] = { nama, periode, frekuensi: 0, totalShort: 0, totalOver: 0 };
+        if (!shortageSummary[key]) shortageSummary[key] = { nama: resolveAiNama(nama), periode, frekuensi: 0, totalShort: 0, totalOver: 0 };
         shortageSummary[key].frekuensi++;
         const pagi = parseInt(r.short_over_shift_pagi) || 0;
         const siang = parseInt(r.short_over_shift_siang) || 0;
@@ -131,9 +156,10 @@ export default function SupervisorDashboard() {
       const memberSummary = {};
       rawMember.forEach(r => {
         const nama = normName(r.nama);
-        const bulan = r.bulan || "";
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const bulan = normPeriode(r.bulan);
         const key = nama + "|" + bulan;
-        if (!memberSummary[key]) memberSummary[key] = { nama, bulan, total: 0 };
+        if (!memberSummary[key]) memberSummary[key] = { nama: resolveAiNama(nama), bulan, total: 0 };
         memberSummary[key].total += parseInt(r.qty) || 0;
       });
 
@@ -141,9 +167,10 @@ export default function SupervisorDashboard() {
       const ecobagSummary = {};
       rawEcobag.forEach(r => {
         const nama = normName(r.staff_name);
-        const bulan = r.year_month || r.month || "";
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const bulan = normPeriode(r.year_month || r.month);
         const key = nama + "|" + bulan;
-        if (!ecobagSummary[key]) ecobagSummary[key] = { nama, bulan, total: 0 };
+        if (!ecobagSummary[key]) ecobagSummary[key] = { nama: resolveAiNama(nama), bulan, total: 0 };
         ecobagSummary[key].total += parseInt(r.total) || 0;
       });
 
@@ -151,16 +178,18 @@ export default function SupervisorDashboard() {
       const salesSummary = {};
       rawSalesMember.forEach(r => {
         const nama = normName(r.nama);
-        const periode = r.periode || "";
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const periode = normPeriode(r.periode);
         const key = nama + "|" + periode;
-        if (!salesSummary[key]) salesSummary[key] = { nama, periode, totalMemberSales: 0, totalHourlySales: 0 };
+        if (!salesSummary[key]) salesSummary[key] = { nama: resolveAiNama(nama), periode, totalMemberSales: 0, totalHourlySales: 0 };
         salesSummary[key].totalMemberSales += parseFloat(r.total_sales) || 0;
       });
       rawSalesHourly.forEach(r => {
         const nama = normName(r.nama);
-        const periode = r.periode || "";
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const periode = normPeriode(r.periode);
         const key = nama + "|" + periode;
-        if (!salesSummary[key]) salesSummary[key] = { nama, periode, totalMemberSales: 0, totalHourlySales: 0 };
+        if (!salesSummary[key]) salesSummary[key] = { nama: resolveAiNama(nama), periode, totalMemberSales: 0, totalHourlySales: 0 };
         salesSummary[key].totalHourlySales += parseFloat(r.total_sales) || 0;
       });
       Object.values(salesSummary).forEach(g => {
@@ -174,12 +203,13 @@ export default function SupervisorDashboard() {
       rawSalesHourly.forEach(r => { totalHourlyAll += parseFloat(r.total_sales) || 0; });
       const globalSalesRatio = totalHourlyAll > 0 ? Math.round((totalMemberAll / totalHourlyAll) * 1000) / 10 : 0;
 
-      // KPI: Agregasi per karyawan (semua periode)
+      // KPI: Agregasi per karyawan (semua periode) — hanya nama direktori
       // Shortage per karyawan total
       const shortageByKaryawan = {};
       rawShortage.forEach(r => {
         const nama = normName(r.nama || r.nama_1 || "");
-        if (!shortageByKaryawan[nama]) shortageByKaryawan[nama] = { nama, totalShort: 0, totalOver: 0, frekuensi: 0 };
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        if (!shortageByKaryawan[nama]) shortageByKaryawan[nama] = { nama: resolveAiNama(nama), totalShort: 0, totalOver: 0, frekuensi: 0 };
         shortageByKaryawan[nama].frekuensi++;
         const pagi = parseInt(r.short_over_shift_pagi) || 0;
         const siang = parseInt(r.short_over_shift_siang) || 0;
@@ -190,23 +220,23 @@ export default function SupervisorDashboard() {
       const kpiShortageTertinggi = allShortageSorted.slice(0, 5);
       const kpiShortageTerendah = allShortageSorted.filter(s => s.totalShort === 0).sort((a,b) => a.frekuensi - b.frekuensi).slice(0, 5);
 
-      // SP/BA per karyawan total
+      // SP/BA per karyawan total (hanya nama direktori; output pakai ejaan resmi)
       const spByKaryawan = {};
-      rawSpBa.forEach(r => { const n = normName(r.nama); spByKaryawan[n] = (spByKaryawan[n] || 0) + 1; });
+      rawSpBa.forEach(r => { const n = normName(r.nama); if (!inDirektori(n)) { barisKotorTerbuang++; return; } spByKaryawan[n] = (spByKaryawan[n] || 0) + 1; });
       const allSpSorted = Object.entries(spByKaryawan).sort((a,b) => b[1] - a[1]);
-      const kpiSpTertinggi = allSpSorted.slice(0, 5).map(([n,c]) => ({ nama: n, jumlah: c }));
+      const kpiSpTertinggi = allSpSorted.slice(0, 5).map(([n,c]) => ({ nama: resolveAiNama(n), jumlah: c }));
       // Terendah = yang tidak punya SP sama sekali
       const allNamaSet = new Set(allKaryawan.map(k => normName(k.nama)));
       const namaNoSp = [...allNamaSet].filter(n => !spByKaryawan[n]);
-      const kpiSpTerendah = namaNoSp.slice(0, 10).map(n => ({ nama: n, jumlah: 0 }));
+      const kpiSpTerendah = namaNoSp.slice(0, 10).map(n => ({ nama: resolveAiNama(n), jumlah: 0 }));
 
-      // Sakit per karyawan total
+      // Sakit per karyawan total (hanya nama direktori; output pakai ejaan resmi)
       const sakitByKaryawan = {};
-      rawSakit.forEach(r => { const n = normName(r.nama); sakitByKaryawan[n] = (sakitByKaryawan[n] || 0) + 1; });
+      rawSakit.forEach(r => { const n = normName(r.nama); if (!inDirektori(n)) { barisKotorTerbuang++; return; } sakitByKaryawan[n] = (sakitByKaryawan[n] || 0) + 1; });
       const allSakitSorted = Object.entries(sakitByKaryawan).sort((a,b) => b[1] - a[1]);
-      const kpiSakitTertinggi = allSakitSorted.slice(0, 5).map(([n,c]) => ({ nama: n, jumlah: c }));
+      const kpiSakitTertinggi = allSakitSorted.slice(0, 5).map(([n,c]) => ({ nama: resolveAiNama(n), jumlah: c }));
       const namaNoSakit = [...allNamaSet].filter(n => !sakitByKaryawan[n]);
-      const kpiSakitTerendah = namaNoSakit.slice(0, 10).map(n => ({ nama: n, jumlah: 0 }));
+      const kpiSakitTerendah = namaNoSakit.slice(0, 10).map(n => ({ nama: resolveAiNama(n), jumlah: 0 }));
 
       // ===== FASE B: INTENT + EVIDENCE + MEMORI =====
       // Deteksi maksud pertanyaan agar hanya potongan data relevan yang dikirim (hemat token,
@@ -255,14 +285,15 @@ export default function SupervisorDashboard() {
       };
       const atLeastOneTopic = intent.tren || intent.ranking || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0 || intent.namaCandidates.length > 0;
 
-      // PWP per karyawan per periode
+      // PWP per karyawan per periode (hanya nama direktori, periode ternormalisasi)
       const pwpSummary = {};
       rawPwp.forEach(r => {
         if (!r.nama) return;
         const nama = normName(r.nama);
-        const periode = r.periode || "";
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const periode = normPeriode(r.periode);
         const key = nama + "|" + periode;
-        if (!pwpSummary[key]) pwpSummary[key] = { nama, periode, total: 0 };
+        if (!pwpSummary[key]) pwpSummary[key] = { nama: resolveAiNama(nama), periode, total: 0 };
         pwpSummary[key].total += parseInt(r.qty) || 0;
       });
 
@@ -279,27 +310,32 @@ export default function SupervisorDashboard() {
       });
 
       // Agregat POS per karyawan (dari sales hourly): POS mana dipakai + total transaksi
+      // Hanya nama direktori + periode ternormalisasi agar bisa difilter periode.
       const posSummary = {};
       rawSalesHourly.forEach(r => {
         if (!r.nama) return;
         const nama = normName(r.nama);
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
         const pos = r.pos || "-";
+        const periode = normPeriode(r.periode);
         const key = nama + "|" + pos;
-        if (!posSummary[key]) posSummary[key] = { nama, pos, count: 0, sales: 0 };
+        if (!posSummary[key]) posSummary[key] = { nama: resolveAiNama(nama), pos, periode, count: 0, sales: 0 };
         posSummary[key].count += parseInt(r.count_transaksi) || 0;
         posSummary[key].sales += parseFloat(r.total_sales) || 0;
       });
 
       // Detail per karyawan yang disebut (semua periode, semua panel)
+      // Summary menyimpan nama canonical; intent.nama norm -> bandingkan via normName.
       const namedDetails = {};
       intent.nama.forEach(n => {
+        const match = (g) => normName(g.nama) === n;
         namedDetails[n] = {
-          shortage: Object.values(shortageSummary).filter(g => g.nama === n),
-          member: Object.values(memberSummary).filter(g => g.nama === n),
-          ecobag: Object.values(ecobagSummary).filter(g => g.nama === n),
-          sales: Object.values(salesSummary).filter(g => g.nama === n),
-          pos: Object.values(posSummary).filter(g => g.nama === n),
-          pwp: Object.values(pwpSummary).filter(g => g.nama === n),
+          shortage: Object.values(shortageSummary).filter(match),
+          member: Object.values(memberSummary).filter(match),
+          ecobag: Object.values(ecobagSummary).filter(match),
+          sales: Object.values(salesSummary).filter(match),
+          pos: Object.values(posSummary).filter(match),
+          pwp: Object.values(pwpSummary).filter(match),
         };
       });
 
@@ -314,8 +350,10 @@ export default function SupervisorDashboard() {
       rawSpBa.forEach(r => {
         if (!r.nama) return;
         const nama = normName(r.nama);
-        const key = nama + "|" + (r.bulan || "") + "|" + ((r.jenis_pelanggaran || "Lainnya").trim() || "Lainnya");
-        if (!spDetailMap[key]) spDetailMap[key] = { nama, bulan: r.bulan || "", jenis: ((r.jenis_pelanggaran || "Lainnya").trim() || "Lainnya"), jumlah: 0 };
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const bulan = normPeriode(r.bulan);
+        const key = nama + "|" + bulan + "|" + ((r.jenis_pelanggaran || "Lainnya").trim() || "Lainnya");
+        if (!spDetailMap[key]) spDetailMap[key] = { nama: resolveAiNama(nama), bulan, jenis: ((r.jenis_pelanggaran || "Lainnya").trim() || "Lainnya"), jumlah: 0 };
         spDetailMap[key].jumlah++;
       });
 
@@ -324,8 +362,10 @@ export default function SupervisorDashboard() {
       rawSakit.forEach(r => {
         if (!r.nama) return;
         const nama = normName(r.nama);
-        const key = nama + "|" + (r.bulan || "");
-        if (!sakitDetailMap[key]) sakitDetailMap[key] = { nama, bulan: r.bulan || "", jumlah: 0 };
+        if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
+        const bulan = normPeriode(r.bulan);
+        const key = nama + "|" + bulan;
+        if (!sakitDetailMap[key]) sakitDetailMap[key] = { nama: resolveAiNama(nama), bulan, jumlah: 0 };
         sakitDetailMap[key].jumlah++;
       });
 
@@ -409,11 +449,96 @@ export default function SupervisorDashboard() {
         namaCandidates: intent.namaCandidates.length > 0 ? intent.namaCandidates : null,
       };
 
-      // Memori: 6 pesan terakhir agar follow-up ("dia?", "bulan lalu?") tidak ngawur
-      const history = aiChat.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: String(m.text || '').slice(0, 500) }));
+      // ===== FASE FINAL: DETERMINISTIC ENGINE =====
+      // Ranking + tren + detail 1 nama dihitung pasti di JS (LLM dilarang hitung ulang).
+      // LLM hanya mengubah jawabanPasti menjadi bahasa natural.
+      const PANEL_LABEL = { ecobag: "Ecobag", member: "Member", sales: "Sales Ratio", pwp: "PWP", shortage: "Shortage", sp: "SP/BA", sakit: "Sakit/Izin", pos: "POS" };
+      const PANEL_SATUAN = { ecobag: "pcs", member: "member", sales: "%", pwp: "pcs", shortage: "", sp: "kasus", sakit: "kali", pos: "transaksi" };
+      const arahRendah = /terendah|terbaik|terbersih|terdisiplin|paling sedikit/i.test(userMsg);
+      const rankRows = (entries, desc = true) => {
+        const sorted = [...entries].sort((a, b) => desc ? b[1] - a[1] : a[1] - b[1]);
+        return sorted.slice(0, 5).map(([nama, nilai], i) => ({ rank: i + 1, nama, nilai }));
+      };
+      let jawabanPasti = null;
+      const panelScope = single || null;
+
+      // --- Tipe 1: RANKING satu panel (mis. "ecobag tertinggi periode 2026-09") ---
+      if (intent.ranking && panelScope && panelScope !== "pos") {
+        const desc = !arahRendah;
+        let entries = [], satuan = PANEL_SATUAN[panelScope] || "";
+        if (panelScope === "ecobag") entries = Object.entries(P ? ecobagScopedByEmp : ecobagByEmp);
+        else if (panelScope === "member") entries = Object.entries(P ? memberScopedByEmp : memberByEmp);
+        else if (panelScope === "pwp") entries = Object.entries(P ? pwpScopedByEmp : pwpByEmp);
+        else if (panelScope === "sales") entries = Object.values(P ? salesScopedByEmp : salesByEmp).map(g => [g.nama, g.ratio]);
+        else if (panelScope === "shortage") entries = Object.entries(sumBy(shortageScoped, g => g.nama, g => Math.abs(g.totalShort || 0)));
+        else if (panelScope === "sp") entries = Object.entries(sumBy(Object.values(spDetailMap).filter(g => !P || g.bulan === P), g => g.nama, g => g.jumlah));
+        else if (panelScope === "sakit") entries = Object.entries(sumBy(Object.values(sakitDetailMap).filter(g => !P || g.bulan === P), g => g.nama, g => g.jumlah));
+        const top5 = rankRows(entries, desc);
+        if (top5.length === 0) {
+          jawabanPasti = { tipe: "kosong", panel: panelScope, panelLabel: PANEL_LABEL[panelScope], periode: P || "semua", sumber: `Ranking ${PANEL_LABEL[panelScope]}` };
+        } else {
+          jawabanPasti = {
+            tipe: "ranking", panel: panelScope, panelLabel: PANEL_LABEL[panelScope],
+            periode: P || "semua", arah: desc ? "tertinggi" : "terendah",
+            rank1: { ...top5[0], satuan }, top5: top5.map(r => ({ ...r, satuan })),
+            sumber: `Ranking ${PANEL_LABEL[panelScope]}`,
+          };
+        }
+      }
+
+      // --- Tipe 2: TREN satu panel per periode ---
+      if (!jawabanPasti && intent.tren && panelScope && (P || intent.nama.length === 0)) {
+        const perSums = {};
+        const pushPer = (key, val) => { perSums[key] = (perSums[key] || 0) + val; };
+        if (panelScope === "ecobag") Object.values(ecobagSummary).forEach(g => pushPer(g.bulan, g.total));
+        else if (panelScope === "member") Object.values(memberSummary).forEach(g => pushPer(g.bulan, g.total));
+        else if (panelScope === "pwp") Object.values(pwpSummary).forEach(g => pushPer(g.periode, g.total));
+        else if (panelScope === "sales") Object.values(salesTrend).forEach(g => pushPer(g.periode, g.totalMemberSales));
+        else if (panelScope === "shortage") Object.values(shortageSummary).forEach(g => pushPer(g.periode, Math.abs(g.totalShort || 0)));
+        const trenRows = Object.entries(perSums).sort((a, b) => a[0].localeCompare(b[0])).map(([periode, nilai]) => ({ periode, nilai, satuan: PANEL_SATUAN[panelScope] || "" }));
+        if (trenRows.length > 0) {
+          const vals = trenRows.map(r => r.nilai);
+          const delta = vals.length > 1 ? vals[vals.length - 1] - vals[0] : 0;
+          jawabanPasti = {
+            tipe: "tren", panel: panelScope, panelLabel: PANEL_LABEL[panelScope],
+            periode: P || "semua", trenRows,
+            arahTren: delta > 0 ? "naik" : delta < 0 ? "turun" : "stabil", selisih: delta,
+            sumber: panelScope === "sales" ? "Tren Sales" : `Ranking ${PANEL_LABEL[panelScope]}`,
+          };
+        }
+      }
+
+      // --- Tipe 3: DETAIL 1 nama karyawan yang disebut ---
+      if (!jawabanPasti && intent.nama.length === 1) {
+        const n = intent.nama[0];
+        const det = namedDetails[n];
+        if (det) {
+          const tot = (arr, fn) => arr.reduce((s, g) => s + (fn(g) || 0), 0);
+          jawabanPasti = {
+            tipe: "detail_nama", panel: "semua", panelLabel: "Semua Panel",
+            nama: n, periode: P || "semua",
+            ringkas: {
+              member: tot(det.member.filter(g => !P || g.bulan === P), g => g.total),
+              ecobag: tot(det.ecobag.filter(g => !P || g.bulan === P), g => g.total),
+              salesRatioTerakhir: (() => {
+                const s = det.sales.filter(g => !P || g.periode === P).sort((a, b) => (b.periode || "").localeCompare(a.periode || ""))[0];
+                return s ? { periode: s.periode, ratio: s.ratio, memberSales: s.totalMemberSales, hourlySales: s.totalHourlySales } : null;
+              })(),
+              shortageAbs: tot(det.shortage.filter(g => !P || g.periode === P), g => Math.abs(g.totalShort || 0)),
+              pwp: tot(det.pwp.filter(g => !P || g.periode === P), g => g.total),
+            },
+            sumber: "Detail Karyawan",
+          };
+        }
+      }
+
+      // Memori: 4 pesan terakhir agar follow-up ("dia?", "bulan lalu?") tidak ngawur
+      const history = aiChat.slice(-4).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: String(m.text || '').slice(0, 500) }));
 
       const activePanelData = {
         activePanel,
+        jawabanPasti,
+        barisKotorTerbuang,
         empMenu: selectedKaryawan ? empMenu : null,
         selectedKaryawan: selectedKaryawan ? { nama: selectedKaryawan.nama, stats: empStats } : null,
         filterAktif: { searchNama: searchNama || null, filterBulan: filterBulan || null, filterTipe: filterTipe || null, dirUnder: dirUnder || null, dirStatus: dirStatus || null },
