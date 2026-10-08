@@ -84,6 +84,7 @@ export default function SupervisorDashboard() {
   const [salesChartData, setSalesChartData] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
+  const [aiAgentMode, setAiAgentMode] = useState(false);
   const [aiChat, setAiChat] = useState(() => {
     try {
       const saved = localStorage.getItem("ccm_ai_chat");
@@ -110,6 +111,7 @@ export default function SupervisorDashboard() {
     setAiQuery("");
     setAiChat(prev => [...prev, { role: 'user', text: userMsg }]);
     setAiLoading(true);
+    setAiAgentMode(false);
 
     try {
       // ===== FASE FINAL: HYGIENE + NORMALISASI =====
@@ -556,6 +558,8 @@ export default function SupervisorDashboard() {
         evidence,
       };
 
+      // Fase D: tanpa jawabanPasti -> backend masuk mode agen (query DB via tools).
+      setAiAgentMode(!activePanelData.jawabanPasti);
       const res = await fetch('/api/supervisor/ai-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -571,6 +575,7 @@ export default function SupervisorDashboard() {
       setAiChat(prev => [...prev, { role: 'assistant', text: "Error koneksi ke AI: " + err.message }]);
     }
     setAiLoading(false);
+    setAiAgentMode(false);
   };
 
   const exportToExcel = (dataToExport, fileName, sheetName = "Data") => {
@@ -1908,7 +1913,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
               </div>
             )}
             {aiChat.map((m, i) => <div key={i} className={`p-2.5 rounded-2xl ${m.role === 'user' ? 'bg-indigo-600 text-white ml-auto max-w-[85%]' : 'bg-white text-gray-800 mr-auto max-w-[85%] border shadow-sm'}`}>{m.text}</div>)}
-            {aiLoading && <div className="bg-white text-gray-400 mr-auto rounded-2xl border shadow-sm p-2.5 animate-pulse">Mengetik…</div>}
+            {aiLoading && <div className="bg-white text-gray-400 mr-auto rounded-2xl border shadow-sm p-2.5 animate-pulse">{aiAgentMode ? "🔍 AI sedang mencari data…" : "Mengetik…"}</div>}
           </div>
           <form onSubmit={askAiAssistant} className="p-2 border-t flex gap-1 bg-white">
             <input value={aiQuery} onChange={(e) => setAiQuery(e.target.value)} className="flex-1 p-2.5 bg-gray-100 rounded-xl outline-none text-xs text-gray-800" placeholder="Tanya sesuatu..." maxLength={500} />

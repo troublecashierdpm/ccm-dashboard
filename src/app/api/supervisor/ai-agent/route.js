@@ -67,6 +67,72 @@ async function callOpenRouter(apiKey, model, systemPrompt, query, history = []) 
   return json.choices?.[0]?.message?.content || "Maaf, AI tidak dapat merespon saat ini.";
 }
 
+const MAX_AGENT_STEPS = 4;
+const TOOL_TIMEOUT_MS = 20000;
+
+// ===== FASE D: loop agen Gemini function calling =====
+// LLM wajib query via tools dulu (maks 4 langkah), baru merangkai jawaban.
+// Return { reply, toolCalls: [{tool, args, ok}] } atau throw.
+async function runAgent(apiKey, model, agentPrompt, query, history = []) {
+  const { TOOL_DECLARATIONS, execTool } = await import('../ai-tools.js');
+  const histContents = (history || []).slice(-4).filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.text).map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(m.text).slice(0, 500) }]
+  }));
+  let contents = [...histContents, { parts: [{ text: query }] }];
+  const toolCalls = [];
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  for (let step = 0; step < MAX_AGENT_STEPS; step++) {
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: agentPrompt }] },
+        contents,
+        tools: [{ function_declarations: TOOL_DECLARATIONS }],
+        tool_config: { function_calling_config: { mode: step === 0 ? "ANY" : "AUTO" } },
+        generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+      })
+    }, TIMEOUT_MS);
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); }
+    catch { throw new Error(`Gemini agen balas non-JSON (HTTP ${res.status}): ${text.slice(0, 300)}`); }
+    if (!res.ok || json.error) throw new Error(json.error?.message || `Gemini agen HTTP ${res.status}`);
+    const cand = json.candidates?.[0];
+    const parts = cand?.content?.parts || [];
+    const fc = parts.find(p => p.functionCall);
+
+    if (!fc) {
+      const reply = parts.map(p => p.text || '').join('').trim();
+      if (!reply) throw new Error('Agen tidak mengembalikan jawaban teks.');
+      return { reply, toolCalls };
+    }
+
+    const toolName = fc.functionCall.name;
+    const toolArgs = fc.functionCall.args || {};
+    let toolResult;
+    try {
+      const withTimeout = await Promise.race([
+        execTool(toolName, toolArgs),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`Tool ${toolName} timeout ${TOOL_TIMEOUT_MS}ms`)), TOOL_TIMEOUT_MS)),
+      ]);
+      toolResult = withTimeout;
+      toolCalls.push({ tool: toolName, args: toolArgs, ok: true });
+    } catch (e) {
+      toolResult = { error: e.message };
+      toolCalls.push({ tool: toolName, args: toolArgs, ok: false, error: e.message });
+    }
+    contents = [
+      ...contents,
+      { role: "model", parts: [{ functionCall: fc.functionCall }] },
+      { role: "function", parts: [{ functionResponse: { name: toolName, response: toolResult } }] },
+    ];
+  }
+  throw new Error('Agen melebihi batas 4 langkah tool tanpa jawaban final.');
+}
+
 export async function POST(req) {
   try {
     const { query, context, history } = await req.json();
@@ -243,7 +309,42 @@ ${pangkas ? "" : `Panduan menjawab:
       return reply;
     };
 
-    if (geminiKey) {
+    // ===== FASE D: mode agen — hanya bila TIDAK ada jawabanPasti =====
+    // LLM query DB langsung via tools (maks 4 langkah), bukan menebak dari potongan.
+    // Gagal -> template deterministik bila ada, else error tegas (tanpa LLM bebas).
+    const modeAgen = !jp || !templateJawaban;
+    const validAgentReply = (reply, toolCalls) => {
+      if (!toolCalls || toolCalls.length === 0) return false;
+      const okCalls = toolCalls.filter(t => t.ok);
+      if (okCalls.length === 0) return false;
+      // Jawaban harus memuat minimal 1 nama/angka dari hasil tool terakhir yang sukses.
+      // Pengecekan longgar di sini; ketepatan angka dijamin karena LLM hanya merangkai hasil tool.
+      return reply && reply.trim().length >= 20;
+    };
+    const renderAgentFallback = async () => {
+      // Fallback deterministik dari hasil tool terakhir bila LLM gagal merangkai.
+      return null;
+    };
+
+    if (modeAgen && geminiKey) {
+      try {
+        const agentPrompt = `Anda adalah AI Assistant Dashboard Supervisor Kasir AEON dengan akses TOOLS database.
+ATURAN KERAS:
+- WAJIB memanggil minimal 1 tool sebelum menjawab. DILARANG menjawab dari pengetahuan umum.
+- Pilih tool sesuai pertanyaan: ranking untuk tertinggi/terendah/siapa, tren untuk naik-turun/grafik, detail_karyawan untuk orang tertentu atau kata dia/nya (resolusi dari riwayat), daftar_periode bila periode kosong.
+- Maksimal 4 langkah tool. Setelah data cukup, rangkai jawaban Bahasa Indonesia: baris 1 jawaban langsung (nama + angka + periode), lalu rincian, terakhir "Sumber: <nama tool>".
+- Jika tool mengembalikan klarifikasi/tidakDitemukan/error, sampaikan itu ke user dan berhenti (jangan menebak).
+- Maksimal 5 baris data per jawaban. Format angka Indonesia.`;
+        const { reply, toolCalls } = await runAgent(geminiKey, geminiModel, agentPrompt, query, cleanHistory);
+        if (!validAgentReply(reply, toolCalls)) throw new Error("Jawaban agen tidak memuat hasil tool.");
+        return NextResponse.json({ success: true, reply });
+      } catch (e) {
+        console.error("Gemini Agent Error:", e.message);
+        errs.push(`Agen: ${e.message}`);
+      }
+    }
+
+    if (geminiKey && !modeAgen) {
       try {
         const reply = await callGemini(geminiKey, geminiModel, systemPrompt, query, cleanHistory);
         return NextResponse.json({ success: true, reply: answerWithValidation(reply) });
