@@ -229,19 +229,29 @@ export default function SupervisorDashboard() {
       }
       // searchNama aktif juga diperlakukan sebagai nama yang disebut
       const searchHit = searchNama ? allNames.filter(n => n.toLowerCase().includes(searchNama.toLowerCase())).slice(0, 3) : [];
+      // Ekstrak periode YYYY-MM dari query (mis. "2026-09", "2026/09")
+      const periodeMatch = userMsg.match(/20\d\d[-\/](0[1-9]|1[0-2])/);
+      const periodeNorm = periodeMatch ? periodeMatch[0].replace("/", "-") : null;
+      const panelFlags = {
+        pos: /\bpos\b|kasir \d|transaksi/i.test(userMsg),
+        pwp: /pwp/i.test(userMsg),
+        member: /member/i.test(userMsg),
+        ecobag: /ecobag|kantong/i.test(userMsg),
+        sales: /sales(?!.*ecobag)|ratio|member.*hourly|%|persen/i.test(userMsg),
+        shortage: /short|minus|over|selisih kas/i.test(userMsg),
+        sp: /\bsp\b|surat|pelanggaran|berita acara/i.test(userMsg),
+        sakit: /sakit|izin|absen/i.test(userMsg),
+      };
+      const panelsHit = Object.keys(panelFlags).filter(k => panelFlags[k]);
       const intent = {
         nama: fullHits,
         namaCandidates: fullHits.length > 0 ? [] : [...new Set([...partialHits, ...searchHit])].slice(0, 5),
         tren: /tren|grafik|naik|turun|banding|periode|bulan/i.test(userMsg),
         ranking: /tertinggi|terendah|terbaik|terburuk|ranking|siapa/i.test(userMsg),
-        pos: /\bpos\b|kasir \d|transaksi/i.test(userMsg),
-        pwp: /pwp/i.test(userMsg),
-        member: /member/i.test(userMsg),
-        ecobag: /ecobag|kantong/i.test(userMsg),
-        sales: /sales|ratio|member.*hourly|%|persen/i.test(userMsg),
-        shortage: /short|minus|over|selisih kas/i.test(userMsg),
-        sp: /\bsp\b|surat|pelanggaran|berita acara/i.test(userMsg),
-        sakit: /sakit|izin|absen/i.test(userMsg),
+        jual: /jual|penjualan|terjual/i.test(userMsg),
+        periode: periodeNorm,
+        ...panelFlags,
+        panelTunggal: panelsHit.length === 1 ? panelsHit[0] : null,
       };
       const atLeastOneTopic = intent.tren || intent.ranking || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0 || intent.namaCandidates.length > 0;
 
@@ -332,31 +342,68 @@ export default function SupervisorDashboard() {
       Object.values(pwpSummary).forEach(g => { pwpByEmp[g.nama] = (pwpByEmp[g.nama] || 0) + g.total; });
 
       const wantAll = !atLeastOneTopic;
+      // Jika periode disebut (mis. 2026-09): saring evidence ke bulan itu saja.
+      const P = intent.periode;
+      const inPeriode = (g) => !P || (g.bulan || g.periode) === P;
+      const periodeAda = (arr, getKey) => {
+        if (!P) return null;
+        const keys = new Set(arr.map(getKey));
+        return keys.has(P) ? true : false;
+      };
+      const scoped = (obj) => P ? Object.fromEntries(Object.entries(obj).filter(([k]) => k.endsWith("|" + P))) : obj;
+      const memberScoped = P ? Object.values(memberSummary).filter(g => g.bulan === P) : Object.values(memberSummary);
+      const ecobagScoped = P ? Object.values(ecobagSummary).filter(g => g.bulan === P) : Object.values(ecobagSummary);
+      const salesScoped = P ? Object.values(salesSummary).filter(g => g.periode === P) : Object.values(salesSummary);
+      const pwpScoped = P ? Object.values(pwpSummary).filter(g => g.periode === P) : Object.values(pwpSummary);
+      const shortageScoped = P ? Object.values(shortageSummary).filter(g => g.periode === P) : Object.values(shortageSummary);
+      const sumBy = (arr, keyFn, valFn) => {
+        const m = {};
+        arr.forEach(g => { const k = keyFn(g); m[k] = (m[k] || 0) + valFn(g); });
+        return m;
+      };
+      const memberScopedByEmp = sumBy(memberScoped, g => g.nama, g => g.total);
+      const ecobagScopedByEmp = sumBy(ecobagScoped, g => g.nama, g => g.total);
+      const pwpScopedByEmp = sumBy(pwpScoped, g => g.nama, g => g.total);
+      const salesScopedByEmp = {};
+      salesScoped.forEach(g => {
+        if (!salesScopedByEmp[g.nama]) salesScopedByEmp[g.nama] = { nama: g.nama, totalMemberSales: 0, totalHourlySales: 0 };
+        salesScopedByEmp[g.nama].totalMemberSales += g.totalMemberSales;
+        salesScopedByEmp[g.nama].totalHourlySales += g.totalHourlySales;
+      });
+      Object.values(salesScopedByEmp).forEach(g => { g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0; });
+      // Jika tepat 1 panel terdeteksi: jangan sertakan evidence mentah panel lain (cegah salah ambil angka).
+      const single = intent.panelTunggal;
+      const want = (panel) => wantAll || intent[panel] || intent.nama.length > 0 || (single === panel);
+      const hideOther = single && P;
       const evidence = {
-        member: (wantAll || intent.member || intent.nama.length > 0) ? cap(Object.values(memberSummary), 30, (a, b) => b.total - a.total) : null,
-        ecobag: (wantAll || intent.ecobag || intent.nama.length > 0) ? cap(Object.values(ecobagSummary), 30, (a, b) => b.total - a.total) : null,
-        sales: (wantAll || intent.sales || intent.tren || intent.ranking || intent.nama.length > 0) ? cap(Object.values(salesSummary), 30, (a, b) => a.nama.localeCompare(b.nama)) : null,
-        salesTrend: (wantAll || intent.sales || intent.tren) ? Object.values(salesTrend).sort((a, b) => a.periode.localeCompare(b.periode)) : null,
-        pos: (wantAll || intent.pos || intent.nama.length > 0) ? cap(Object.values(posSummary), 30, (a, b) => b.count - a.count) : null,
-        pwp: (wantAll || intent.pwp || intent.nama.length > 0) ? cap(Object.values(pwpSummary), 30, (a, b) => b.total - a.total) : null,
-        shortageDetail: (wantAll || intent.shortage || intent.ranking || intent.nama.length > 0) ? cap(Object.values(shortageSummary), 30, (a, b) => b.totalShort - a.totalShort) : null,
-        spDetail: (wantAll || intent.sp || intent.ranking || intent.nama.length > 0) ? cap(Object.values(spDetailMap), 30, (a, b) => b.jumlah - a.jumlah) : null,
-        sakitDetail: (wantAll || intent.sakit || intent.ranking || intent.nama.length > 0) ? cap(Object.values(sakitDetailMap), 30, (a, b) => b.jumlah - a.jumlah) : null,
+        periodeDiminta: P,
+        periodeKosong: P ? !(
+          memberScoped.length || ecobagScoped.length || salesScoped.length || pwpScoped.length || shortageScoped.length
+        ) : false,
+        member: (!hideOther || single === "member") && want("member") ? cap(memberScoped, 30, (a, b) => b.total - a.total) : null,
+        ecobag: (!hideOther || single === "ecobag") && want("ecobag") ? cap(ecobagScoped, 30, (a, b) => b.total - a.total) : null,
+        sales: (!hideOther || single === "sales") && (wantAll || intent.sales || intent.tren || intent.ranking || intent.nama.length > 0) ? cap(salesScoped, 30, (a, b) => a.nama.localeCompare(b.nama)) : null,
+        salesTrend: (!hideOther || single === "sales") && (wantAll || intent.sales || intent.tren) ? Object.values(salesTrend).sort((a, b) => a.periode.localeCompare(b.periode)) : null,
+        pos: (!hideOther || single === "pos") && want("pos") ? cap(Object.values(posSummary).filter(g => !P || Object.values(salesSummary).some(s => s.nama === g.nama && s.periode === P)), 30, (a, b) => b.count - a.count) : null,
+        pwp: (!hideOther || single === "pwp") && want("pwp") ? cap(pwpScoped, 30, (a, b) => b.total - a.total) : null,
+        shortageDetail: (!hideOther || single === "shortage") && (wantAll || intent.shortage || intent.ranking || intent.nama.length > 0) ? cap(shortageScoped, 30, (a, b) => b.totalShort - a.totalShort) : null,
+        spDetail: (!hideOther || single === "sp") && (wantAll || intent.sp || intent.ranking || intent.nama.length > 0) ? cap(Object.values(spDetailMap).filter(g => !P || g.bulan === P), 30, (a, b) => b.jumlah - a.jumlah) : null,
+        sakitDetail: (!hideOther || single === "sakit") && (wantAll || intent.sakit || intent.ranking || intent.nama.length > 0) ? cap(Object.values(sakitDetailMap).filter(g => !P || g.bulan === P), 30, (a, b) => b.jumlah - a.jumlah) : null,
         rankingMember: (wantAll || intent.ranking || intent.member) ? {
-          top5: Object.entries(memberByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
-          bottom5: Object.entries(memberByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+          top5: Object.entries(P ? memberScopedByEmp : memberByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total, periode: P || "semua" })),
+          bottom5: Object.entries(P ? memberScopedByEmp : memberByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total, periode: P || "semua" })),
         } : null,
         rankingSales: (wantAll || intent.ranking || intent.sales) ? {
-          top5: Object.values(salesByEmp).sort((a, b) => b.ratio - a.ratio).slice(0, 5),
-          bottom5: Object.values(salesByEmp).sort((a, b) => a.ratio - b.ratio).slice(0, 5),
+          top5: Object.values(P ? salesScopedByEmp : salesByEmp).sort((a, b) => b.ratio - a.ratio).slice(0, 5),
+          bottom5: Object.values(P ? salesScopedByEmp : salesByEmp).sort((a, b) => a.ratio - b.ratio).slice(0, 5),
         } : null,
         rankingPwp: (wantAll || intent.ranking || intent.pwp) ? {
-          top5: Object.entries(pwpByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
-          bottom5: Object.entries(pwpByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+          top5: Object.entries(P ? pwpScopedByEmp : pwpByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total, periode: P || "semua" })),
+          bottom5: Object.entries(P ? pwpScopedByEmp : pwpByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total, periode: P || "semua" })),
         } : null,
         rankingEcobag: (wantAll || intent.ranking || intent.ecobag) ? {
-          top5: Object.entries(ecobagByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
-          bottom5: Object.entries(ecobagByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+          top5: Object.entries(P ? ecobagScopedByEmp : ecobagByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total, periode: P || "semua" })),
+          bottom5: Object.entries(P ? ecobagScopedByEmp : ecobagByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total, periode: P || "semua" })),
         } : null,
         namedDetails: intent.nama.length > 0 ? namedDetails : null,
         namaCandidates: intent.namaCandidates.length > 0 ? intent.namaCandidates : null,

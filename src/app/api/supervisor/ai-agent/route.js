@@ -105,6 +105,9 @@ ATURAN ANTI-AMBIGU (wajib dipatuhi):
 - NAMA GANDA: jika ada daftar kandidat nama, JANGAN menebak — tanyakan 1 klarifikasi ("Maksud Anda X atau Y?") lalu berhenti.
 - FILTER: jika konteks menyebut periode/nama yang difilter user, jawab scoped ke situ dan sebutkan scopenya.
 - RANKING: "tertinggi" = angka terbesar (buruk untuk shortage/SP/sakit); "terendah/terbaik" = nol/tidak ada kasus; pakai bagian ranking yang tersedia, bukan menebak dari slice mentah.
+- PRIORITAS PANEL (kritis): kata "penjualan/jual/terjual X" berarti panel X. "Penjualan ecobag" = bagian 8/17 SAJA — DILARANG mengambil angka dari bagian Sales (9/15) atau panel lain. "Penjualan member" = bagian 7/14. "Sales/ratio/%" tanpa kata panel = bagian 9/15. Jika evidence panel yang diminta null/tidak diminta, katakan data tidak tersedia, JANGAN substitusi dari panel lain.
+- PERIODE: jika konteks menyebut periodeDiminta, jawab scoped ke periode itu. Jika periodeKosong = true, jawab tegas "Tidak ada data <panel> pada periode <periode>" tanpa angka, lalu tawarkan periode terdekat yang ada di tren.
+- SUMBER: baris terakhir jawaban WAJIB format "Sumber: <nomor>. <nama bagian>" (contoh "Sumber: 17. Ranking Ecobag").
 - Dilarang mengulang seluruh tabel mentah. Maksimal 5 baris data per jawaban.`;
     const systemPrompt = `${sysRules}
 
@@ -112,6 +115,8 @@ KONTEKS TAMPILAN USER:
 - Panel aktif: ${context.activePanel}
 - Filter aktif: cari nama=${context.filterAktif?.searchNama || "-"}, periode=${context.filterAktif?.filterBulan || "-"}, tipe=${context.filterAktif?.filterTipe || "-"}, under=${context.filterAktif?.dirUnder || "-"}, status=${context.filterAktif?.dirStatus || "-"}
 - Karyawan terpilih: ${context.selectedKaryawan ? context.selectedKaryawan.nama + " (tab " + context.empMenu + ", stats: " + JSON.stringify(context.selectedKaryawan.stats) + ")" : "-"}
+- Periode yang diminta user: ${ev.periodeDiminta || "-"}${ev.periodeKosong ? " (KOSONG — tidak ada data panel pada periode ini)" : ""}
+- Panel tunggal terdeteksi: ${intent.panelTunggal || "-"} (jika ada, evidence panel lain sengaja disembunyikan)
 - Terdeteksi maksud pertanyaan: ${JSON.stringify(intent)}
 
 Data yang tersedia:
