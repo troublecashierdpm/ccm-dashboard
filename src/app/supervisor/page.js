@@ -186,18 +186,108 @@ export default function SupervisorDashboard() {
       const namaNoSakit = [...allNamaSet].filter(n => !sakitByKaryawan[n]);
       const kpiSakitTerendah = namaNoSakit.slice(0, 10).map(n => ({ nama: n, jumlah: 0 }));
 
+      // ===== FASE A: INTENT + EVIDENCE =====
+      // Deteksi maksud pertanyaan agar hanya potongan data relevan yang dikirim (hemat token,
+      // AI tetap bisa membaca sumber data yang sama dengan dashboard).
+      const qLower = userMsg.toLowerCase();
+      const intent = {
+        nama: allKaryawan.map(k => normName(k.nama)).filter(n => n && qLower.includes(n.toLowerCase())).slice(0, 3),
+        tren: /tren|grafik|naik|turun|banding|periode|bulan/i.test(userMsg),
+        ranking: /tertinggi|terendah|terbaik|terburuk|ranking|siapa/i.test(userMsg),
+        pos: /\bpos\b|kasir \d|transaksi/i.test(userMsg),
+        pwp: /pwp/i.test(userMsg),
+        member: /member/i.test(userMsg),
+        ecobag: /ecobag|kantong/i.test(userMsg),
+        sales: /sales|ratio|member.*hourly|%|persen/i.test(userMsg),
+        shortage: /short|minus|over|selisih kas/i.test(userMsg),
+        sp: /\bsp\b|surat|pelanggaran|berita acara/i.test(userMsg),
+        sakit: /sakit|izin|absen/i.test(userMsg),
+      };
+      const atLeastOneTopic = intent.tren || intent.ranking || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0;
+
+      // PWP per karyawan per periode
+      const pwpSummary = {};
+      rawPwp.forEach(r => {
+        if (!r.nama) return;
+        const nama = normName(r.nama);
+        const periode = r.periode || "";
+        const key = nama + "|" + periode;
+        if (!pwpSummary[key]) pwpSummary[key] = { nama, periode, total: 0 };
+        pwpSummary[key].total += parseInt(r.qty) || 0;
+      });
+
+      // Tren sales global per periode (Member vs Hourly + ratio)
+      const salesTrend = {};
+      Object.values(salesSummary).forEach(g => {
+        if (!salesTrend[g.periode]) salesTrend[g.periode] = { periode: g.periode, totalMemberSales: 0, totalHourlySales: 0 };
+        salesTrend[g.periode].totalMemberSales += g.totalMemberSales;
+        salesTrend[g.periode].totalHourlySales += g.totalHourlySales;
+      });
+      Object.values(salesTrend).forEach(g => {
+        g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0;
+        g.selisih = Math.round((g.totalHourlySales - g.totalMemberSales) * 100) / 100;
+      });
+
+      // Agregat POS per karyawan (dari sales hourly): POS mana dipakai + total transaksi
+      const posSummary = {};
+      rawSalesHourly.forEach(r => {
+        if (!r.nama) return;
+        const nama = normName(r.nama);
+        const pos = r.pos || "-";
+        const key = nama + "|" + pos;
+        if (!posSummary[key]) posSummary[key] = { nama, pos, count: 0, sales: 0 };
+        posSummary[key].count += parseInt(r.count_transaksi) || 0;
+        posSummary[key].sales += parseFloat(r.total_sales) || 0;
+      });
+
+      // Detail per karyawan yang disebut (semua periode, semua panel)
+      const namedDetails = {};
+      intent.nama.forEach(n => {
+        namedDetails[n] = {
+          shortage: Object.values(shortageSummary).filter(g => g.nama === n),
+          member: Object.values(memberSummary).filter(g => g.nama === n),
+          ecobag: Object.values(ecobagSummary).filter(g => g.nama === n),
+          sales: Object.values(salesSummary).filter(g => g.nama === n),
+          pos: Object.values(posSummary).filter(g => g.nama === n),
+          pwp: Object.values(pwpSummary).filter(g => g.nama === n),
+        };
+      });
+
+      // Helper: batasi baris + info sisa agar token tidak bengkak
+      const cap = (arr, n, sortFn) => {
+        const sorted = sortFn ? [...arr].sort(sortFn) : arr;
+        return { data: sorted.slice(0, n), total: sorted.length, ditampilkan: Math.min(n, sorted.length) };
+      };
+
+      const wantAll = !atLeastOneTopic;
+      const evidence = {
+        member: (wantAll || intent.member || intent.nama.length > 0) ? cap(Object.values(memberSummary), 30, (a, b) => b.total - a.total) : null,
+        ecobag: (wantAll || intent.ecobag || intent.nama.length > 0) ? cap(Object.values(ecobagSummary), 30, (a, b) => b.total - a.total) : null,
+        sales: (wantAll || intent.sales || intent.tren || intent.ranking || intent.nama.length > 0) ? cap(Object.values(salesSummary), 30, (a, b) => a.nama.localeCompare(b.nama)) : null,
+        salesTrend: (wantAll || intent.sales || intent.tren) ? Object.values(salesTrend).sort((a, b) => a.periode.localeCompare(b.periode)) : null,
+        pos: (wantAll || intent.pos || intent.nama.length > 0) ? cap(Object.values(posSummary), 30, (a, b) => b.count - a.count) : null,
+        pwp: (wantAll || intent.pwp || intent.nama.length > 0) ? cap(Object.values(pwpSummary), 30, (a, b) => b.total - a.total) : null,
+        shortageDetail: (wantAll || intent.shortage || intent.ranking || intent.nama.length > 0) ? cap(Object.values(shortageSummary), 30, (a, b) => b.totalShort - a.totalShort) : null,
+        namedDetails: intent.nama.length > 0 ? namedDetails : null,
+      };
+
       const activePanelData = {
         activePanel,
+        empMenu: selectedKaryawan ? empMenu : null,
+        selectedKaryawan: selectedKaryawan ? { nama: selectedKaryawan.nama, stats: empStats } : null,
+        filterAktif: { searchNama: searchNama || null, filterBulan: filterBulan || null, filterTipe: filterTipe || null, dirUnder: dirUnder || null, dirStatus: dirStatus || null },
         totalKaryawan: allKaryawan.length,
+        intent,
         kpi: {
           shortage: { tertinggi: kpiShortageTertinggi, terendah: kpiShortageTerendah },
           sp: { tertinggi: kpiSpTertinggi, terendah: kpiSpTerendah },
           sakit: { tertinggi: kpiSakitTertinggi, terendah: kpiSakitTerendah },
         },
         globalSales: { totalMember: totalMemberAll, totalHourly: totalHourlyAll, ratio: globalSalesRatio },
-        memberSummary: Object.values(memberSummary).sort((a,b) => b.total - a.total),
-        ecobagSummary: Object.values(ecobagSummary).sort((a,b) => b.total - a.total),
-        salesSummary: Object.values(salesSummary).sort((a,b) => a.nama.localeCompare(b.nama)),
+        memberSummary: evidence.member ? evidence.member.data : [],
+        ecobagSummary: evidence.ecobag ? evidence.ecobag.data : [],
+        salesSummary: evidence.sales ? evidence.sales.data : [],
+        evidence,
       };
 
       const res = await fetch('/api/supervisor/ai-agent', {
