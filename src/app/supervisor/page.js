@@ -50,6 +50,12 @@ export default function SupervisorDashboard() {
   const [rawSalesHourly, setRawSalesHourly] = useState([]);
   const [rawPwp, setRawPwp] = useState([]);
 
+  // LOADING BERTAHAP: direktori dulu, tabel lain menyusul.
+  // loadStage = teks status; loadedTables = daftar tabel yang sudah termuat; loadErrors = tabel gagal + tombol coba lagi.
+  const [loadStage, setLoadStage] = useState("");
+  const [loadedTables, setLoadedTables] = useState([]);
+  const [loadErrors, setLoadErrors] = useState({});
+
 
   // FILTER UNTUK PANEL GLOBAL (Shortage, Ecobag, dll)
   const [searchNama, setSearchNama] = useState("");
@@ -499,43 +505,121 @@ export default function SupervisorDashboard() {
       const json = await res.json();
       setSyncStatus({ loading: false, message: json.message || (json.success ? "Sinkronisasi sukses!" : "Gagal sync"), success: json.success });
       if (json.success) {
-        fetchGlobalData();
+        // Single sync: cukup muat ulang tabel itu saja, tidak perlu 9 tabel.
+        fetchGlobalData(tableName);
       }
     } catch (err) {
       setSyncStatus({ loading: false, message: "Error koneksi: " + err.message, success: false });
     }
   }
 
-  const fetchGlobalData = async () => {
-    setLoading(true);
-    try {
-      // Menjalankan semua penarikan data secara bersamaan agar cepat
-      const [nikData, shortData, ecoData, memData, sakData, spData, smData, shData, pwpData] = await Promise.all([
-  fetchAllData("nik", "nama"),
-  fetchAllData("shortage_per_day"),
-  fetchAllData("ecobag_per_day"),
-  fetchAllData("member_per_day"),
-  fetchAllData("sakit_per_day"),
-  fetchAllData("sp_ba_per_day"),
-  fetchAllData("sales_member"),
-  fetchAllData("sales_hourly"),
-  fetchAllData("pwp_kasir")
-]);
- 
-setAllKaryawan(nikData || []);
-setRawShortage(shortData || []);
-setRawEcobag(ecoData || []);
-setRawMember(memData || []);
-setRawSakit(sakData || []);
-setRawSpBa(spData || []);
-setRawSalesMember(smData || []);
-setRawSalesHourly(shData || []);
-setRawPwp(pwpData || []);
+  const fetchGlobalData = async (onlyTable = null) => {
+    // SINGLE: muat ulang 1 tabel saja (tanpa spinner full, tanpa sentuh tahap lain).
+    if (onlyTable) {
+      setLoadStage(`Memuat ulang tabel ${onlyTable}…`);
+      setLoadErrors(prev => {
+        const next = { ...prev };
+        delete next[onlyTable];
+        return next;
+      });
+      try {
+        const data = await fetchAllData(onlyTable, onlyTable === "nik" ? "nama" : null);
+        const setters = {
+          nik: setAllKaryawan, member_per_day: setRawMember, sales_member: setRawSalesMember,
+          sales_hourly: setRawSalesHourly, shortage_per_day: setRawShortage, ecobag_per_day: setRawEcobag,
+          sakit_per_day: setRawSakit, sp_ba_per_day: setRawSpBa, pwp_kasir: setRawPwp,
+        };
+        const setter = setters[onlyTable];
+        if (setter) setter(data || []);
+        setLoadedTables(prev => [...new Set([...prev, onlyTable])]);
+        setLoadStage(`Tabel ${onlyTable} termuat.`);
+      } catch (err) {
+        console.error(`Error fetch ${onlyTable}:`, err);
+        setLoadErrors(prev => ({ ...prev, [onlyTable]: String(err?.message || err) }));
+        setLoadStage(`Gagal memuat ${onlyTable} — coba lagi.`);
+      }
+      return;
+    }
 
+    // FULL: bertahap 4 tahap.
+    setLoading(true);
+    setLoadStage("Memuat direktori karyawan…");
+    setLoadedTables([]);
+    setLoadErrors({});
+    let cancelled = false;
+    const markLoaded = (names) => {
+      if (cancelled) return;
+      setLoadedTables(prev => [...new Set([...prev, ...names])]);
+    };
+    const markError = (name, err) => {
+      if (cancelled) return;
+      console.error(`Error fetch ${name}:`, err);
+      setLoadErrors(prev => ({ ...prev, [name]: String(err?.message || err) }));
+    };
+    const safeFetch = async (table, orderByCol = null) => {
+      try {
+        const data = await fetchAllData(table, orderByCol);
+        return data || [];
+      } catch (err) {
+        markError(table, err);
+        return [];
+      }
+    };
+    const TOTAL_TABLES = 9;
+
+    try {
+      // TAHAP 1: Direktori dulu — halaman langsung bisa dipakai.
+      setLoadStage("Tahap 1/4: Direktori karyawan…");
+      const nikData = await safeFetch("nik", "nama");
+      if (cancelled) return;
+      setAllKaryawan(nikData || []);
+      markLoaded(["nik"]);
+      setLoading(false);
+
+      // TAHAP 2: Member + Sales.
+      setLoadStage("Tahap 2/4: Member + Sales…");
+      const [memData, smData, shData] = await Promise.all([
+        safeFetch("member_per_day"),
+        safeFetch("sales_member"),
+        safeFetch("sales_hourly"),
+      ]);
+      if (cancelled) return;
+      setRawMember(memData || []);
+      setRawSalesMember(smData || []);
+      setRawSalesHourly(shData || []);
+      markLoaded(["member_per_day", "sales_member", "sales_hourly"]);
+
+      // TAHAP 3: Shortage + Ecobag + Sakit.
+      setLoadStage("Tahap 3/4: Shortage + Ecobag + Sakit…");
+      const [shortData, ecoData, sakData] = await Promise.all([
+        safeFetch("shortage_per_day"),
+        safeFetch("ecobag_per_day"),
+        safeFetch("sakit_per_day"),
+      ]);
+      if (cancelled) return;
+      setRawShortage(shortData || []);
+      setRawEcobag(ecoData || []);
+      setRawSakit(sakData || []);
+      markLoaded(["shortage_per_day", "ecobag_per_day", "sakit_per_day"]);
+
+      // TAHAP 4: SP/BA + PWP.
+      setLoadStage("Tahap 4/4: SP/BA + PWP…");
+      const [spData, pwpData] = await Promise.all([
+        safeFetch("sp_ba_per_day"),
+        safeFetch("pwp_kasir"),
+      ]);
+      if (cancelled) return;
+      setRawSpBa(spData || []);
+      setRawPwp(pwpData || []);
+      markLoaded(["sp_ba_per_day", "pwp_kasir"]);
+
+      if (cancelled) return;
+      setLoadStage(`Semua data termuat (${TOTAL_TABLES}/${TOTAL_TABLES}).`);
     } catch (err) {
       console.error(err);
+      setLoading(false);
+      setLoadStage("Sebagian data gagal dimuat — coba lagi per tabel.");
     }
-    setLoading(false);
   };
 
   const normalizeTgl = (val, order = 'DMY') => {
@@ -1139,6 +1223,23 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         {syncStatus.message && (
           <div className={`-mt-4 mb-6 text-xs font-bold px-4 py-3 rounded-xl ${syncStatus.loading ? 'bg-blue-50 text-blue-600' : syncStatus.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
             {syncStatus.loading && "⏳ "}{syncStatus.message}
+          </div>
+        )}
+
+        {!loading && loadStage && loadedTables.length < 9 && (
+          <div className="-mt-4 mb-6 text-xs font-bold px-4 py-3 rounded-xl bg-indigo-50 text-indigo-600 flex items-center gap-2">
+            <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin shrink-0"></span>
+            <span>{loadStage} ({loadedTables.length}/9 tabel)</span>
+          </div>
+        )}
+        {!loading && Object.keys(loadErrors).length > 0 && (
+          <div className="-mt-4 mb-6 text-xs font-bold px-4 py-3 rounded-xl bg-red-50 text-red-600 space-y-2">
+            <p>Gagal memuat: {Object.keys(loadErrors).join(", ")}</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(loadErrors).map(t => (
+                <button key={t} onClick={() => fetchGlobalData(t)} className="bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">Coba lagi: {t}</button>
+              ))}
+            </div>
           </div>
         )}
 
