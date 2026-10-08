@@ -334,8 +334,11 @@ export default function PicPage() {
     <div className="min-h-screen bg-[#f8f9fc] font-sans text-gray-800 pb-12">
       <header className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2 font-black text-sm"><span className="bg-white text-amber-600 px-2 py-1 rounded-lg">AEON</span> PANEL PIC</div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <span className="text-xs font-bold opacity-80 hidden sm:block">{picUser?.nama}</span>
+          <a href="/kasir" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Kasir</a>
+          <a href="/supervisor" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Supervisor</a>
+          <a href="/absensi" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Absensi</a>
           <button onClick={prosesLogout} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Logout</button>
         </div>
       </header>
