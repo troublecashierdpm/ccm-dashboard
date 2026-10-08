@@ -46,7 +46,6 @@ async function callOpenRouter(apiKey, model, systemPrompt, query, history = []) 
     role: m.role, content: String(m.text).slice(0, 500)
   }));
   const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
-  const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
