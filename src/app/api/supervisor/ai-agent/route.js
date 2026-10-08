@@ -2,14 +2,66 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
+const GEMINI_MODEL_DEFAULT = 'gemini-2.0-flash';
+const OPENROUTER_MODEL_DEFAULT = 'meta-llama/llama-3.1-8b-instruct';
+const TIMEOUT_MS = 45000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function callGemini(apiKey, model, systemPrompt, query) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: query }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+    })
+  });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error(`Gemini balas non-JSON (HTTP ${res.status}): ${text.slice(0, 300)}`); }
+  if (!res.ok || json.error) throw new Error(json.error?.message || `Gemini HTTP ${res.status}`);
+  const reply = (json.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+  if (!reply) throw new Error('Gemini tidak mengembalikan teks.');
+  return reply;
+}
+
+async function callOpenRouter(apiKey, model, systemPrompt, query) {
+  const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://ccm-dashboard-nine.vercel.app',
+      'X-Title': 'CCM Dashboard AI Assistant'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: query }
+      ]
+    })
+  });
+  const json = await res.json();
+  if (!res.ok || json.error) throw new Error(json.error?.message || json.message || `OpenRouter HTTP ${res.status}`);
+  return json.choices?.[0]?.message?.content || "Maaf, AI tidak dapat merespon saat ini.";
+}
+
 export async function POST(req) {
   try {
     const { query, context } = await req.json();
-    const apiKey = process.env.OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Pertanyaan Anda "${query}" diterima. Masukkan OPENROUTER_API_KEY di environment variables untuk respon AI sesungguhnya.` });
-    }
 
     const kpi = context.kpi || {};
     const ev = context.evidence || {};
@@ -80,32 +132,38 @@ Panduan menjawab:
 - Jika user tanya PWP, pakai bagian 10.
 - Selalu sertakan nama dan angka spesifik.`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://ccm-dashboard-nine.vercel.app',
-        'X-Title': 'CCM Dashboard AI Assistant'
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: query }
-        ]
-      })
-    });
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const geminiModel = process.env.GEMINI_MODEL || GEMINI_MODEL_DEFAULT;
+    const orKey = process.env.OPENROUTER_API_KEY;
+    const orModel = process.env.OPENROUTER_MODEL || OPENROUTER_MODEL_DEFAULT;
 
-    const json = await response.json();
-
-    if (!response.ok || json.error) {
-      console.error("OpenRouter API Error:", JSON.stringify(json));
-      return NextResponse.json({ success: false, message: json.error?.message || json.message || `HTTP ${response.status}` }, { status: 500 });
+    if (!geminiKey && !orKey) {
+      return NextResponse.json({ success: true, reply: `[Mode Simulasi AI] Pertanyaan Anda "${query}" diterima. Masukkan GEMINI_API_KEY di environment variables untuk respon AI sesungguhnya.` });
     }
 
-    const reply = json.choices?.[0]?.message?.content || "Maaf, AI tidak dapat merespon saat ini.";
-    return NextResponse.json({ success: true, reply });
+    const errs = [];
+
+    if (geminiKey) {
+      try {
+        const reply = await callGemini(geminiKey, geminiModel, systemPrompt, query);
+        return NextResponse.json({ success: true, reply });
+      } catch (e) {
+        console.error("Gemini API Error:", e.message);
+        errs.push(`Gemini: ${e.message}`);
+      }
+    }
+
+    if (orKey) {
+      try {
+        const reply = await callOpenRouter(orKey, orModel, systemPrompt, query);
+        return NextResponse.json({ success: true, reply });
+      } catch (e) {
+        console.error("OpenRouter API Error:", e.message);
+        errs.push(`OpenRouter: ${e.message}`);
+      }
+    }
+
+    return NextResponse.json({ success: false, message: errs.join(" | ") || "Semua provider AI gagal." }, { status: 500 });
   } catch (err) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
