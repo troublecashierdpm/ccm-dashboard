@@ -119,7 +119,12 @@ export default function SupervisorDashboard() {
       //    disembunyikan dari AI (dashboard tetap tampil apa adanya).
       const direktoriSet = new Set(allKaryawan.map(k => normName(k.nama)).filter(Boolean));
       const namaCanonical = {};
-      allKaryawan.forEach(k => { if (k.nama) namaCanonical[normName(k.nama)] = k.nama; });
+      const statusDirektori = {};
+      allKaryawan.forEach(k => {
+        if (!k.nama) return;
+        namaCanonical[normName(k.nama)] = k.nama;
+        statusDirektori[normName(k.nama)] = String(k.status || "").trim().toUpperCase();
+      });
       const resolveAiNama = (raw) => namaCanonical[normName(raw)] || null;
       // 2) Normalisasi semua varian bulan/periode ke YYYY-MM agar filter periode tidak bocor.
       const MONTHS_ID = { januari: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06", juli: "07", agustus: "08", september: "09", sep: "09", oktober: "10", okt: "10", november: "11", nov: "11", desember: "12", des: "12" };
@@ -281,11 +286,12 @@ export default function SupervisorDashboard() {
         tren: /tren|grafik|naik|turun|banding|periode|bulan/i.test(userMsg),
         ranking: /tertinggi|terendah|terbaik|terburuk|ranking|siapa/i.test(userMsg),
         jual: /jual|penjualan|terjual/i.test(userMsg),
+        bersih: /bersih|disiplin|\bnol\b|zero|tanpa (shortage|sakit|sp|pelanggaran)|tidak ada (shortage|sakit|sp|pelanggaran|minus)/i.test(userMsg),
         periode: periodeNorm,
         ...panelFlags,
         panelTunggal: panelsHit.length === 1 ? panelsHit[0] : null,
       };
-      const atLeastOneTopic = intent.tren || intent.ranking || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0 || intent.namaCandidates.length > 0;
+      const atLeastOneTopic = intent.tren || intent.ranking || intent.bersih || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0 || intent.namaCandidates.length > 0;
 
       // PWP per karyawan per periode (hanya nama direktori, periode ternormalisasi)
       const pwpSummary = {};
@@ -508,6 +514,46 @@ export default function SupervisorDashboard() {
             sumber: panelScope === "sales" ? "Tren Sales" : `Ranking ${PANEL_LABEL[panelScope]}`,
           };
         }
+      }
+
+      // --- Tipe BERSIH: kasir kategori paling rendah (short 0 + sakit 0 + SP 0, min 2 dari 3) ---
+      // Hanya status Kontrak/PPKK/Maganghub. Over kecil tidak menggugurkan, hanya ditampilkan.
+      if (!jawabanPasti && intent.bersih) {
+        const ALLOWED_BERSIH = new Set(["KONTRAK", "PPKK", "MAGANGHUB"]);
+        const periodeBersih = P || filterBulan || null;
+        const sumNama = {};
+        const addShort = (nama, short, over) => {
+          if (!sumNama[nama]) sumNama[nama] = { nama, short: 0, over: 0, sakit: 0, sp: 0 };
+          sumNama[nama].short += Math.abs(short || 0);
+          sumNama[nama].over += over || 0;
+        };
+        const addCount = (nama, field, val) => {
+          if (!sumNama[nama]) sumNama[nama] = { nama, short: 0, over: 0, sakit: 0, sp: 0 };
+          sumNama[nama][field] += val || 0;
+        };
+        Object.values(shortageSummary).forEach(g => { if (periodeBersih && g.periode !== periodeBersih) return; addShort(g.nama, g.totalShort, g.totalOver); });
+        Object.values(sakitDetailMap).forEach(g => { if (periodeBersih && g.bulan !== periodeBersih) return; addCount(g.nama, "sakit", g.jumlah); });
+        Object.values(spDetailMap).forEach(g => { if (periodeBersih && g.bulan !== periodeBersih) return; addCount(g.nama, "sp", g.jumlah); });
+        const daftar = [];
+        Object.keys(namaCanonical).forEach(normKey => {
+          if (!ALLOWED_BERSIH.has(statusDirektori[normKey] || "")) return;
+          const nama = namaCanonical[normKey];
+          const v = sumNama[nama] || { nama, short: 0, over: 0, sakit: 0, sp: 0 };
+          const kriteria = [];
+          if (v.short === 0) kriteria.push("shortage 0");
+          if (v.sakit === 0) kriteria.push("sakit 0");
+          if (v.sp === 0) kriteria.push("SP 0");
+          if (kriteria.length >= 2) daftar.push({ nama, status: statusDirektori[normKey], short: v.short, over: v.over, sakit: v.sakit, sp: v.sp, kriteria, skor: kriteria.length });
+        });
+        daftar.sort((a, b) => b.skor - a.skor || a.short - b.short || a.nama.localeCompare(b.nama));
+        jawabanPasti = {
+          tipe: "bersih", panel: "bersih", panelLabel: "Karyawan Bersih",
+          periode: periodeBersih || "semua",
+          totalEligible: Object.keys(namaCanonical).filter(n => ALLOWED_BERSIH.has(statusDirektori[n] || "")).length,
+          totalLolos: daftar.length,
+          daftar: daftar.slice(0, 50).map((d, i) => ({ rank: i + 1, ...d })),
+          sumber: "Karyawan Bersih",
+        };
       }
 
       // --- Tipe 3: DETAIL 1 nama karyawan yang disebut ---

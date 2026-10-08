@@ -40,17 +40,73 @@ export function isValidPeriode(p) {
   return /^(20\d\d)-(0[1-9]|1[0-2])$/.test(String(p || ""));
 }
 
-// Bangun peta direktori dari rows tabel nik: { set, canonical }
+// Bangun peta direktori dari rows tabel nik: { set, canonical, status }
+// status: peta normName -> status upper-trim (mis. KONTRAK, PPKK, MAGANGHUB, RESIGN)
 export function buildDirektori(nikRows) {
   const set = new Set();
   const canonical = {};
+  const status = {};
   (nikRows || []).forEach(k => {
     if (!k.nama) return;
     const n = normName(k.nama);
     set.add(n);
     canonical[n] = k.nama;
+    status[n] = String(k.status || "").trim().toUpperCase();
   });
-  return { set, canonical };
+  return { set, canonical, status };
+}
+
+export const STATUS_BERSIH_DEFAULT = ["KONTRAK", "PPKK", "MAGANGHUB"];
+
+// Kategori kasir paling rendah (bersih): short==0, sakit==0, sp==0 — lolos bila >= minLolos.
+// Over kecil TIDAK menggugurkan, hanya ditampilkan. Data kosong = 0.
+// Hanya status allowed. Return { periode, statusDipakai, totalEligible, totalLolos, daftar }.
+export function kpiBersih(agg, direktori, periode, allowedStatuses = STATUS_BERSIH_DEFAULT, minLolos = 2) {
+  const P = periode || null;
+  const allowed = new Set((allowedStatuses || []).map(s => String(s).trim().toUpperCase()));
+  const sumNama = {};
+  const addShort = (nama, short, over) => {
+    if (!sumNama[nama]) sumNama[nama] = { nama, short: 0, over: 0, sakit: 0, sp: 0 };
+    sumNama[nama].short += Math.abs(short || 0);
+    sumNama[nama].over += over || 0;
+  };
+  const addCount = (nama, field, val) => {
+    if (!sumNama[nama]) sumNama[nama] = { nama, short: 0, over: 0, sakit: 0, sp: 0 };
+    sumNama[nama][field] += val || 0;
+  };
+  Object.values(agg.shortageSummary).forEach(g => {
+    if (P && g.periode !== P) return;
+    addShort(g.nama, g.totalShort, g.totalOver);
+  });
+  Object.values(agg.sakitDetailMap).forEach(g => {
+    if (P && g.bulan !== P) return;
+    addCount(g.nama, "sakit", g.jumlah);
+  });
+  Object.values(agg.spDetailMap).forEach(g => {
+    if (P && g.bulan !== P) return;
+    addCount(g.nama, "sp", g.jumlah);
+  });
+  const daftar = [];
+  Object.keys(direktori.canonical).forEach(normNamaKey => {
+    const st = direktori.status[normNamaKey] || "";
+    if (!allowed.has(st)) return;
+    const nama = direktori.canonical[normNamaKey];
+    const v = sumNama[nama] || { nama, short: 0, over: 0, sakit: 0, sp: 0 };
+    const kriteria = [];
+    if (v.short === 0) kriteria.push("shortage 0");
+    if (v.sakit === 0) kriteria.push("sakit 0");
+    if (v.sp === 0) kriteria.push("SP 0");
+    if (kriteria.length >= minLolos) {
+      daftar.push({ nama, status: st, short: v.short, over: v.over, sakit: v.sakit, sp: v.sp, kriteria, skor: kriteria.length });
+    }
+  });
+  daftar.sort((a, b) => b.skor - a.skor || a.short - b.short || a.nama.localeCompare(b.nama));
+  const totalEligible = Object.keys(direktori.canonical).filter(n => allowed.has(direktori.status[n] || "")).length;
+  return {
+    periode: P || "semua", statusDipakai: [...allowed], minLolos,
+    totalEligible, totalLolos: daftar.length,
+    daftar: daftar.map((d, i) => ({ rank: i + 1, ...d })),
+  };
 }
 
 export function resolveAiNama(canonical, raw) {

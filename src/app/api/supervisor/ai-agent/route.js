@@ -172,6 +172,14 @@ export async function POST(req) {
         lines.push(`Sumber: ${j.sumber}.`);
         return lines.join("\n");
       }
+      if (j.tipe === "bersih") {
+        if (!j.daftar || j.daftar.length === 0) return `Tidak ada kasir kategori bersih pada periode ${j.periode} (status Kontrak/PPKK/Maganghub, min. 2 dari 3 kriteria nol). Sumber: Karyawan Bersih.`;
+        const lines = [`Kasir kategori paling rendah (bersih) periode ${j.periode}: ${j.totalLolos} dari ${j.totalEligible} kasir (shortage 0 + sakit 0 + SP 0, min. 2 terpenuhi; over kecil tidak menggugurkan).`];
+        j.daftar.slice(0, 10).forEach(d => lines.push(`Rank ${d.rank}: ${d.nama} (${d.status}) — short ${fmtNum(d.short)}, over ${fmtNum(d.over)}, sakit ${d.sakit}x, SP ${d.sp}x [${d.kriteria.join(", ")}].`));
+        if (j.daftar.length > 10) lines.push(`…dan ${j.daftar.length - 10} lainnya.`);
+        lines.push(`Sumber: ${j.sumber}.`);
+        return lines.join("\n");
+      }
       return null;
     };
     const templateJawaban = renderTemplate(jp);
@@ -182,6 +190,10 @@ export async function POST(req) {
       }
       if (jp.tipe === "detail_nama") return reply.includes(jp.nama);
       if (jp.tipe === "tren") return jp.trenRows.every(r => reply.includes(r.periode));
+      if (jp.tipe === "bersih") {
+        if (!jp.daftar || jp.daftar.length === 0) return reply.includes("Tidak ada");
+        return reply.includes(jp.daftar[0].nama) && reply.includes(jp.periode);
+      }
       return true;
     };
     const fmtEv = (section) => {
@@ -331,7 +343,7 @@ ${pangkas ? "" : `Panduan menjawab:
         const agentPrompt = `Anda adalah AI Assistant Dashboard Supervisor Kasir AEON dengan akses TOOLS database.
 ATURAN KERAS:
 - WAJIB memanggil minimal 1 tool sebelum menjawab. DILARANG menjawab dari pengetahuan umum.
-- Pilih tool sesuai pertanyaan: ranking untuk tertinggi/terendah/siapa, tren untuk naik-turun/grafik, detail_karyawan untuk orang tertentu atau kata dia/nya (resolusi dari riwayat), daftar_periode bila periode kosong.
+- Pilih tool sesuai pertanyaan: ranking untuk tertinggi/terendah/siapa, tren untuk naik-turun/grafik, detail_karyawan untuk orang tertentu atau kata dia/nya (resolusi dari riwayat), daftar_periode bila periode kosong, karyawan_bersih untuk bersih/disiplin/nol/zero/terbaik (shortage 0 + sakit 0 + SP 0, min. 2 dari 3).
 - Maksimal 4 langkah tool. Setelah data cukup, rangkai jawaban Bahasa Indonesia: baris 1 jawaban langsung (nama + angka + periode), lalu rincian, terakhir "Sumber: <nama tool>".
 - Jika tool mengembalikan klarifikasi/tidakDitemukan/error, sampaikan itu ke user dan berhenti (jangan menebak).
 - Maksimal 5 baris data per jawaban. Format angka Indonesia.`;

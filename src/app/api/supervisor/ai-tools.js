@@ -7,7 +7,7 @@ import {
   PANELS, PANEL_LABEL, PANEL_SATUAN,
   normName, normPeriode, isValidPeriode,
   buildDirektori, aggregateAll, perKaryawan, rankRows, trenPanel,
-  detailKaryawan, matchNama, daftarPeriode,
+  detailKaryawan, matchNama, daftarPeriode, kpiBersih, STATUS_BERSIH_DEFAULT,
 } from './ai-aggregate';
 
 const MAX_ROWS = 50;
@@ -40,7 +40,7 @@ export async function loadDataset() {
   if (_cache) return _cache;
   const supabase = getSupabase();
   const [nik, shortage, ecobag, member, salesMember, salesHourly, sakit, sp, pwp] = await Promise.all([
-    fetchAll(supabase, 'nik', 'nama'),
+    fetchAll(supabase, 'nik', 'nama,status'),
     fetchAll(supabase, 'shortage_per_day', 'nama,nama_1,periode,short_over_shift_pagi,short_over_shift_siang,tanggal,pos'),
     fetchAll(supabase, 'ecobag_per_day', 'staff_name,year_month,month,total,bag_la,bag_me,bag_sm'),
     fetchAll(supabase, 'member_per_day', 'nama,bulan,tanggal,qty'),
@@ -131,6 +131,39 @@ export async function toolDaftarPeriode() {
   return { ...daftarPeriode(agg), sumber: "Daftar Periode" };
 }
 
+function validStatusList(status) {
+  if (status === undefined || status === null || status === "") return [...STATUS_BERSIH_DEFAULT];
+  const list = String(status).split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (list.length === 0) throw new Error("Daftar status kosong.");
+  if (list.length > 10) throw new Error("Maksimal 10 status.");
+  return list;
+}
+
+function validMinLolos(minLolos) {
+  const n = minLolos === undefined || minLolos === null || minLolos === "" ? 2 : parseInt(minLolos, 10);
+  if (isNaN(n) || n < 1 || n > 3) throw new Error(`minLolos 1-3, dapat: ${minLolos}`);
+  return n;
+}
+
+// TOOL 5: kategori kasir paling rendah (bersih).
+// Lolos bila >= minLolos dari: short==0, sakit==0, sp==0. Over kecil tidak menggugurkan.
+export async function toolKaryawanBersih({ periode, status, minLolos, limit }) {
+  const allowed = validStatusList(status);
+  const ml = validMinLolos(minLolos);
+  const n = limit === undefined || limit === null || limit === "" ? 50 : parseInt(limit, 10);
+  if (isNaN(n) || n < 1 || n > 50) throw new Error(`Limit 1-50, dapat: ${limit}`);
+  let P = validPeriode(periode);
+  const { direktori, agg } = await loadDataset();
+  if (!P) {
+    const semua = daftarPeriode(agg);
+    const kandidat = ["shortage", "sakit", "sp"].flatMap(k => semua[k] || []);
+    P = kandidat.sort().reverse()[0] || null;
+  }
+  const hasil = kpiBersih(agg, direktori, P, allowed, ml);
+  hasil.daftar = hasil.daftar.slice(0, n);
+  return { ...hasil, sumber: "Karyawan Bersih" };
+}
+
 // Eksekutor generik: validasi nama tool + guard hasil.
 export async function execTool(name, args = {}) {
   const a = args && typeof args === "object" ? args : {};
@@ -139,6 +172,7 @@ export async function execTool(name, args = {}) {
   else if (name === "tren") out = await toolTren(a);
   else if (name === "detail_karyawan") out = await toolDetailKaryawan(a);
   else if (name === "daftar_periode") out = await toolDaftarPeriode();
+  else if (name === "karyawan_bersih") out = await toolKaryawanBersih(a);
   else throw new Error(`Tool tidak dikenal: ${name}`);
   return JSON.parse(JSON.stringify(out).slice(0, 8000));
 }
@@ -188,5 +222,18 @@ export const TOOL_DECLARATIONS = [
     name: "daftar_periode",
     description: "Daftar periode YYYY-MM yang ada datanya per panel. Pakai saat periode yang ditanya kosong.",
     parameters: { type: "OBJECT", properties: {} },
+  },
+  {
+    name: "karyawan_bersih",
+    description: "Daftar kasir kategori paling rendah (bersih): shortage 0, sakit 0, SP 0 — lolos bila minimal 2 dari 3. Over kecil tidak menggugurkan, hanya ditampilkan. Wajib dipakai untuk pertanyaan bersih/disiplin/nol/zero/terbaik.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        periode: { type: "STRING", description: "Format YYYY-MM, contoh 2026-09. Kosongkan untuk periode terbaru yang ada datanya." },
+        status: { type: "STRING", description: "Daftar status koma, default Kontrak,PPKK,Maganghub." },
+        minLolos: { type: "NUMBER", description: "Minimal kriteria nol 1-3, default 2." },
+        limit: { type: "NUMBER", description: "Jumlah baris 1-50, default 50." },
+      },
+    },
   },
 ];
