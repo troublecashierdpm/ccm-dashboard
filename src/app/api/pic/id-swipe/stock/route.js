@@ -6,8 +6,13 @@ import { createClient } from '@supabase/supabase-js';
 const GAS_URL = process.env.PIC_GAS_URL || 'https://script.google.com/macros/s/AKfycbxpgybCyZxg5KzZ8NNAFj-P0_Nvqp5lMso-hubLN7-VcPKyDGBvybbaXY9zdpyxKtKK/exec';
 
 export async function POST(req) {
+  let payload;
   try {
-    const payload = await req.json();
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ success: false, message: "Payload terlalu besar atau bukan JSON. Kompres foto bukti di bawah 1 MB lalu coba lagi." }, { status: 413 });
+  }
+  try {
     const res = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15,7 +20,10 @@ export async function POST(req) {
     });
     const text = await res.text();
     let data;
-    try { data = JSON.parse(text); } catch { throw new Error('GAS belum mendukung doPost. Tambahkan doPost lalu redeploy.'); }
+    try { data = JSON.parse(text); } catch {
+      console.error('GAS stock balas non-JSON:', text.slice(0, 300));
+      throw new Error('GAS membalas non-JSON (kemungkinan error server). 300 karakter awal: ' + text.slice(0, 300));
+    }
     const result = data.result || data.message || JSON.stringify(data);
 
     try {

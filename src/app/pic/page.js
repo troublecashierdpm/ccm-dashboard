@@ -83,7 +83,7 @@ export default function PicPage() {
     setLoadingData(true);
     try {
       const res = await fetch("/api/pic/id-swipe/initial");
-      const json = await res.json();
+      const json = await parseJsonSafe(res);
       if (json.success) {
         setIds(json.data.ids || { tersedia: [], aktif: [], nonAktif: [] });
         setSigs(json.data.sigs || { requesters: [], superiors: [] });
@@ -125,9 +125,34 @@ export default function PicPage() {
     return new Promise((resolve) => {
       if (!file) return resolve("");
       const r = new FileReader();
-      r.onload = (e) => resolve(e.target.result);
+      r.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1024;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            const scale = maxDim / Math.max(w, h);
+            w = Math.round(w * scale); h = Math.round(h * scale);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      r.onerror = () => resolve("");
       r.readAsDataURL(file);
     });
+  }
+
+  async function parseJsonSafe(res) {
+    const text = await res.text();
+    try { return JSON.parse(text); }
+    catch {
+      throw new Error(`Server balas bukan JSON (status ${res.status}): ${text.slice(0, 300)}`);
+    }
   }
 
   function idOptions(list, withName) {
@@ -153,7 +178,7 @@ export default function PicPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stockAction, pic: stockPic.trim(), stockIdsJson: JSON.stringify(idList), proofFileBase64 }),
       });
-      const json = await res.json();
+      const json = await parseJsonSafe(res);
       if (json.success) {
         setStockMsg({ text: json.message, ok: true });
         setStockRows([""]); setStockPic("");
@@ -209,7 +234,7 @@ export default function PicPage() {
       const res = await fetch("/api/pic/id-swipe/request", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
-      const json = await res.json();
+      const json = await parseJsonSafe(res);
       if (json.success) {
         setFormMsg({ text: "Proses Berhasil!", ok: true, pdf: json.pdfUrl || "" });
         loadInitial();
