@@ -16,3 +16,9 @@ export const SUPERVISOR_WHITELIST = [
 export function isSupervisorWhitelisted(nama) {
   return SUPERVISOR_WHITELIST.includes(String(nama || "").trim().toLowerCase());
 }
+
+export const PIC_WHITELIST = SUPERVISOR_WHITELIST;
+
+export function isPicWhitelisted(nama) {
+  return PIC_WHITELIST.includes(String(nama || "").trim().toLowerCase());
+}

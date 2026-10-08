@@ -25,6 +25,13 @@ const menu = [
     title: "Absensi PPKK",
     desc: "Clock in/out, request attendance, dan jadwal shift",
     color: "from-teal-500 to-emerald-500"
+  },
+  {
+    href: "/pic",
+    icon: "🪪",
+    title: "Panel PIC",
+    desc: "Dashboard management ID Swipe untuk PIC/TRC",
+    color: "from-amber-500 to-orange-500"
   }
 ];
 
