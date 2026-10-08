@@ -84,8 +84,24 @@ export default function SupervisorDashboard() {
   const [salesChartData, setSalesChartData] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
-  const [aiChat, setAiChat] = useState([]);
+  const [aiChat, setAiChat] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ccm_ai_chat");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.slice(-50);
+      }
+    } catch {}
+    return [];
+  });
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Persist chat agar tidak hilang saat refresh/logout (hanya dihapus via tombol hapus riwayat)
+  useEffect(() => {
+    try {
+      localStorage.setItem("ccm_ai_chat", JSON.stringify(aiChat.slice(-50)));
+    } catch {}
+  }, [aiChat]);
 
   const askAiAssistant = async (e) => {
     e.preventDefault();
@@ -192,12 +208,30 @@ export default function SupervisorDashboard() {
       const namaNoSakit = [...allNamaSet].filter(n => !sakitByKaryawan[n]);
       const kpiSakitTerendah = namaNoSakit.slice(0, 10).map(n => ({ nama: n, jumlah: 0 }));
 
-      // ===== FASE A: INTENT + EVIDENCE =====
+      // ===== FASE B: INTENT + EVIDENCE + MEMORI =====
       // Deteksi maksud pertanyaan agar hanya potongan data relevan yang dikirim (hemat token,
       // AI tetap bisa membaca sumber data yang sama dengan dashboard).
       const qLower = userMsg.toLowerCase();
+      // Deteksi nama: cocokkan nama lengkap DAN nama depan/token terhadap direktori.
+      // Kalau 1 nama cocok -> pakai. Kalau >1 berbagi token -> kirim candidates agar AI klarifikasi.
+      const allNames = allKaryawan.map(k => normName(k.nama)).filter(Boolean);
+      const fullHits = allNames.filter(n => n && qLower.includes(n.toLowerCase())).slice(0, 3);
+      const tokens = qLower.split(/[^a-z]+/).filter(t => t.length >= 4);
+      const partialHits = [];
+      if (fullHits.length === 0 && tokens.length > 0) {
+        for (const n of allNames) {
+          const parts = n.toLowerCase().split(/\s+/);
+          if (parts.some(p => p.length >= 4 && tokens.includes(p))) {
+            partialHits.push(n);
+            if (partialHits.length >= 5) break;
+          }
+        }
+      }
+      // searchNama aktif juga diperlakukan sebagai nama yang disebut
+      const searchHit = searchNama ? allNames.filter(n => n.toLowerCase().includes(searchNama.toLowerCase())).slice(0, 3) : [];
       const intent = {
-        nama: allKaryawan.map(k => normName(k.nama)).filter(n => n && qLower.includes(n.toLowerCase())).slice(0, 3),
+        nama: fullHits,
+        namaCandidates: fullHits.length > 0 ? [] : [...new Set([...partialHits, ...searchHit])].slice(0, 5),
         tren: /tren|grafik|naik|turun|banding|periode|bulan/i.test(userMsg),
         ranking: /tertinggi|terendah|terbaik|terburuk|ranking|siapa/i.test(userMsg),
         pos: /\bpos\b|kasir \d|transaksi/i.test(userMsg),
@@ -209,7 +243,7 @@ export default function SupervisorDashboard() {
         sp: /\bsp\b|surat|pelanggaran|berita acara/i.test(userMsg),
         sakit: /sakit|izin|absen/i.test(userMsg),
       };
-      const atLeastOneTopic = intent.tren || intent.ranking || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0;
+      const atLeastOneTopic = intent.tren || intent.ranking || intent.pos || intent.pwp || intent.member || intent.ecobag || intent.sales || intent.shortage || intent.sp || intent.sakit || intent.nama.length > 0 || intent.namaCandidates.length > 0;
 
       // PWP per karyawan per periode
       const pwpSummary = {};
@@ -265,6 +299,38 @@ export default function SupervisorDashboard() {
         return { data: sorted.slice(0, n), total: sorted.length, ditampilkan: Math.min(n, sorted.length) };
       };
 
+      // Detail SP per karyawan (nama+bulan+jenis) untuk pertanyaan pelanggaran
+      const spDetailMap = {};
+      rawSpBa.forEach(r => {
+        if (!r.nama) return;
+        const nama = normName(r.nama);
+        const key = nama + "|" + (r.bulan || "") + "|" + ((r.jenis_pelanggaran || "Lainnya").trim() || "Lainnya");
+        if (!spDetailMap[key]) spDetailMap[key] = { nama, bulan: r.bulan || "", jenis: ((r.jenis_pelanggaran || "Lainnya").trim() || "Lainnya"), jumlah: 0 };
+        spDetailMap[key].jumlah++;
+      });
+
+      // Detail sakit per karyawan per bulan
+      const sakitDetailMap = {};
+      rawSakit.forEach(r => {
+        if (!r.nama) return;
+        const nama = normName(r.nama);
+        const key = nama + "|" + (r.bulan || "");
+        if (!sakitDetailMap[key]) sakitDetailMap[key] = { nama, bulan: r.bulan || "", jumlah: 0 };
+        sakitDetailMap[key].jumlah++;
+      });
+
+      // Agregat per karyawan untuk ranking top5/bottom5
+      const memberByEmp = {}, ecobagByEmp = {}, salesByEmp = {}, pwpByEmp = {};
+      Object.values(memberSummary).forEach(g => { memberByEmp[g.nama] = (memberByEmp[g.nama] || 0) + g.total; });
+      Object.values(ecobagSummary).forEach(g => { ecobagByEmp[g.nama] = (ecobagByEmp[g.nama] || 0) + g.total; });
+      Object.values(salesSummary).forEach(g => {
+        if (!salesByEmp[g.nama]) salesByEmp[g.nama] = { nama: g.nama, totalMemberSales: 0, totalHourlySales: 0 };
+        salesByEmp[g.nama].totalMemberSales += g.totalMemberSales;
+        salesByEmp[g.nama].totalHourlySales += g.totalHourlySales;
+      });
+      Object.values(salesByEmp).forEach(g => { g.ratio = g.totalHourlySales > 0 ? Math.round((g.totalMemberSales / g.totalHourlySales) * 1000) / 10 : 0; });
+      Object.values(pwpSummary).forEach(g => { pwpByEmp[g.nama] = (pwpByEmp[g.nama] || 0) + g.total; });
+
       const wantAll = !atLeastOneTopic;
       const evidence = {
         member: (wantAll || intent.member || intent.nama.length > 0) ? cap(Object.values(memberSummary), 30, (a, b) => b.total - a.total) : null,
@@ -274,8 +340,30 @@ export default function SupervisorDashboard() {
         pos: (wantAll || intent.pos || intent.nama.length > 0) ? cap(Object.values(posSummary), 30, (a, b) => b.count - a.count) : null,
         pwp: (wantAll || intent.pwp || intent.nama.length > 0) ? cap(Object.values(pwpSummary), 30, (a, b) => b.total - a.total) : null,
         shortageDetail: (wantAll || intent.shortage || intent.ranking || intent.nama.length > 0) ? cap(Object.values(shortageSummary), 30, (a, b) => b.totalShort - a.totalShort) : null,
+        spDetail: (wantAll || intent.sp || intent.ranking || intent.nama.length > 0) ? cap(Object.values(spDetailMap), 30, (a, b) => b.jumlah - a.jumlah) : null,
+        sakitDetail: (wantAll || intent.sakit || intent.ranking || intent.nama.length > 0) ? cap(Object.values(sakitDetailMap), 30, (a, b) => b.jumlah - a.jumlah) : null,
+        rankingMember: (wantAll || intent.ranking || intent.member) ? {
+          top5: Object.entries(memberByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+          bottom5: Object.entries(memberByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+        } : null,
+        rankingSales: (wantAll || intent.ranking || intent.sales) ? {
+          top5: Object.values(salesByEmp).sort((a, b) => b.ratio - a.ratio).slice(0, 5),
+          bottom5: Object.values(salesByEmp).sort((a, b) => a.ratio - b.ratio).slice(0, 5),
+        } : null,
+        rankingPwp: (wantAll || intent.ranking || intent.pwp) ? {
+          top5: Object.entries(pwpByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+          bottom5: Object.entries(pwpByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+        } : null,
+        rankingEcobag: (wantAll || intent.ranking || intent.ecobag) ? {
+          top5: Object.entries(ecobagByEmp).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+          bottom5: Object.entries(ecobagByEmp).sort((a, b) => a[1] - b[1]).slice(0, 5).map(([nama, total]) => ({ nama, total })),
+        } : null,
         namedDetails: intent.nama.length > 0 ? namedDetails : null,
+        namaCandidates: intent.namaCandidates.length > 0 ? intent.namaCandidates : null,
       };
+
+      // Memori: 6 pesan terakhir agar follow-up ("dia?", "bulan lalu?") tidak ngawur
+      const history = aiChat.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: String(m.text || '').slice(0, 500) }));
 
       const activePanelData = {
         activePanel,
@@ -299,7 +387,7 @@ export default function SupervisorDashboard() {
       const res = await fetch('/api/supervisor/ai-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMsg, context: activePanelData })
+        body: JSON.stringify({ query: userMsg, context: activePanelData, history })
       });
       const json = await res.json();
       if (json.success) {
@@ -1631,13 +1719,27 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
 
       {aiOpen && (
         <div className="fixed bottom-6 right-6 w-80 bg-white rounded-3xl shadow-2xl z-[9999] flex flex-col overflow-hidden border border-indigo-100 anim-pop-in">
-          <div className="bg-indigo-600 p-4 text-white font-black text-xs uppercase flex justify-between"><span>AI Agent Assistant</span><button onClick={() => setAiOpen(false)}>✕</button></div>
+          <div className="bg-indigo-600 p-4 text-white font-black text-xs uppercase flex justify-between items-center">
+            <span>AI Agent Assistant</span>
+            <div className="flex gap-2">
+              {aiChat.length > 0 && <button onClick={() => { setAiChat([]); try { localStorage.removeItem("ccm_ai_chat"); } catch {} }} title="Hapus riwayat" className="opacity-80 hover:opacity-100">🗑</button>}
+              <button onClick={() => setAiOpen(false)}>✕</button>
+            </div>
+          </div>
           <div className="p-4 h-64 overflow-y-auto space-y-3 bg-gray-50 text-xs text-gray-800 font-medium">
-            {aiChat.length === 0 && <p className="text-gray-400 text-center py-10">Halo! Ada yang bisa saya bantu terkait data supervisor?</p>}
+            {aiChat.length === 0 && (
+              <div className="space-y-2">
+                <p className="text-gray-400 text-center py-4">Halo! Ada yang bisa saya bantu terkait data supervisor?</p>
+                {["Siapa shortage tertinggi?", "Siapa yang terbaik bulan ini?", "Rasio member bulan ini?", "Bagaimana tren sales?"].map(q => (
+                  <button key={q} onClick={() => { setAiQuery(q); }} className="block w-full text-left bg-white border border-indigo-100 rounded-xl px-3 py-2 text-indigo-700 hover:bg-indigo-50">💡 {q}</button>
+                ))}
+              </div>
+            )}
             {aiChat.map((m, i) => <div key={i} className={`p-2.5 rounded-2xl ${m.role === 'user' ? 'bg-indigo-600 text-white ml-auto max-w-[85%]' : 'bg-white text-gray-800 mr-auto max-w-[85%] border shadow-sm'}`}>{m.text}</div>)}
+            {aiLoading && <div className="bg-white text-gray-400 mr-auto rounded-2xl border shadow-sm p-2.5 animate-pulse">Mengetik…</div>}
           </div>
           <form onSubmit={askAiAssistant} className="p-2 border-t flex gap-1 bg-white">
-            <input value={aiQuery} onChange={(e) => setAiQuery(e.target.value)} className="flex-1 p-2.5 bg-gray-100 rounded-xl outline-none text-xs text-gray-800" placeholder="Tanya sesuatu..." />
+            <input value={aiQuery} onChange={(e) => setAiQuery(e.target.value)} className="flex-1 p-2.5 bg-gray-100 rounded-xl outline-none text-xs text-gray-800" placeholder="Tanya sesuatu..." maxLength={500} />
             <button type="submit" disabled={aiLoading} className="bg-indigo-600 text-white px-4 rounded-xl text-xs font-bold">{aiLoading ? '...' : 'Kirim'}</button>
           </form>
         </div>

@@ -16,14 +16,18 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = TIMEOUT_MS) {
   }
 }
 
-async function callGemini(apiKey, model, systemPrompt, query) {
+async function callGemini(apiKey, model, systemPrompt, query, history = []) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const histContents = (history || []).slice(-6).filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.text).map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(m.text).slice(0, 500) }]
+  }));
   const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ parts: [{ text: query }] }],
+      contents: [...histContents, { parts: [{ text: query }] }],
       generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
     })
   });
@@ -37,7 +41,11 @@ async function callGemini(apiKey, model, systemPrompt, query) {
   return reply;
 }
 
-async function callOpenRouter(apiKey, model, systemPrompt, query) {
+async function callOpenRouter(apiKey, model, systemPrompt, query, history = []) {
+  const histMsgs = (history || []).slice(-6).filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.text).map(m => ({
+    role: m.role, content: String(m.text).slice(0, 500)
+  }));
+  const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
   const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -50,6 +58,7 @@ async function callOpenRouter(apiKey, model, systemPrompt, query) {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
+        ...histMsgs,
         { role: 'user', content: query }
       ]
     })
@@ -61,7 +70,11 @@ async function callOpenRouter(apiKey, model, systemPrompt, query) {
 
 export async function POST(req) {
   try {
-    const { query, context } = await req.json();
+    const { query, context, history } = await req.json();
+    const cleanHistory = Array.isArray(history)
+      ? history.filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.text).slice(-6)
+          .map(m => ({ role: m.role, text: String(m.text).slice(0, 500) }))
+      : [];
 
     const kpi = context.kpi || {};
     const ev = context.evidence || {};
@@ -74,7 +87,8 @@ export async function POST(req) {
     };
     const namedStr = ev.namedDetails ? JSON.stringify(ev.namedDetails) : "(tidak ada nama karyawan yang disebut)";
     const salesTrendStr = ev.salesTrend ? JSON.stringify(ev.salesTrend) : "(tidak diminta)";
-    const systemPrompt = `Anda adalah AI Assistant cerdas untuk Dashboard Supervisor Kasir AEON.
+    const candidatesStr = ev.namaCandidates ? JSON.stringify(ev.namaCandidates) : null;
+    const sysRules = `Anda adalah AI Assistant cerdas untuk Dashboard Supervisor Kasir AEON.
 Tugas: Membantu supervisor menganalisis data karyawan kasir secara akurat.
 Jawab dalam Bahasa Indonesia, singkat, jelas, langsung pada intinya. Gunakan angka dan data yang diberikan.
 
@@ -84,6 +98,16 @@ ATURAN EVIDENCE (wajib dipatuhi):
 - Jika data yang ditanya tidak ada di potongan ini, katakan terus terang: "Data tersebut tidak ada di potongan yang saya terima" lalu jawab dari KPI/ranking yang tersedia.
 - Tiap bagian evidence mencantumkan jumlah baris yang ditampilkan vs total; sadari bahwa di luar potongan masih ada data lain.
 - Selalu sertakan nama + angka spesifik + periode/bulan. Format angka Indonesia.
+
+ATURAN ANTI-AMBIGU (wajib dipatuhi):
+- FORMAT JAWABAN: baris 1 = jawaban langsung (nama + angka + periode). Baris berikut = rincian pendukung. Terakhir = "Sumber: <nama bagian data>".
+- Satu pertanyaan = satu jawaban tegas. Dilarang menjawab "bisa A bisa B" tanpa memilih berdasarkan data.
+- RUJUKAN ("dia/nya/tersebut/bulan lalu"): WAJIB diresolusi dari riwayat percakapan yang diberikan. Jika riwayat tidak cukup, tanyakan 1 klarifikasi spesifik, jangan menebak.
+- NAMA GANDA: jika ada daftar kandidat nama, JANGAN menebak — tanyakan 1 klarifikasi ("Maksud Anda X atau Y?") lalu berhenti.
+- FILTER: jika konteks menyebut periode/nama yang difilter user, jawab scoped ke situ dan sebutkan scopenya.
+- RANKING: "tertinggi" = angka terbesar (buruk untuk shortage/SP/sakit); "terendah/terbaik" = nol/tidak ada kasus; pakai bagian ranking yang tersedia, bukan menebak dari slice mentah.
+- Dilarang mengulang seluruh tabel mentah. Maksimal 5 baris data per jawaban.`;
+    const systemPrompt = `${sysRules}
 
 KONTEKS TAMPILAN USER:
 - Panel aktif: ${context.activePanel}
@@ -121,7 +145,19 @@ Data yang tersedia:
 
 11. Detail Shortage per karyawan per periode: ${fmtEv(ev.shortageDetail)}
 
-Panduan menjawab:
+12. Detail SP per karyawan per bulan + jenis pelanggaran: ${fmtEv(ev.spDetail)}
+
+13. Detail Sakit per karyawan per bulan: ${fmtEv(ev.sakitDetail)}
+
+14. Ranking Member (top5/bottom5 total): ${ev.rankingMember ? JSON.stringify(ev.rankingMember) : "(tidak diminta)"}
+
+15. Ranking Sales Ratio (top5/bottom5): ${ev.rankingSales ? JSON.stringify(ev.rankingSales) : "(tidak diminta)"}
+
+16. Ranking PWP (top5/bottom5 total): ${ev.rankingPwp ? JSON.stringify(ev.rankingPwp) : "(tidak diminta)"}
+
+17. Ranking Ecobag (top5/bottom5 total): ${ev.rankingEcobag ? JSON.stringify(ev.rankingEcobag) : "(tidak diminta)"}
+
+${candidatesStr ? `KANDIDAT NAMA (nama yang diketik cocok dengan >1 karyawan — JANGAN menebak, tanyakan klarifikasi): ${candidatesStr}\n\n` : ""}Panduan menjawab:
 - "Tertinggi" = karyawan dengan angka paling tinggi (buruk untuk shortage/SP/sakit).
 - "Terendah" = karyawan TERBAIK: zero shortage, zero SP, zero sakit.
 - Jika user tanya "siapa yang terbaik", gabungkan data terendah dari SP, Sakit, dan Shortage.
@@ -145,7 +181,7 @@ Panduan menjawab:
 
     if (geminiKey) {
       try {
-        const reply = await callGemini(geminiKey, geminiModel, systemPrompt, query);
+        const reply = await callGemini(geminiKey, geminiModel, systemPrompt, query, cleanHistory);
         return NextResponse.json({ success: true, reply });
       } catch (e) {
         console.error("Gemini API Error:", e.message);
@@ -155,7 +191,7 @@ Panduan menjawab:
 
     if (orKey) {
       try {
-        const reply = await callOpenRouter(orKey, orModel, systemPrompt, query);
+        const reply = await callOpenRouter(orKey, orModel, systemPrompt, query, cleanHistory);
         return NextResponse.json({ success: true, reply });
       } catch (e) {
         console.error("OpenRouter API Error:", e.message);
