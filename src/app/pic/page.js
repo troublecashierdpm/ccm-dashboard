@@ -451,7 +451,7 @@ export default function PicPage() {
             </div>
 
             <button type="button" onClick={() => setUserRows(prev => [...prev, { id: "", name: "", type: "", pos: "", c: true, m: false, s: false, a: false }])} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-sm">+ Tambah Baris User</button>
-            <div className="border rounded-lg overflow-x-auto">
+            <div className="border rounded-lg overflow-x-auto hidden md:block">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-100"><tr>
                   <th className="px-3 py-3 text-left text-xs font-bold uppercase">Employee ID</th>
@@ -488,6 +488,45 @@ export default function PicPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="md:hidden space-y-3">
+              {userRows.map((r, i) => (
+                <div key={i} className="border border-gray-200 rounded-2xl p-4 space-y-3 bg-gray-50/50">
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-xs uppercase text-gray-500">User #{i + 1}</span>
+                    <button type="button" disabled={userRows.length <= 1} onClick={() => setUserRows(prev => prev.filter((_, j) => j !== i))} className="bg-red-500 text-white rounded-lg w-10 h-10 font-bold disabled:opacity-40">✕</button>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Employee ID</label>
+                    <select value={r.id} onChange={(e) => onIdChange(i, e.target.value)} className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
+                      <option value="">Pilih ID</option>
+                      {idPool.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Name</label>
+                    <input type="text" value={r.name} onChange={(e) => setRow(i, { name: e.target.value })} placeholder="Ketik Nama" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Type</label>
+                    <input type="text" value={r.type} onChange={(e) => setRow(i, { type: e.target.value })} placeholder="Type (Staff/Mitra)" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Position</label>
+                    <input type="text" value={r.pos} onChange={(e) => setRow(i, { pos: e.target.value })} placeholder="Position" list="posList" className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Authority</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[["c", "Cashier"], ["m", "Manager"], ["s", "Supervisor"], ["a", "Admin"]].map(([k, l]) => (
+                        <label key={k} className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 text-sm cursor-pointer ${r[k] ? "border-amber-500 bg-amber-50 font-bold text-amber-700" : "border-gray-300 bg-white text-gray-600"}`}>
+                          <input type="checkbox" checked={r[k]} onChange={(e) => setRow(i, { [k]: e.target.checked })} className="h-5 w-5 accent-amber-600" />{l}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
             <datalist id="posList"><option value="Cashier" /><option value="Customer Service" /></datalist>
 
