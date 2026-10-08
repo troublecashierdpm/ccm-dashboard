@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import SignaturePad from "signature_pad";
 import { supabase } from "@/lib/supabaseClient";
+import { useActiveSession } from "@/lib/useActiveSession";
 import { isPicWhitelisted } from "@/lib/accessControl";
 
 export default function PicPage() {
@@ -10,6 +11,7 @@ export default function PicPage() {
   const [picPassword, setPicPassword] = useState("");
   const [picUser, setPicUser] = useState(null);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [section, setSection] = useState("main");
@@ -45,15 +47,31 @@ export default function PicPage() {
   const reqPadRef = useRef(null);
   const supPadRef = useRef(null);
 
+  useActiveSession(picUser, setPicUser, setLoggedIn);
+
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("ccm_pic");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (isPicWhitelisted(parsed?.nama)) { setPicUser(parsed); setLoggedIn(true); }
-        else localStorage.removeItem("ccm_pic");
-      }
-    } catch { localStorage.removeItem("ccm_pic"); }
+    (async () => {
+      try {
+        const saved = localStorage.getItem("ccm_pic");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (!parsed?.nik || !isPicWhitelisted(parsed?.nama)) {
+            localStorage.removeItem("ccm_pic");
+          } else {
+            const { data: userData, error } = await supabase
+              .from("nik").select("*").eq("nik", parsed.nik).eq("id_swipe", parsed.id_swipe).single();
+            if (error || !userData || !isPicWhitelisted(userData.nama)) {
+              localStorage.removeItem("ccm_pic");
+            } else {
+              localStorage.setItem("ccm_pic", JSON.stringify(userData));
+              setPicUser(userData);
+              setLoggedIn(true);
+            }
+          }
+        }
+      } catch { localStorage.removeItem("ccm_pic"); }
+      setCheckingSession(false);
+    })();
   }, []);
 
   async function prosesLogin(e) {
@@ -64,19 +82,48 @@ export default function PicPage() {
     try {
       const { data: userData, error } = await supabase
         .from("nik").select("*").eq("nik", picNik).eq("id_swipe", picPassword).single();
-      if (error || !userData) { setLoginError("NIK atau ID Swipe salah!"); setLoginLoading(false); return; }
+      if (error || !userData) {
+        await supabase.from('log_login').insert([{ nik: picNik, nama: '-', status: 'LOGIN FAILED: Wrong NIK/Password' }]);
+        setLoginError("NIK atau ID Swipe salah!"); setLoginLoading(false); return;
+      }
       if (!isPicWhitelisted(userData.nama)) { setLoginError("Akses ditolak. Panel ini khusus untuk PIC/TRC terdaftar."); setLoginLoading(false); return; }
+
+      if (userData.active_session) {
+        const confirmOverride = confirm("⚠️ Sesi aktif terdeteksi untuk NIK ini. Lanjutkan login dan ambil alih sesi?");
+        if (!confirmOverride) { setLoginLoading(false); return; }
+      }
+
+      await supabase.from('nik').update({ active_session: new Date().toISOString() }).eq('nik', picNik);
+      const token = Math.random().toString(36).substring(2);
+      await supabase.from('user_sessions').delete().eq('nik', picNik);
+      await supabase.from('user_sessions').insert([{ nik: picNik, token: token, login_at: new Date().toISOString(), last_active: new Date().toISOString() }]);
+      await supabase.from('log_login').insert([{ nik: userData.nik, nama: userData.nama, status: 'LOGIN SUCCESS' }]);
+
       localStorage.setItem("ccm_pic", JSON.stringify(userData));
+      localStorage.setItem("ccm_user", JSON.stringify(userData));
+      localStorage.setItem("ccm_sup", JSON.stringify(userData));
+      localStorage.setItem("session_token", token);
+      localStorage.setItem("session_start", Date.now().toString());
       setPicUser(userData);
       setLoggedIn(true);
     } catch (err) { setLoginError("Error koneksi: " + err.message); }
     setLoginLoading(false);
   }
 
-  function prosesLogout() {
+  async function prosesLogout() {
     if (!confirm("Yakin ingin keluar dari Panel PIC?")) return;
+    if (picUser) {
+      await supabase.from('log_login').insert([{ nik: picUser.nik, nama: picUser.nama, status: 'LOGOUT' }]);
+      await supabase.from('nik').update({ active_session: null }).eq('nik', picUser.nik);
+    }
     localStorage.removeItem("ccm_pic");
+    localStorage.removeItem("ccm_user");
+    localStorage.removeItem("ccm_sup");
+    localStorage.removeItem("session_token");
+    localStorage.removeItem("session_start");
     setLoggedIn(false); setPicUser(null); setPicNik(""); setPicPassword(""); setSection("main");
+    setIds({ tersedia: [], aktif: [], nonAktif: [] });
+    setSigs({ requesters: [], superiors: [] });
   }
 
   async function loadInitial() {
@@ -241,6 +288,17 @@ export default function PicPage() {
       } else setFormMsg({ text: json.message, ok: false, pdf: "" });
     } catch (err) { setFormMsg({ text: "Error: " + err.message, ok: false, pdf: "" }); }
     setFormLoading(false);
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fffcfd]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Memeriksa sesi...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!loggedIn) {
