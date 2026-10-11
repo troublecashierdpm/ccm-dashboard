@@ -1488,7 +1488,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
       <aside className={`fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="bg-[#e20074] p-5 text-white flex items-center justify-between"><div className="flex items-center gap-2 font-black text-sm tracking-wider"><span className="bg-white text-[#e20074] px-2 py-1 rounded-lg font-black shadow-sm">AEON</span> TRC PANEL</div><button onClick={() => setSidebarOpen(false)} className="md:hidden text-white font-bold text-xl">✕</button></div>
         <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)]">
-          {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sales", label: "Sales Ratio", icon: "💰" }, { id: "pwp", label: "PWP Kasir", icon: "🎯" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }].map(menu => (
+          {[{ id: "dir", label: "Direktori Staff", icon: "👥" }, { id: "shortage", label: "Monitoring Shortage", icon: "⚠️" }, { id: "ecobag", label: "Monitoring Ecobag", icon: "🛍️" }, { id: "member", label: "Monitoring Member", icon: "💳" }, { id: "sales", label: "Sales Ratio", icon: "💰" }, { id: "pwp", label: "PWP Kasir", icon: "🎯" }, { id: "sp", label: "Surat Pernyataan (SP)", icon: "📄" }, { id: "sakit", label: "Absensi Sakit/Izin", icon: "🏥" }, { id: "audit", label: "Audit Clinic", icon: "🩺" }].map(menu => (
             <button key={menu.id} onClick={() => { setActivePanel(menu.id); setSelectedKaryawan(null); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wide transition-all ${activePanel === menu.id && !selectedKaryawan ? "bg-[#e20074] text-white shadow-lg shadow-pink-500/30" : "text-gray-500 hover:bg-pink-50 hover:text-[#e20074]"}`}><span>{menu.icon}</span> {menu.label}</button>
           ))}
           
@@ -1734,6 +1734,29 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                         {filteredData.length === 0 && (<tr><td colSpan="10" className="p-10 text-center text-gray-400 font-bold">Belum ada data terfilter yang cocok di Supabase.</td></tr>)}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activePanel === "audit" && !selectedKaryawan && (
+              <div className="space-y-6 anim-slide-up">
+                <div className="glass-card p-8 rounded-[2.5rem] shadow-xl text-center space-y-4">
+                  <div className="w-20 h-20 bg-pink-50 text-[#e20074] rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-inner">
+                    🩺
+                  </div>
+                  <h3 className="text-xl font-black text-gray-800">Modul Audit Clinic & Form Penilaian Kasir</h3>
+                  <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
+                    Form penilaian performa kasir (HQ Audit dan Assessment Kompetensi: Professional Manners, SSM Produk, Delsusbak Produk).
+                  </p>
+                  <div className="pt-2">
+                    <a
+                      href="/audit-clinic"
+                      className="inline-flex items-center gap-2 bg-[#e20074] hover:bg-pink-700 text-white font-black text-xs uppercase px-6 py-3.5 rounded-2xl shadow-lg shadow-pink-500/30 transition-all hover:-translate-y-0.5"
+                    >
+                      <span>Buka Form Audit Clinic</span>
+                      <span>→</span>
+                    </a>
                   </div>
                 </div>
               </div>

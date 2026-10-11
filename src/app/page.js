@@ -32,6 +32,13 @@ const menu = [
     title: "Panel PIC",
     desc: "Dashboard management ID Swipe untuk PIC/TRC",
     color: "from-amber-500 to-orange-500"
+  },
+  {
+    href: "/audit-clinic",
+    icon: "🩺",
+    title: "Audit Clinic",
+    desc: "Form penilaian & evaluasi performa kasir (HQ & Assessment)",
+    color: "from-pink-500 to-rose-500"
   }
 ];
 
