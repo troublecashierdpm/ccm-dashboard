@@ -53,14 +53,24 @@ export default function PicPage() {
   useEffect(() => {
     (async () => {
       try {
+        // 1) Sesi PIC sendiri (prioritas)
         const saved = localStorage.getItem("ccm_pic");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (!parsed?.nik || !isPicWhitelisted(parsed?.nama)) {
-            localStorage.removeItem("ccm_pic");
+        let parsed = null;
+        try { parsed = saved ? JSON.parse(saved) : null; } catch { parsed = null; }
+        // 2) Fallback: sesi dari halaman lain (kasir/supervisor/absensi) — samakan perilaku lintas panel
+        if (!parsed?.nik) {
+          const shared = localStorage.getItem("ccm_user") || localStorage.getItem("ccm_sup");
+          try { parsed = shared ? JSON.parse(shared) : null; } catch { parsed = null; }
+        }
+        if (parsed?.nik) {
+          if (!isPicWhitelisted(parsed?.nama)) {
+            // Bukan TRC: jangan auto-login PIC, tapi biarkan key lain apa adanya
+            if (saved) localStorage.removeItem("ccm_pic");
           } else {
-            const { data: userData, error } = await supabase
-              .from("nik").select("*").eq("nik", parsed.nik).eq("id_swipe", parsed.id_swipe).single();
+            const q = supabase.from("nik").select("*").eq("nik", parsed.nik);
+            const { data: userData, error } = parsed.id_swipe
+              ? await q.eq("id_swipe", parsed.id_swipe).single()
+              : await q.single();
             if (error || !userData || !isPicWhitelisted(userData.nama)) {
               localStorage.removeItem("ccm_pic");
             } else {

@@ -527,6 +527,7 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
       }
       localStorage.removeItem("ccm_user");
       localStorage.removeItem("ccm_sup");
+      localStorage.removeItem("session_token");
       localStorage.removeItem("session_start");
       setIsLoggedIn(false); setUser(null); setNik(""); setPassword("");
       setStats({ member: 0, ecobag: 0, shortage: 0, sp: 0, sakit: 0, audit: '-', salesRatio: null });

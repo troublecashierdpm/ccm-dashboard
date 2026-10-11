@@ -18,6 +18,7 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
     }
     localStorage.removeItem("ccm_user");
     localStorage.removeItem("ccm_sup");
+    localStorage.removeItem("ccm_pic");
     localStorage.removeItem("session_token");
     localStorage.removeItem("session_start");
     if (setIsLoggedIn) setIsLoggedIn(false);
