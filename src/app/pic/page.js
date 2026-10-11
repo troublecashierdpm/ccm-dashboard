@@ -5,6 +5,7 @@ import SignaturePad from "signature_pad";
 import { supabase } from "@/lib/supabaseClient";
 import { useActiveSession } from "@/lib/useActiveSession";
 import { isPicWhitelisted } from "@/lib/accessControl";
+import AuditClinicForm from "./AuditClinicForm";
 
 export default function PicPage() {
   const [picNik, setPicNik] = useState("");
@@ -145,6 +146,15 @@ export default function PicPage() {
   }
 
   useEffect(() => { if (loggedIn) loadInitial(); }, [loggedIn]);
+
+  // Deep-link ?section=audit|idswipe|stock|user (mis. dari supervisor) — diterapkan sekali setelah login
+  useEffect(() => {
+    if (!loggedIn) return;
+    try {
+      const s = new URLSearchParams(window.location.search).get("section");
+      if (["audit", "idswipe", "stock", "user"].includes(s)) setSection(s);
+    } catch (e) {}
+  }, [loggedIn]);
 
   function initPads() {
     setTimeout(() => {
@@ -347,6 +357,27 @@ export default function PicPage() {
         {section === "main" && (
           <>
             <div className="text-center py-4">
+              <h2 className="text-2xl font-extrabold">PANEL <span className="text-amber-600">PIC</span></h2>
+              <p className="text-gray-500 mt-1 text-sm">Pilih modul yang ingin dibuka</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button onClick={() => setSection("idswipe")} className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
+                <span className="text-5xl block mb-3">🪪</span>
+                <span className="font-bold block">Dashboard ID Swipe</span>
+                <span className="text-xs opacity-80">Manajemen Kartu Akses & Formulir Otomatis</span>
+              </button>
+              <button onClick={() => setSection("audit")} className="bg-gradient-to-br from-[#c2006b] to-[#ff1a8c] rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
+                <span className="text-5xl block mb-3">🩺</span>
+                <span className="font-bold block">Audit Clinic</span>
+                <span className="text-xs opacity-80">Form Penilaian & Evaluasi Kasir</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {section === "idswipe" && (
+          <>
+            <div className="text-center py-4">
               <h2 className="text-2xl font-extrabold">DASHBOARD MANAGEMENT <span className="text-amber-600">ID SWIPE</span></h2>
               <p className="text-gray-500 mt-1 text-sm">Sistem Informasi Manajemen Kartu Akses & Formulir Otomatis</p>
             </div>
@@ -371,8 +402,12 @@ export default function PicPage() {
           </>
         )}
 
+        {section === "audit" && (
+          <AuditClinicForm evaluatorNama={picUser?.nama || ""} />
+        )}
+
         {section !== "main" && (
-          <button onClick={() => setSection("main")} className="flex items-center text-gray-600 hover:text-amber-600 font-semibold text-sm">← Kembali ke Menu</button>
+          <button onClick={() => setSection(section === "stock" || section === "user" ? "idswipe" : "main")} className="flex items-center text-gray-600 hover:text-amber-600 font-semibold text-sm">← Kembali ke Menu</button>
         )}
 
         {section === "stock" && (

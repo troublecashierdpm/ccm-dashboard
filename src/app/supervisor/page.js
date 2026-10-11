@@ -1751,7 +1751,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
                   </p>
                   <div className="pt-2">
                     <a
-                      href="/audit-clinic"
+                      href="/pic?section=audit"
                       className="inline-flex items-center gap-2 bg-[#e20074] hover:bg-pink-700 text-white font-black text-xs uppercase px-6 py-3.5 rounded-2xl shadow-lg shadow-pink-500/30 transition-all hover:-translate-y-0.5"
                     >
                       <span>Buka Form Audit Clinic</span>
