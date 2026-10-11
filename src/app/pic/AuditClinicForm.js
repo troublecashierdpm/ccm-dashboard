@@ -182,7 +182,7 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
   }, []);
 
   // Hanya kasir berstatus Kontrak / PPKK / Maganghub yang bisa diaudit
-  const STATUS_AUDIT = ["KONTRAK", "PPKK", "MAGANGHUB"];
+  const STATUS_AUDIT = ["KONTRAK", "PPKK", "MAGANGHUB", "MAGANG"];
 
   async function fetchCashiers() {
     try {
@@ -429,7 +429,7 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
             >
               <option value="">-- Pilih Nama Kasir --</option>
               {cashiers.map((c, i) => (
-                <option key={i} value={c.nama}>{c.nama} ({c.level || 'Staff'})</option>
+                <option key={i} value={c.nama}>{c.nama} ({c.status || '-'})</option>
               ))}
             </select>
           </div>
