@@ -181,10 +181,13 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
     fetchCashiers();
   }, []);
 
+  // Hanya kasir berstatus Kontrak / PPKK / Maganghub yang bisa diaudit
+  const STATUS_AUDIT = ["KONTRAK", "PPKK", "MAGANGHUB"];
+
   async function fetchCashiers() {
     try {
       const { data } = await supabase.from("nik").select("nama, nik, level, status").order("nama");
-      if (data) setCashiers(data);
+      if (data) setCashiers(data.filter(c => STATUS_AUDIT.includes(String(c.status || "").trim().toUpperCase())));
     } catch (err) {
       console.error(err);
     } finally {
@@ -206,8 +209,18 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
     else setAssessmentScores(prev => ({ ...prev, [key]: Number(val) }));
   };
 
+  // Auto-format ketikan menjadi MM:SS agar tidak typo (mis. ketik 345 -> 03:45)
+  const formatMmSs = (val) => {
+    let digits = String(val || "").replace(/\D/g, "").slice(0, 4);
+    if (digits.length === 0) return "";
+    if (digits.length <= 2) return digits;
+    let mm = digits.slice(0, 2), ss = digits.slice(2);
+    if (Number(ss) > 59) ss = "59";
+    return `${mm}:${ss}`;
+  };
+
   const handleDurationChange = (key, val) => {
-    setDurations(prev => ({ ...prev, [key]: val }));
+    setDurations(prev => ({ ...prev, [key]: formatMmSs(val) }));
   };
 
   const activeAssessmentItems = () => {
@@ -233,6 +246,7 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
 
       if (obsType === "hq") {
         if (!hqDuration || !hqQty) { alert("Durasi dan jumlah produk HQ wajib diisi!"); setSubmitting(false); return; }
+        if (!/^\d{2}:[0-5]\d$/.test(hqDuration)) { alert("Format durasi harus MM:SS (contoh 03:45)!"); setSubmitting(false); return; }
         Object.entries(hqScores).forEach(([item, score]) => {
           payloadData.push({
             tanggal, nama: selectedNama, nik: selectedNik, evaluator,
@@ -286,6 +300,8 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
     <div className="mt-3">
       <input
         type="text"
+        inputMode="numeric"
+        maxLength={5}
         value={durations[`${testType}:${durKey}`] || ""}
         onChange={(e) => handleDurationChange(`${testType}:${durKey}`, e.target.value)}
         placeholder={DURASI_LABEL[durKey] || "Input durasi"}
@@ -454,9 +470,11 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
                 <label className="block text-xs font-black uppercase text-pink-700 mb-2">Durasi Waktu (MM:SS)</label>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  maxLength={5}
                   placeholder="Contoh: 03:45"
                   value={hqDuration}
-                  onChange={(e) => setHqDuration(e.target.value)}
+                  onChange={(e) => setHqDuration(formatMmSs(e.target.value))}
                   className="w-full p-3 bg-white border border-pink-200 rounded-xl font-bold text-gray-800"
                   required
                 />
