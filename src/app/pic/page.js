@@ -47,6 +47,12 @@ export default function PicPage() {
   const supCanvasRef = useRef(null);
   const reqPadRef = useRef(null);
   const supPadRef = useRef(null);
+  const [sigModalFor, setSigModalFor] = useState(null); // 'req' | 'sup' | null
+  const [modalCanvasRef, setModalCanvasRef] = useRef(null);
+  const [modalPadRef, setModalPadRef] = useRef(null);
+  const [sigModalFor, setSigModalFor] = useState(null); // 'req' | 'sup' | null
+  const [modalCanvasRef, setModalCanvasRef] = useRef(null);
+  const [modalPadRef, setModalPadRef] = useRef(null);
 
   useActiveSession(picUser, setPicUser, setLoggedIn);
 
@@ -220,6 +226,40 @@ export default function PicPage() {
     catch {
       throw new Error(`Server balas bukan JSON (status ${res.status}): ${text.slice(0, 300)}`);
     }
+  }
+
+  // ===== SIGNATURE MODAL (300x300 1:1) =====
+  function openSigModal(which) {
+    setSigModalFor(which);
+    setTimeout(() => {
+      if (modalCanvasRef.current) {
+        modalPadRef.current = new SignaturePad(modalCanvasRef.current, {
+          backgroundColor: "rgb(255, 255, 255)",
+          penColor: "rgb(0, 0, 0)",
+          minWidth: 2,
+          maxWidth: 4
+        });
+      }
+    }, 100);
+  }
+
+  function clearModalSig() {
+    modalPadRef.current?.clear();
+  }
+
+  function saveModalSig() {
+    if (!modalPadRef.current || modalPadRef.current.isEmpty()) {
+      alert("Tanda tangan masih kosong!");
+      return;
+    }
+    const dataUrl = modalPadRef.current.toDataURL();
+    if (sigModalFor === "req") {
+      reqPadRef.current?.fromDataURL(dataUrl);
+    } else if (sigModalFor === "sup") {
+      supPadRef.current?.fromDataURL(dataUrl);
+    }
+    setSigModalFor(null);
+    modalPadRef.current = null;
   }
 
   function idOptions(list, withName) {
@@ -594,9 +634,11 @@ export default function PicPage() {
                 )}
                 {(reqSelect === "NEW" || (reqSelect && reqEditFlag)) ? (
                   <div>
-                    <canvas ref={reqCanvasRef} className="w-full h-[150px] border-2 border-dashed border-gray-400 rounded-lg bg-white touch-none" />
+                    <button type="button" onClick={() => openSigModal("req")} className="w-full p-6 border-2 border-dashed border-gray-400 rounded-lg bg-white text-center text-sm font-bold text-gray-500 hover:border-amber-500 hover:text-amber-600">
+                      ✍️ Tap untuk tanda tangan
+                    </button>
                     <div className="flex gap-2 mt-2">
-                      <button type="button" onClick={() => reqPadRef.current?.clear()} className="flex-1 border border-red-500 text-red-500 rounded-lg py-1.5 text-sm">Hapus TTD</button>
+                      <button type="button" onClick={() => { reqPadRef.current?.clear(); openSigModal("req"); }} className="flex-1 border border-red-500 text-red-500 rounded-lg py-1.5 text-sm">Hapus TTD</button>
                       {reqSelect && reqEditFlag && <button type="button" onClick={() => { setReqEditFlag(false); reqPadRef.current?.clear(); }} className="flex-1 bg-gray-500 text-white rounded-lg py-1.5 text-sm">Batal Edit</button>}
                     </div>
                   </div>
@@ -622,7 +664,9 @@ export default function PicPage() {
                 )}
                 {(supSelect === "NEW" || (supSelect && supEditFlag)) ? (
                   <div>
-                    <canvas ref={supCanvasRef} className="w-full h-[150px] border-2 border-dashed border-gray-400 rounded-lg bg-white touch-none" />
+                    <button type="button" onClick={() => openSigModal("sup")} className="w-full p-6 border-2 border-dashed border-gray-400 rounded-lg bg-white text-center text-sm font-bold text-gray-500 hover:border-amber-500 hover:text-amber-600">
+                      ✍️ Tap untuk tanda tangan
+                    </button>
                     <div className="flex gap-2 mt-2">
                       <button type="button" onClick={() => supPadRef.current?.clear()} className="flex-1 border border-red-500 text-red-500 rounded-lg py-1.5 text-sm">Hapus TTD</button>
                       {supSelect && supEditFlag && <button type="button" onClick={() => { setSupEditFlag(false); supPadRef.current?.clear(); }} className="flex-1 bg-gray-500 text-white rounded-lg py-1.5 text-sm">Batal Edit</button>}
