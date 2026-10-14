@@ -48,11 +48,33 @@ export default function PicPage() {
   const reqPadRef = useRef(null);
   const supPadRef = useRef(null);
   const [sigModalFor, setSigModalFor] = useState(null); // 'req' | 'sup' | null
-  const [modalCanvasRef, setModalCanvasRef] = useRef(null);
-  const [modalPadRef, setModalPadRef] = useRef(null);
-  const [sigModalFor, setSigModalFor] = useState(null); // 'req' | 'sup' | null
-  const [modalCanvasRef, setModalCanvasRef] = useRef(null);
-  const [modalPadRef, setModalPadRef] = useRef(null);
+  const modalCanvasRef = useRef(null);
+  const modalPadRef = useRef(null);
+  const [reqSigUrl, setReqSigUrl] = useState("");
+  const [supSigUrl, setSupSigUrl] = useState("");
+
+  // Upload signature to Supabase storage, return public URL
+  async function uploadSignature(dataUrl, type) {
+    try {
+      const res = await fetch("/api/pic/signature/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sigData: dataUrl,
+          type,
+          tanggal: new Date().toISOString().slice(0, 10),
+          waktu: requestType || "IDSWIPE",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) return json.url;
+      console.error("Upload signature gagal:", json.message);
+      return "";
+    } catch (e) {
+      console.error("Upload signature error:", e);
+      return "";
+    }
+  }
 
   useActiveSession(picUser, setPicUser, setLoggedIn);
 
@@ -247,7 +269,7 @@ export default function PicPage() {
     modalPadRef.current?.clear();
   }
 
-  function saveModalSig() {
+  async function saveModalSig() {
     if (!modalPadRef.current || modalPadRef.current.isEmpty()) {
       alert("Tanda tangan masih kosong!");
       return;
@@ -255,8 +277,11 @@ export default function PicPage() {
     const dataUrl = modalPadRef.current.toDataURL();
     if (sigModalFor === "req") {
       reqPadRef.current?.fromDataURL(dataUrl);
+      const url = await uploadSignature(dataUrl, "req");
+      setReqSigUrl(url);
     } else if (sigModalFor === "sup") {
       supPadRef.current?.fromDataURL(dataUrl);
+      setSupSigUrl(await uploadSignature(dataUrl, "sup"));
     }
     setSigModalFor(null);
     modalPadRef.current = null;
@@ -321,13 +346,22 @@ export default function PicPage() {
     }
     if (!reqSelect || !supSelect) { setFormMsg({ text: "Pilih Requester & Superior!", ok: false, pdf: "" }); return; }
     let reqSignatureData = "", supSignatureData = "";
+    let reqSignatureUrl = "", supSignatureUrl = "";
     if (reqSelect === "NEW" || reqEditFlag) {
       if (reqSelect === "NEW" && (!reqNameNew.trim() || !reqPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan requester baru!", ok: false, pdf: "" }); return; }
-      reqSignatureData = reqPadRef.current && !reqPadRef.current.isEmpty() ? reqPadRef.current.toDataURL() : "";
+      if (reqPadRef.current && !reqPadRef.current.isEmpty()) {
+        const dataUrl = reqPadRef.current.toDataURL();
+        reqSignatureData = dataUrl;
+        reqSignatureUrl = await uploadSignature(dataUrl, "req");
+      }
     }
     if (supSelect === "NEW" || supEditFlag) {
       if (supSelect === "NEW" && (!supNameNew.trim() || !supPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan superior baru!", ok: false, pdf: "" }); return; }
-      supSignatureData = supPadRef.current && !supPadRef.current.isEmpty() ? supPadRef.current.toDataURL() : "";
+      if (supPadRef.current && !supPadRef.current.isEmpty()) {
+        const dataUrl = supPadRef.current.toDataURL();
+        supSignatureData = dataUrl;
+        supSignatureUrl = await uploadSignature(dataUrl, "sup");
+      }
     }
     setFormLoading(true);
     setFormMsg({ text: "Memproses PDF dan update database...", ok: null, pdf: "" });
@@ -337,6 +371,7 @@ export default function PicPage() {
         itemsJson: JSON.stringify(items),
         reqSelect, reqNameNew, reqPosNew, reqSignatureData, reqEditFlag: String(reqEditFlag),
         supSelect, supNameNew, supPosNew, supSignatureData, supEditFlag: String(supEditFlag),
+        reqSignatureUrl, supSignatureUrl,
       };
       const res = await fetch("/api/pic/id-swipe/request", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
