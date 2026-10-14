@@ -1001,10 +1001,17 @@ export default function SupervisorDashboard() {
     });
 
     const smDataEmp = rawSalesMember.filter(r => normName(r.nama) === namaKey);
-    const shDataEmp = rawSalesHourly.filter(r => 
-      resolveNama(r.nama).toLowerCase().includes(normName(namaKey).toLowerCase()) && 
-      (!filterBulan || r.periode === filterBulan)
-    );
+    const shDataEmpRaw = rawSalesHourly.filter(r => normName(r.nama) === namaKey && (!filterBulan || r.periode === filterBulan));
+    
+    // Dedupe sales_hourly
+    const seenShKeys = new Set();
+    const shDataEmp = shDataEmpRaw.filter(r => {
+      const key = [r.tanggal, r.nama, r.id_swipe, r.total_sales, r.count_transaksi, r.periode].join('|');
+      if (seenShKeys.has(key)) return false;
+      seenShKeys.add(key);
+      return true;
+    });
+
 let memberMapEmp = {};
 smDataEmp.forEach(r => {
   const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
