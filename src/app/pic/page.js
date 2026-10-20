@@ -5,6 +5,7 @@ import SignaturePad from "signature_pad";
 import { supabase } from "@/lib/supabaseClient";
 import { useActiveSession } from "@/lib/useActiveSession";
 import { isPicWhitelisted } from "@/lib/accessControl";
+import AuditClinicForm from "./AuditClinicForm";
 
 export default function PicPage() {
   const [picNik, setPicNik] = useState("");
@@ -42,10 +43,8 @@ export default function PicPage() {
   const [supEditFlag, setSupEditFlag] = useState(false);
   const [formMsg, setFormMsg] = useState({ text: "", ok: null, pdf: "" });
   const [formLoading, setFormLoading] = useState(false);
-  const reqCanvasRef = useRef(null);
-  const supCanvasRef = useRef(null);
-  const [reqPadRef, setReqPadRef] = useState(null);
-  const [supPadRef, setSupPadRef] = useState(null);
+  const [reqSigUrl, setReqSigUrl] = useState("");
+  const [supSigUrl, setSupSigUrl] = useState("");
   const [sigModal, setSigModal] = useState({ open: false, type: null });
   const modalCanvasRef = useRef(null);
   const modalPadRef = useRef(null);
@@ -56,13 +55,20 @@ export default function PicPage() {
     (async () => {
       try {
         const saved = localStorage.getItem("ccm_pic");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (!parsed?.nik || !isPicWhitelisted(parsed?.nama)) {
-            localStorage.removeItem("ccm_pic");
+        let parsed = null;
+        try { parsed = saved ? JSON.parse(saved) : null; } catch { parsed = null; }
+        if (!parsed?.nik) {
+          const shared = localStorage.getItem("ccm_user") || localStorage.getItem("ccm_sup");
+          try { parsed = shared ? JSON.parse(shared) : null; } catch { parsed = null; }
+        }
+        if (parsed?.nik) {
+          if (!isPicWhitelisted(parsed?.nama)) {
+            if (saved) localStorage.removeItem("ccm_pic");
           } else {
-            const { data: userData, error } = await supabase
-              .from("nik").select("*").eq("nik", parsed.nik).eq("id_swipe", parsed.id_swipe).single();
+            const q = supabase.from("nik").select("*").eq("nik", parsed.nik);
+            const { data: userData, error } = parsed.id_swipe
+              ? await q.eq("id_swipe", parsed.id_swipe).single()
+              : await q.single();
             if (error || !userData || !isPicWhitelisted(userData.nama)) {
               localStorage.removeItem("ccm_pic");
             } else {
@@ -149,6 +155,14 @@ export default function PicPage() {
 
   useEffect(() => { if (loggedIn) loadInitial(); }, [loggedIn]);
 
+  useEffect(() => {
+    if (!loggedIn) return;
+    try {
+      const s = new URLSearchParams(window.location.search).get("section");
+      if (["audit", "idswipe", "stock", "user"].includes(s)) setSection(s);
+    } catch (e) {}
+  }, [loggedIn]);
+
   function initPads() {
     setTimeout(() => {
       if (modalCanvasRef.current && !modalPadRef.current) {
@@ -181,7 +195,6 @@ export default function PicPage() {
     if (success && modalPadRef.current && !modalPadRef.current.isEmpty()) {
       const dataUrl = modalPadRef.current.toDataURL();
       if (sigModal.type === 'req') {
-        // reqSignatureData handled in handleFormSubmit
         window.reqSigDataUrl = dataUrl;
       } else if (sigModal.type === 'sup') {
         window.supSigDataUrl = dataUrl;
@@ -285,6 +298,7 @@ export default function PicPage() {
     }
     if (!reqSelect || !supSelect) { setFormMsg({ text: "Pilih Requester & Superior!", ok: false, pdf: "" }); return; }
     let reqSignatureData = "", supSignatureData = "";
+    let reqSignatureUrl = "", supSignatureUrl = "";
     if (reqSelect === "NEW" || reqEditFlag) {
       if (reqSelect === "NEW" && (!reqNameNew.trim() || !reqPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan requester baru!", ok: false, pdf: "" }); return; }
       reqSignatureData = window.reqSigDataUrl || "";
@@ -303,6 +317,7 @@ export default function PicPage() {
         itemsJson: JSON.stringify(items),
         reqSelect, reqNameNew, reqPosNew, reqSignatureData, reqEditFlag: String(reqEditFlag),
         supSelect, supNameNew, supPosNew, supSignatureData, supEditFlag: String(supEditFlag),
+        reqSignatureUrl, supSignatureUrl,
       };
       const res = await fetch("/api/pic/id-swipe/request", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -373,6 +388,27 @@ export default function PicPage() {
         {section === "main" && (
           <>
             <div className="text-center py-4">
+              <h2 className="text-2xl font-extrabold">PANEL <span className="text-amber-600">PIC</span></h2>
+              <p className="text-gray-500 mt-1 text-sm">Pilih modul yang ingin dibuka</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button onClick={() => setSection("idswipe")} className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
+                <span className="text-5xl block mb-3">🪪</span>
+                <span className="font-bold block">Dashboard ID Swipe</span>
+                <span className="text-xs opacity-80">Manajemen Kartu Akses & Formulir Otomatis</span>
+              </button>
+              <button onClick={() => setSection("audit")} className="bg-gradient-to-br from-[#c2006b] to-[#ff1a8c] rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
+                <span className="text-5xl block mb-3">🩺</span>
+                <span className="font-bold block">Audit Clinic</span>
+                <span className="text-xs opacity-80">Form Penilaian & Evaluasi Kasir</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {section === "idswipe" && (
+          <>
+            <div className="text-center py-4">
               <h2 className="text-2xl font-extrabold">DASHBOARD MANAGEMENT <span className="text-amber-600">ID SWIPE</span></h2>
               <p className="text-gray-500 mt-1 text-sm">Sistem Informasi Manajemen Kartu Akses & Formulir Otomatis</p>
             </div>
@@ -397,8 +433,12 @@ export default function PicPage() {
           </>
         )}
 
+        {section === "audit" && (
+          <AuditClinicForm evaluatorNama={picUser?.nama || ""} />
+        )}
+
         {section !== "main" && (
-          <button onClick={() => setSection("main")} className="flex items-center text-gray-600 hover:text-amber-600 font-semibold text-sm">← Kembali ke Menu</button>
+          <button onClick={() => setSection(section === "stock" || section === "user" ? "idswipe" : "main")} className="flex items-center text-gray-600 hover:text-amber-600 font-semibold text-sm">← Kembali ke Menu</button>
         )}
 
         {section === "stock" && (
