@@ -49,6 +49,29 @@ export default function PicPage() {
   const modalCanvasRef = useRef(null);
   const modalPadRef = useRef(null);
 
+  // Upload signature to Supabase storage, return public URL
+  async function uploadSignature(dataUrl, type) {
+    try {
+      const res = await fetch("/api/pic/signature/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sigData: dataUrl,
+          type,
+          tanggal: new Date().toISOString().slice(0, 10),
+          waktu: requestType || "IDSWIPE",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) return json.url;
+      console.error("Upload signature gagal:", json.message);
+      return "";
+    } catch (e) {
+      console.error("Upload signature error:", e);
+      return "";
+    }
+  }
+
   useActiveSession(picUser, setPicUser, setLoggedIn);
 
   useEffect(() => {
@@ -163,23 +186,12 @@ export default function PicPage() {
     } catch (e) {}
   }, [loggedIn]);
 
-  function initPads() {
-    setTimeout(() => {
-      if (modalCanvasRef.current && !modalPadRef.current) {
-        resizePad(modalCanvasRef.current);
-        modalPadRef.current = new SignaturePad(modalCanvasRef.current, { backgroundColor: "rgba(255,255,255,0)" });
-      }
-    }, 100);
-  }
-
   function resizePad(canvas) {
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const w = canvas.offsetWidth || 400, h = canvas.offsetHeight || 150;
     canvas.width = w * ratio; canvas.height = h * ratio;
     canvas.getContext("2d").scale(ratio, ratio);
   }
-
-  useEffect(() => { if (loggedIn && section === "user") initPads(); }, [loggedIn, section, reqSelect, supSelect, reqEditFlag, supEditFlag]);
 
   function openSigModal(type) {
     setSigModal({ open: true, type });
@@ -191,13 +203,17 @@ export default function PicPage() {
     }, 150);
   }
 
-  function closeSigModal(success) {
+  async function closeSigModal(success) {
     if (success && modalPadRef.current && !modalPadRef.current.isEmpty()) {
       const dataUrl = modalPadRef.current.toDataURL();
       if (sigModal.type === 'req') {
         window.reqSigDataUrl = dataUrl;
+        window.reqSigUploadUrl = await uploadSignature(dataUrl, "req");
+        setReqSigUrl(window.reqSigUploadUrl);
       } else if (sigModal.type === 'sup') {
         window.supSigDataUrl = dataUrl;
+        window.supSigUploadUrl = await uploadSignature(dataUrl, "sup");
+        setSupSigUrl(window.supSigUploadUrl);
       }
     }
     modalPadRef.current?.clear();
@@ -302,12 +318,16 @@ export default function PicPage() {
     if (reqSelect === "NEW" || reqEditFlag) {
       if (reqSelect === "NEW" && (!reqNameNew.trim() || !reqPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan requester baru!", ok: false, pdf: "" }); return; }
       reqSignatureData = window.reqSigDataUrl || "";
+      reqSignatureUrl = window.reqSigUploadUrl || "";
       window.reqSigDataUrl = "";
+      window.reqSigUploadUrl = "";
     }
     if (supSelect === "NEW" || supEditFlag) {
       if (supSelect === "NEW" && (!supNameNew.trim() || !supPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan superior baru!", ok: false, pdf: "" }); return; }
       supSignatureData = window.supSigDataUrl || "";
+      supSignatureUrl = window.supSigUploadUrl || "";
       window.supSigDataUrl = "";
+      window.supSigUploadUrl = "";
     }
     setFormLoading(true);
     setFormMsg({ text: "Memproses PDF dan update database...", ok: null, pdf: "" });
@@ -615,7 +635,8 @@ export default function PicPage() {
                 )}
                 {(reqSelect === "NEW" || (reqSelect && reqEditFlag)) ? (
                   <div className="p-4 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer" onClick={() => openSigModal('req')}>
-                    <p className="text-center text-xs text-gray-500">Tap untuk Tanda Tangan</p>
+                    <p className="text-center text-xs text-gray-500">{reqSigUrl ? "✓ TTD Tersimpan (Klik untuk Ubah)" : "Tap untuk Tanda Tangan"}</p>
+                    {reqSigUrl && <img src={reqSigUrl} alt="Signature" className="mt-2 h-16 mx-auto object-contain bg-white rounded" />}
                   </div>
                 ) : reqSelect ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -639,7 +660,8 @@ export default function PicPage() {
                 )}
                 {(supSelect === "NEW" || (supSelect && supEditFlag)) ? (
                   <div className="p-4 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer" onClick={() => openSigModal('sup')}>
-                    <p className="text-center text-xs text-gray-500">Tap untuk Tanda Tangan</p>
+                    <p className="text-center text-xs text-gray-500">{supSigUrl ? "✓ TTD Tersimpan (Klik untuk Ubah)" : "Tap untuk Tanda Tangan"}</p>
+                    {supSigUrl && <img src={supSigUrl} alt="Signature" className="mt-2 h-16 mx-auto object-contain bg-white rounded" />}
                   </div>
                 ) : supSelect ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
