@@ -43,28 +43,49 @@ export default function PicPage() {
   const [supEditFlag, setSupEditFlag] = useState(false);
   const [formMsg, setFormMsg] = useState({ text: "", ok: null, pdf: "" });
   const [formLoading, setFormLoading] = useState(false);
-  const reqCanvasRef = useRef(null);
-  const supCanvasRef = useRef(null);
-  const reqPadRef = useRef(null);
-  const supPadRef = useRef(null);
+  const [reqSigUrl, setReqSigUrl] = useState("");
+  const [supSigUrl, setSupSigUrl] = useState("");
+  const [sigModal, setSigModal] = useState({ open: false, type: null });
+  const modalCanvasRef = useRef(null);
+  const modalPadRef = useRef(null);
+
+  // Upload signature to Supabase storage, return public URL
+  async function uploadSignature(dataUrl, type) {
+    try {
+      const res = await fetch("/api/pic/signature/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sigData: dataUrl,
+          type,
+          tanggal: new Date().toISOString().slice(0, 10),
+          waktu: requestType || "IDSWIPE",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) return json.url;
+      console.error("Upload signature gagal:", json.message);
+      return "";
+    } catch (e) {
+      console.error("Upload signature error:", e);
+      return "";
+    }
+  }
 
   useActiveSession(picUser, setPicUser, setLoggedIn);
 
   useEffect(() => {
     (async () => {
       try {
-        // 1) Sesi PIC sendiri (prioritas)
         const saved = localStorage.getItem("ccm_pic");
         let parsed = null;
         try { parsed = saved ? JSON.parse(saved) : null; } catch { parsed = null; }
-        // 2) Fallback: sesi dari halaman lain (kasir/supervisor/absensi) — samakan perilaku lintas panel
         if (!parsed?.nik) {
           const shared = localStorage.getItem("ccm_user") || localStorage.getItem("ccm_sup");
           try { parsed = shared ? JSON.parse(shared) : null; } catch { parsed = null; }
         }
         if (parsed?.nik) {
           if (!isPicWhitelisted(parsed?.nama)) {
-            // Bukan TRC: jangan auto-login PIC, tapi biarkan key lain apa adanya
             if (saved) localStorage.removeItem("ccm_pic");
           } else {
             const q = supabase.from("nik").select("*").eq("nik", parsed.nik);
@@ -157,7 +178,6 @@ export default function PicPage() {
 
   useEffect(() => { if (loggedIn) loadInitial(); }, [loggedIn]);
 
-  // Deep-link ?section=audit|idswipe|stock|user (mis. dari supervisor) — diterapkan sekali setelah login
   useEffect(() => {
     if (!loggedIn) return;
     try {
@@ -166,19 +186,6 @@ export default function PicPage() {
     } catch (e) {}
   }, [loggedIn]);
 
-  function initPads() {
-    setTimeout(() => {
-      if (reqCanvasRef.current && !reqPadRef.current) {
-        resizePad(reqCanvasRef.current);
-        reqPadRef.current = new SignaturePad(reqCanvasRef.current, { backgroundColor: "rgba(255,255,255,0)" });
-      }
-      if (supCanvasRef.current && !supPadRef.current) {
-        resizePad(supCanvasRef.current);
-        supPadRef.current = new SignaturePad(supCanvasRef.current, { backgroundColor: "rgba(255,255,255,0)" });
-      }
-    }, 100);
-  }
-
   function resizePad(canvas) {
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     const w = canvas.offsetWidth || 400, h = canvas.offsetHeight || 150;
@@ -186,7 +193,33 @@ export default function PicPage() {
     canvas.getContext("2d").scale(ratio, ratio);
   }
 
-  useEffect(() => { if (loggedIn && section === "user") initPads(); }, [loggedIn, section, reqSelect, supSelect, reqEditFlag, supEditFlag]);
+  function openSigModal(type) {
+    setSigModal({ open: true, type });
+    setTimeout(() => {
+      if (modalCanvasRef.current) {
+        resizePad(modalCanvasRef.current);
+        modalPadRef.current = new SignaturePad(modalCanvasRef.current, { backgroundColor: "rgba(255,255,255,0)" });
+      }
+    }, 150);
+  }
+
+  async function closeSigModal(success) {
+    if (success && modalPadRef.current && !modalPadRef.current.isEmpty()) {
+      const dataUrl = modalPadRef.current.toDataURL();
+      if (sigModal.type === 'req') {
+        window.reqSigDataUrl = dataUrl;
+        window.reqSigUploadUrl = await uploadSignature(dataUrl, "req");
+        setReqSigUrl(window.reqSigUploadUrl);
+      } else if (sigModal.type === 'sup') {
+        window.supSigDataUrl = dataUrl;
+        window.supSigUploadUrl = await uploadSignature(dataUrl, "sup");
+        setSupSigUrl(window.supSigUploadUrl);
+      }
+    }
+    modalPadRef.current?.clear();
+    modalPadRef.current = null;
+    setSigModal({ open: false, type: null });
+  }
 
   function fileToBase64(file) {
     return new Promise((resolve) => {
@@ -280,7 +313,6 @@ export default function PicPage() {
       items.push({ employeeId: r.id, name: r.name, staffType: r.type, staffPosition: r.pos, authCashier: r.c, authManager: r.m, authSupervisor: r.s, authAdmin: r.a });
     }
     if (!reqSelect || !supSelect) { setFormMsg({ text: "Pilih Requester & Superior!", ok: false, pdf: "" }); return; }
-    
     setFormLoading(true);
     setFormMsg({ text: "Memproses PDF dan update database...", ok: null, pdf: "" });
     
@@ -307,6 +339,7 @@ export default function PicPage() {
         itemsJson: JSON.stringify(items),
         reqSelect, reqNameNew, reqPosNew, reqSignatureData, reqEditFlag: String(reqEditFlag),
         supSelect, supNameNew, supPosNew, supSignatureData, supEditFlag: String(supEditFlag),
+        reqSignatureUrl, supSignatureUrl,
       };
       const res = await fetch("/api/pic/id-swipe/request", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -591,7 +624,7 @@ export default function PicPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border rounded-xl p-4">
                 <h6 className="font-extrabold text-center text-xs uppercase text-gray-500 mb-3">Requested By</h6>
-                <select value={reqSelect} onChange={(e) => { setReqSelect(e.target.value); setReqEditFlag(false); reqPadRef.current?.clear(); }} className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm mb-3">
+                <select value={reqSelect} onChange={(e) => { setReqSelect(e.target.value); setReqEditFlag(false); }} className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm mb-3">
                   <option value="">-- Pilih Requester --</option>
                   <option value="NEW">+++ TAMBAH REQUESTER BARU +++</option>
                   {sigs.requesters.map(n => <option key={n} value={n}>{n}</option>)}
@@ -603,12 +636,9 @@ export default function PicPage() {
                   </div>
                 )}
                 {(reqSelect === "NEW" || (reqSelect && reqEditFlag)) ? (
-                  <div>
-                    <canvas ref={reqCanvasRef} className="w-full h-[150px] border-2 border-dashed border-gray-400 rounded-lg bg-white touch-none" />
-                    <div className="flex gap-2 mt-2">
-                      <button type="button" onClick={() => reqPadRef.current?.clear()} className="flex-1 border border-red-500 text-red-500 rounded-lg py-1.5 text-sm">Hapus TTD</button>
-                      {reqSelect && reqEditFlag && <button type="button" onClick={() => { setReqEditFlag(false); reqPadRef.current?.clear(); }} className="flex-1 bg-gray-500 text-white rounded-lg py-1.5 text-sm">Batal Edit</button>}
-                    </div>
+                  <div className="p-4 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer" onClick={() => openSigModal('req')}>
+                    <p className="text-center text-xs text-gray-500">{reqSigUrl ? "✓ TTD Tersimpan (Klik untuk Ubah)" : "Tap untuk Tanda Tangan"}</p>
+                    {reqSigUrl && <img src={reqSigUrl} alt="Signature" className="mt-2 h-16 mx-auto object-contain bg-white rounded" />}
                   </div>
                 ) : reqSelect ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -619,7 +649,7 @@ export default function PicPage() {
               </div>
               <div className="border rounded-xl p-4">
                 <h6 className="font-extrabold text-center text-xs uppercase text-gray-500 mb-3">Acknowledge By (Superior)</h6>
-                <select value={supSelect} onChange={(e) => { setSupSelect(e.target.value); setSupEditFlag(false); supPadRef.current?.clear(); }} className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm mb-3">
+                <select value={supSelect} onChange={(e) => { setSupSelect(e.target.value); setSupEditFlag(false); }} className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm mb-3">
                   <option value="">-- Pilih Superior --</option>
                   <option value="NEW">+++ TAMBAH SUPERIOR BARU +++</option>
                   {sigs.superiors.map(n => <option key={n} value={n}>{n}</option>)}
@@ -631,12 +661,9 @@ export default function PicPage() {
                   </div>
                 )}
                 {(supSelect === "NEW" || (supSelect && supEditFlag)) ? (
-                  <div>
-                    <canvas ref={supCanvasRef} className="w-full h-[150px] border-2 border-dashed border-gray-400 rounded-lg bg-white touch-none" />
-                    <div className="flex gap-2 mt-2">
-                      <button type="button" onClick={() => supPadRef.current?.clear()} className="flex-1 border border-red-500 text-red-500 rounded-lg py-1.5 text-sm">Hapus TTD</button>
-                      {supSelect && supEditFlag && <button type="button" onClick={() => { setSupEditFlag(false); supPadRef.current?.clear(); }} className="flex-1 bg-gray-500 text-white rounded-lg py-1.5 text-sm">Batal Edit</button>}
-                    </div>
+                  <div className="p-4 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer" onClick={() => openSigModal('sup')}>
+                    <p className="text-center text-xs text-gray-500">{supSigUrl ? "✓ TTD Tersimpan (Klik untuk Ubah)" : "Tap untuk Tanda Tangan"}</p>
+                    {supSigUrl && <img src={supSigUrl} alt="Signature" className="mt-2 h-16 mx-auto object-contain bg-white rounded" />}
                   </div>
                 ) : supSelect ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -657,6 +684,22 @@ export default function PicPage() {
           </div>
         )}
       </main>
+
+      {/* Modal Signature */}
+      {sigModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <h4 className="font-bold text-center mb-4">Tanda Tangan {sigModal.type === 'req' ? 'Requester' : 'Superior'}</h4>
+            <div className="aspect-square w-full bg-gray-50 border-2 border-dashed border-gray-400 rounded-xl overflow-hidden mb-4">
+              <canvas ref={modalCanvasRef} className="w-full h-full bg-gray-50 border-2 border-dashed border-gray-400 rounded-xl" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => closeSigModal(false)} className="flex-1 py-3 bg-gray-200 rounded-xl font-bold">Batal</button>
+              <button onClick={() => closeSigModal(true)} className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold">Simpan</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
