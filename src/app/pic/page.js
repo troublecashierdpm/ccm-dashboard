@@ -318,28 +318,27 @@ export default function PicPage() {
     
     try {
       let reqSignatureData = "", supSignatureData = "";
-      const uploadSig = async (dataUrl, role, label) => {
-        if (!dataUrl) return "";
-        const r = await fetch("/api/signature/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sigData: dataUrl, role, name: label }) });
-        const j = await parseJsonSafe(r);
-        if (!j.success) throw new Error(j.message || "Gagal upload signature");
-        return j.url;
-      };
+      // TTD ditangkap via modal (openSigModal/closeSigModal): URL hasil upload di window.sigUploadUrl,
+      // base64 cadangan di window.sigDataUrl. Kirim URL — bukan base64 — agar tidak menabrak limit
+      // 50.000 karakter per cell di Google Sheets (SIGNATURE_DB).
       if (reqSelect === "NEW" || reqEditFlag) {
         if (reqSelect === "NEW" && (!reqNameNew.trim() || !reqPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan requester baru!", ok: false, pdf: "" }); return; }
-        reqSignatureData = await uploadSig(reqPadRef.current && !reqPadRef.current.isEmpty() ? reqPadRef.current.toDataURL() : "", "requester", reqSelect === "NEW" ? reqNameNew : reqSelect);
+        reqSignatureData = window.reqSigUploadUrl || "";
+        if (!reqSignatureData && window.reqSigDataUrl) reqSignatureData = await uploadSignature(window.reqSigDataUrl, "req"); // coba upload ulang bila belum jadi
       }
       if (supSelect === "NEW" || supEditFlag) {
         if (supSelect === "NEW" && (!supNameNew.trim() || !supPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan superior baru!", ok: false, pdf: "" }); return; }
-        supSignatureData = await uploadSig(supPadRef.current && !supPadRef.current.isEmpty() ? supPadRef.current.toDataURL() : "", "superior", supSelect === "NEW" ? supNameNew : supSelect);
+        supSignatureData = window.supSigUploadUrl || "";
+        if (!supSignatureData && window.supSigDataUrl) supSignatureData = await uploadSignature(window.supSigDataUrl, "sup");
       }
+      window.reqSigDataUrl = ""; window.reqSigUploadUrl = "";
+      window.supSigDataUrl = ""; window.supSigUploadUrl = "";
       
       const payload = {
         requestType, newUser: String(newUser), activationIdCard: String(activationIdCard),
         itemsJson: JSON.stringify(items),
         reqSelect, reqNameNew, reqPosNew, reqSignatureData, reqEditFlag: String(reqEditFlag),
         supSelect, supNameNew, supPosNew, supSignatureData, supEditFlag: String(supEditFlag),
-        reqSignatureUrl, supSignatureUrl,
       };
       const res = await fetch("/api/pic/id-swipe/request", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),

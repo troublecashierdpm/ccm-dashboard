@@ -14,7 +14,7 @@ export async function POST(req) {
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
     // Parse base64 data
@@ -26,7 +26,7 @@ export async function POST(req) {
     const fileName = `${body.type}_${body.tanggal}_${body.waktu}_${Date.now()}.png`.replace(/[:\/]/g, '-');
 
     const { error } = await supabase.storage
-      .from('signatures')
+      .from('id-signatures')
       .upload(fileName, buffer, { 
         contentType: 'image/png',
         upsert: true 
@@ -36,7 +36,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: error.message }, { status: 500 });
     }
 
-    const { data: pub } = supabase.storage.from('signatures').getPublicUrl(fileName);
+    const { data: pub } = supabase.storage.from('id-signatures').getPublicUrl(fileName);
 
     return NextResponse.json({ 
       success: true, 
