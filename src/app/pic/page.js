@@ -280,18 +280,28 @@ export default function PicPage() {
       items.push({ employeeId: r.id, name: r.name, staffType: r.type, staffPosition: r.pos, authCashier: r.c, authManager: r.m, authSupervisor: r.s, authAdmin: r.a });
     }
     if (!reqSelect || !supSelect) { setFormMsg({ text: "Pilih Requester & Superior!", ok: false, pdf: "" }); return; }
-    let reqSignatureData = "", supSignatureData = "";
-    if (reqSelect === "NEW" || reqEditFlag) {
-      if (reqSelect === "NEW" && (!reqNameNew.trim() || !reqPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan requester baru!", ok: false, pdf: "" }); return; }
-      reqSignatureData = reqPadRef.current && !reqPadRef.current.isEmpty() ? reqPadRef.current.toDataURL() : "";
-    }
-    if (supSelect === "NEW" || supEditFlag) {
-      if (supSelect === "NEW" && (!supNameNew.trim() || !supPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan superior baru!", ok: false, pdf: "" }); return; }
-      supSignatureData = supPadRef.current && !supPadRef.current.isEmpty() ? supPadRef.current.toDataURL() : "";
-    }
+    
     setFormLoading(true);
     setFormMsg({ text: "Memproses PDF dan update database...", ok: null, pdf: "" });
+    
     try {
+      let reqSignatureData = "", supSignatureData = "";
+      const uploadSig = async (dataUrl, role, label) => {
+        if (!dataUrl) return "";
+        const r = await fetch("/api/signature/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sigData: dataUrl, role, name: label }) });
+        const j = await parseJsonSafe(r);
+        if (!j.success) throw new Error(j.message || "Gagal upload signature");
+        return j.url;
+      };
+      if (reqSelect === "NEW" || reqEditFlag) {
+        if (reqSelect === "NEW" && (!reqNameNew.trim() || !reqPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan requester baru!", ok: false, pdf: "" }); return; }
+        reqSignatureData = await uploadSig(reqPadRef.current && !reqPadRef.current.isEmpty() ? reqPadRef.current.toDataURL() : "", "requester", reqSelect === "NEW" ? reqNameNew : reqSelect);
+      }
+      if (supSelect === "NEW" || supEditFlag) {
+        if (supSelect === "NEW" && (!supNameNew.trim() || !supPosNew.trim())) { setFormMsg({ text: "Isi nama & jabatan superior baru!", ok: false, pdf: "" }); return; }
+        supSignatureData = await uploadSig(supPadRef.current && !supPadRef.current.isEmpty() ? supPadRef.current.toDataURL() : "", "superior", supSelect === "NEW" ? supNameNew : supSelect);
+      }
+      
       const payload = {
         requestType, newUser: String(newUser), activationIdCard: String(activationIdCard),
         itemsJson: JSON.stringify(items),
