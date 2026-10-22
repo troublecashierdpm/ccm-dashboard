@@ -335,6 +335,7 @@ function getFilteredTeam() {
  
 function statusBadgeClass(status) {
   if (status === "Normal") return "bg-green-100 text-green-700";
+  if (status === "No Clock Out") return "bg-amber-100 text-amber-700";
   if (status === "Late" || status === "Absent" || status === "Early" || status === "No Clock In") return "bg-red-100 text-red-700";
   if (status === "Day Off") return "bg-gray-100 text-gray-500";
   if (status === "Extra/Lembur") return "bg-blue-100 text-blue-700";
@@ -1471,7 +1472,7 @@ function getStatusBadgeClass(remarks) {
   // STEP: TEAM MONITOR
   if (step === "team") {
     const filteredTeam = getFilteredTeam();
-    const statusOptions = ["All", "Normal", "Late", "Absent", "No Clock In", "Early", "Day Off", "Extra/Lembur"];
+    const statusOptions = ["All", "Normal", "Late", "Absent", "No Clock In", "No Clock Out", "Early", "Day Off", "Extra/Lembur"];
     return (
       <div className="min-h-screen bg-[#f8fafc] pb-10">
         <div className="bg-white p-5 shadow-sm sticky top-0 z-10">
@@ -1516,9 +1517,13 @@ function getStatusBadgeClass(remarks) {
                 <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
                 <h4 className="text-lg font-black text-red-600">{teamStats.absent}</h4>
               </div>
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm col-span-2">
-                <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In/Out</p>
-                <h4 className="text-lg font-black text-amber-500">{teamStats.noIn}</h4>
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In</p>
+                <h4 className="text-lg font-black text-red-600">{teamStats.noIn}</h4>
+              </div>
+              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock Out</p>
+                <h4 className="text-lg font-black text-amber-500">{teamStats.noOut}</h4>
               </div>
             </div>
           )}

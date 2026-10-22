@@ -24,40 +24,43 @@ export async function GET(req) {
     const logMap = {};
     (logRows || []).forEach(l => { logMap[l.nik] = l; });
 
-    let stats = { present: 0, late: 0, early: 0, absent: 0, noIn: 0 };
-    const results = (users || []).map(u => {
-      const shiftCode = jadwalMap[u.nik] || "XX";
-      const shiftInfo = hitungJamKerja(shiftCode);
-      const log = logMap[u.nik] || { clock_in: "-", clock_out: "-" };
-      const actIn = log.clock_in || "-";
-      const actOut = log.clock_out || "-";
+      let stats = { present: 0, late: 0, early: 0, absent: 0, noIn: 0, noOut: 0 };
+      const results = (users || []).map(u => {
+        const shiftCode = jadwalMap[u.nik] || "XX";
+        const shiftInfo = hitungJamKerja(shiftCode);
+        const log = logMap[u.nik] || { clock_in: "-", clock_out: "-" };
+        const actIn = log.clock_in || "-";
+        const actOut = log.clock_out || "-";
 
-      let status = "Normal";
-      if (shiftInfo.isOff) {
-        status = (actIn !== "-" || actOut !== "-") ? "Extra/Lembur" : "Day Off";
-      } else {
-        const calculated = hitungLateEarlyDurasi(actIn, actOut, shiftInfo.jam);
-        const remarks = getRemarks(actIn, actOut, shiftInfo.isOff, calculated.late, calculated.early);
-        
-        if (remarks === "Alpha") status = "Absent";
-        else if (remarks.includes("No Clock In") || remarks.includes("No Clock Out")) status = "No Clock In";
-        else if (remarks.includes("Late In")) status = "Late";
-        else if (remarks.includes("Early Out")) status = "Early";
-        else status = "Normal";
-      }
+        let status = "Normal";
+        if (shiftInfo.isOff) {
+          status = (actIn !== "-" || actOut !== "-") ? "Extra/Lembur" : "Day Off";
+        } else {
+          const calculated = hitungLateEarlyDurasi(actIn, actOut, shiftInfo.jam);
+          const remarks = getRemarks(actIn, actOut, shiftInfo.isOff, calculated.late, calculated.early);
+          
+          if (remarks === "Alpha") status = "Absent";
+          // PISAH: tidak clock-in vs tidak clock-out (sebelumnya digabung ke "No Clock In")
+          else if (remarks.includes("No Clock In")) status = "No Clock In";
+          else if (remarks.includes("No Clock Out")) status = "No Clock Out";
+          else if (remarks.includes("Late In")) status = "Late";
+          else if (remarks.includes("Early Out")) status = "Early";
+          else status = "Normal";
+        }
 
-      if (status === "Normal") stats.present++;
-      else if (status === "Late") { stats.present++; stats.late++; }
-      else if (status === "Early") { stats.present++; stats.early++; }
-      else if (status === "Absent") stats.absent++;
-      else if (status === "No Clock In" || status === "No Clock Out") stats.noIn++;
+        if (status === "Normal") stats.present++;
+        else if (status === "Late") { stats.present++; stats.late++; }
+        else if (status === "Early") { stats.present++; stats.early++; }
+        else if (status === "Absent") stats.absent++;
+        else if (status === "No Clock In") stats.noIn++;
+        else if (status === "No Clock Out") stats.noOut++;
 
-      return {
-        nik: u.nik, nama: u.nama,
-        photoUrl: u.file_id ? `https://drive.google.com/thumbnail?id=${u.file_id}&sz=w500` : "",
-        shift: shiftCode, jam: shiftInfo.jam, in: actIn, out: actOut, status
-      };
-    });
+        return {
+          nik: u.nik, nama: u.nama,
+          photoUrl: u.file_id ? `https://drive.google.com/thumbnail?id=${u.file_id}&sz=w500` : "",
+          shift: shiftCode, jam: shiftInfo.jam, in: actIn, out: actOut, status
+        };
+      });
 
     return NextResponse.json({ success: true, data: results, stats, date: tanggal });
   } catch (err) {
