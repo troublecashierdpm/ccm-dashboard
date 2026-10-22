@@ -22,6 +22,20 @@ function normName(s) {
 function toTitleCase(s) {
   return String(s || "").trim().toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+// DEDUPE baris dobel pada tabel sales (member & hourly). Key sama seperti dedupe
+// di profil per-karyawan (modal) supaya panel Sales Ratio & profil menampilkan
+// angka yang konsisten — baris dobel dari sheet (sisa sync ganda / varian baris
+// untuk hari yang sama) tidak lagi terhitung dua kali.
+function dedupeSalesRows(rows) {
+  const seen = new Set();
+  return (rows || []).filter(r => {
+    const key = [r.tanggal, r.nama, r.id_swipe, r.total_sales, r.count_transaksi, r.periode].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
  
 // Hanya nama-nama ini yang boleh login ke Panel Supervisor (dicocokkan dari kolom
 // "nama" di tabel nik, lowercase & trim supaya tidak sensitif kapitalisasi/spasi)
@@ -1321,8 +1335,15 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
     if (activePanel === "sp") return rawSpBa.filter(r => (!filterBulan || r.bulan === filterBulan) && (!filterTipe || r.surat_pernyataan === filterTipe) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())) );
     
     if (activePanel === "sales") {
-      const mFiltered = rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
-      const hFiltered = rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())));
+      // WAJIB dedupe: baris dobel di sheet (sisa sync ganda / baris dengan varian
+      // id_swipe untuk hari yang sama) akan terhitung 2x di total hourly —
+      // contoh kasus: Dayana Grun 2026-09 (476 jt vs 298 jt di database).
+      const mFiltered = dedupeSalesRows(
+        rawSalesMember.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())))
+      );
+      const hFiltered = dedupeSalesRows(
+        rawSalesHourly.filter(r => (!filterBulan || r.periode === filterBulan) && (!searchNama || resolveNama(r.nama).toLowerCase().includes(searchNama.toLowerCase())))
+      );
   
       // Build lookup map untuk total hourly per nama+periode (single pass)
       const hourlyTotals = {};
