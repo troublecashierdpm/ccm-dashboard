@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { SUPERVISOR_WHITELIST, isSupervisorWhitelisted } from "@/lib/accessControl";
 import { useActiveSession } from "@/lib/useActiveSession";
+import { loadAllCached, saveCachedTable, isFresh, formatSavedAt } from "@/lib/dataCache";
 import Chart from "chart.js/auto";
 import * as XLSX from "xlsx";
 
@@ -55,6 +56,9 @@ export default function SupervisorDashboard() {
   const [loadStage, setLoadStage] = useState("");
   const [loadedTables, setLoadedTables] = useState([]);
   const [loadErrors, setLoadErrors] = useState({});
+
+  // CACHE (IndexedDB): info banner "tampil dari cache" — { saved, refreshing }
+  const [cacheInfo, setCacheInfo] = useState(null);
 
 
   // FILTER UNTUK PANEL GLOBAL (Shortage, Ecobag, dll)
@@ -866,6 +870,22 @@ export default function SupervisorDashboard() {
   }
 
   const fetchGlobalData = async (onlyTable = null) => {
+    // Setter per tabel (dipakai semua jalur: cache instan, refresh belakang, staged load)
+    const tableSetters = [
+      ["nik", setAllKaryawan],
+      ["member_per_day", setRawMember],
+      ["sales_member", setRawSalesMember],
+      ["sales_hourly", setRawSalesHourly],
+      ["shortage_per_day", setRawShortage],
+      ["ecobag_per_day", setRawEcobag],
+      ["sakit_per_day", setRawSakit],
+      ["sp_ba_per_day", setRawSpBa],
+      ["pwp_kasir", setRawPwp],
+    ];
+    const setterMap = Object.fromEntries(tableSetters);
+    // Simpan snapshot ke cache IndexedDB (fire-and-forget, gagal diabaikan)
+    const persistCache = (table, rows) => saveCachedTable(table, rows).catch(() => {});
+
     // SINGLE: muat ulang 1 tabel saja (tanpa spinner full, tanpa sentuh tahap lain).
     if (onlyTable) {
       setLoadStage(`Memuat ulang tabel ${onlyTable}…`);
@@ -876,13 +896,8 @@ export default function SupervisorDashboard() {
       });
       try {
         const data = await fetchAllData(onlyTable, onlyTable === "nik" ? "nama" : null);
-        const setters = {
-          nik: setAllKaryawan, member_per_day: setRawMember, sales_member: setRawSalesMember,
-          sales_hourly: setRawSalesHourly, shortage_per_day: setRawShortage, ecobag_per_day: setRawEcobag,
-          sakit_per_day: setRawSakit, sp_ba_per_day: setRawSpBa, pwp_kasir: setRawPwp,
-        };
-        const setter = setters[onlyTable];
-        if (setter) setter(data || []);
+        if (setterMap[onlyTable]) setterMap[onlyTable](data || []);
+        persistCache(onlyTable, data);
         setLoadedTables(prev => [...new Set([...prev, onlyTable])]);
         setLoadStage(`Tabel ${onlyTable} termuat.`);
       } catch (err) {
@@ -893,9 +908,8 @@ export default function SupervisorDashboard() {
       return;
     }
 
-    // FULL: bertahap 4 tahap.
+    // FULL: cek cache dulu (stale-while-revalidate).
     setLoading(true);
-    setLoadStage("Memuat direktori karyawan…");
     setLoadedTables([]);
     setLoadErrors({});
     let cancelled = false;
@@ -917,35 +931,64 @@ export default function SupervisorDashboard() {
         return [];
       }
     };
-    const TOTAL_TABLES = 9;
+    const TOTAL_TABLES = tableSetters.length;
 
     try {
+      // ===== CEK CACHE (IndexedDB) =====
+      // Cache lengkap (9/9) dan belum usang (< 24 jam): render instan dari cache,
+      // lalu tarik ulang semua tabel dari Supabase DI BELAKANG (tanpa spinner).
+      const cached = await loadAllCached(tableSetters.map(([t]) => t));
+      if (cancelled) return;
+      if (cached.loaded.length === TOTAL_TABLES && isFresh(cached.savedAt)) {
+        for (const [tbl] of tableSetters) {
+          setterMap[tbl](cached.tables[tbl] || []);
+        }
+        setLoadedTables(tableSetters.map(([t]) => t));
+        setLoading(false);
+        setCacheInfo({ saved: cached.savedAt, refreshing: true });
+
+        // TARIK ULANG DI BELAKANG: semua tabel paralel, begitu selesai
+        // ganti data di layar dengan yang terbaru + simpan snapshot cache baru.
+        let bgDone = 0;
+        Promise.all(tableSetters.map(async ([tbl, setter]) => {
+          try {
+            const data = await fetchAllData(tbl, tbl === "nik" ? "nama" : null);
+            if (cancelled) return;
+            setter(data || []);
+            persistCache(tbl, data || []);
+          } catch (err) {
+            // Gagal refresh di belakang: diamkan — data cache di layar tetap dipakai.
+            console.error(`Error background refresh ${tbl}:`, err);
+          }
+          bgDone += 1;
+        })).then(() => {
+          if (cancelled) return;
+          setCacheInfo({ saved: Date.now(), refreshing: false });
+          // Banner informasi cache hilang sendiri setelah beberapa detik.
+          setTimeout(() => { setCacheInfo(null); }, 5000);
+        });
+        return;
+      }
+
+      // ===== STAGED LOAD (cache kosong / usang) =====
       // TAHAP 1: Direktori dulu — halaman langsung bisa dipakai.
       setLoadStage("Tahap 1/2: Direktori karyawan…");
       const nikData = await safeFetch("nik", "nama");
       if (cancelled) return;
       setAllKaryawan(nikData || []);
+      if (nikData && nikData.length) persistCache("nik", nikData);
       markLoaded(["nik"]);
       setLoading(false);
 
       // TAHAP 2: SEMUA tabel data DITARIK PARALEL sekaligus (tidak antre satu per satu),
       // masing-masing menandai tabelnya sendiri saat selesai (progress tetap terlihat).
       setLoadStage("Tahap 2/2: Memuat semua tabel data…");
-      const tableSetters = [
-        ["member_per_day", setRawMember],
-        ["sales_member", setRawSalesMember],
-        ["sales_hourly", setRawSalesHourly],
-        ["shortage_per_day", setRawShortage],
-        ["ecobag_per_day", setRawEcobag],
-        ["sakit_per_day", setRawSakit],
-        ["sp_ba_per_day", setRawSpBa],
-        ["pwp_kasir", setRawPwp],
-      ];
       let doneCount = 1; // nik sudah termuat di Tahap 1
-      await Promise.all(tableSetters.map(async ([tbl, setter]) => {
+      await Promise.all((tableSetters.filter(([t]) => t !== "nik")).map(async ([tbl, setter]) => {
         const data = await safeFetch(tbl);
         if (cancelled) return;
         setter(data || []);
+        if (data && data.length) persistCache(tbl, data);
         doneCount += 1;
         markLoaded([tbl]);
       }));
@@ -1578,6 +1621,14 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
           <div className="-mt-4 mb-6 text-xs font-bold px-4 py-3 rounded-xl bg-indigo-50 text-indigo-600 flex items-center gap-2">
             <span className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin shrink-0"></span>
             <span>{loadStage} ({loadedTables.length}/9 tabel)</span>
+          </div>
+        )}
+
+        {/* BANNER CACHE: data tampil instan dari IndexedDB lalu diperbarui di belakang */}
+        {!loading && cacheInfo && (
+          <div className="-mt-4 mb-6 text-xs font-bold px-4 py-3 rounded-xl bg-amber-50 text-amber-700 flex flex-wrap items-center gap-2">
+            <span>⚡{cacheInfo.refreshing ? ` Ditampilkan dari cache (disimpan ${formatSavedAt(cacheInfo.saved)}) — memperbarui data terbaru di belakang…` : ` Data diperbarui (${formatSavedAt(cacheInfo.saved)})`}</span>
+            {cacheInfo.refreshing && <span className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin shrink-0"></span>}
           </div>
         )}
         {!loading && Object.keys(loadErrors).length > 0 && (
