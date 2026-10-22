@@ -204,11 +204,6 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
 
   const scoreKey = (it) => `${it.component}|${it.section}|${it.item}`;
 
-  const handleScoreChange = (key, val, isHq = false) => {
-    if (isHq) setHqScores(prev => ({ ...prev, [key]: Number(val) }));
-    else setAssessmentScores(prev => ({ ...prev, [key]: Number(val) }));
-  };
-
   // Auto-format ketikan menjadi MM:SS agar tidak typo (mis. ketik 345 -> 03:45)
   const formatMmSs = (val) => {
     let digits = String(val || "").replace(/\D/g, "").slice(0, 4);
@@ -310,20 +305,40 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
     </div>
   );
 
+  // Tombol skor (bukan dropdown): 1 / 0.5 / 0. Tombol aktif di-highlight;
+  // klik tombol yang sudah aktif untuk MEMBATALKAN pilihan.
+  const renderScoreButtons = (key, currentVal, isHq = false) => (
+    <div className="flex gap-2">
+      {SCORE_OPTS.map(s => {
+        const active = String(currentVal ?? "") === s;
+        const setVal = isHq
+          ? (v) => setHqScores(prev => { const n = { ...prev }; if (v === null) delete n[key]; else n[key] = Number(v); return n; })
+          : (v) => setAssessmentScores(prev => { const n = { ...prev }; if (v === null) delete n[key]; else n[key] = Number(v); return n; });
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setVal(active ? null : s)}
+            className={`flex-1 py-3 rounded-xl font-black text-sm transition-all active:scale-95 border-2 ${
+              active
+                ? "bg-[#c2006b] text-white border-[#c2006b] shadow-lg shadow-pink-200"
+                : "bg-white text-gray-600 border-gray-200 hover:border-[#c2006b] hover:text-[#c2006b]"
+            }`}
+          >
+            {s}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const renderAssessmentItem = (it, idx) => {
     const key = scoreKey(it);
     return (
       <div key={key} className="p-4 bg-gray-50 rounded-2xl gap-3 border border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <span className="text-sm font-semibold text-gray-700 flex-1">{it.item}</span>
-          <select
-            value={assessmentScores[key] ?? ""}
-            onChange={(e) => handleScoreChange(key, e.target.value)}
-            className="p-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 sm:w-32"
-          >
-            <option value="">Skor</option>
-            {SCORE_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          {renderScoreButtons(key, assessmentScores[key])}
         </div>
         {it.durasiSebelum && renderDurasiInput(it.durasiSebelum)}
       </div>
@@ -497,14 +512,7 @@ export default function AuditClinicForm({ evaluatorNama = "" }) {
               {HQ_ITEMS.map((item, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-2xl gap-3 border border-gray-100">
                   <span className="text-sm font-semibold text-gray-700 flex-1">{item}</span>
-                  <select
-                    value={hqScores[item] ?? ""}
-                    onChange={(e) => handleScoreChange(item, e.target.value, true)}
-                    className="p-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 sm:w-32"
-                  >
-                    <option value="">Skor</option>
-                    {SCORE_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  {renderScoreButtons(item, hqScores[item], true)}
                 </div>
               ))}
             </div>
