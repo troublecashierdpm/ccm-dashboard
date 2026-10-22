@@ -1102,27 +1102,34 @@ export default function SupervisorDashboard() {
 let memberMapEmp = {};
 smDataEmp.forEach(r => {
   const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
-  if (!memberMapEmp[tgl]) memberMapEmp[tgl] = { sales: 0, periode: r.periode || '' };
-  memberMapEmp[tgl].sales += parseFloat(r.total_sales) || 0;
+  const pos = r.pos || '-';
+  const key = tgl + '|' + pos; // per tanggal+POS (sama seperti panel Sales Ratio) supaya keterangan POS tampil di detail
+  if (!memberMapEmp[key]) memberMapEmp[key] = { sales: 0, periode: r.periode || '' };
+  memberMapEmp[key].sales += parseFloat(r.total_sales) || 0;
 });
 let hourlyMapEmp = {};
 shDataEmp.forEach(r => {
   const tgl = normalizeTgl(r.tanggal, 'DMY'); if (!tgl) return;
-  if (!hourlyMapEmp[tgl]) hourlyMapEmp[tgl] = { sales: 0, count: 0, periode: r.periode || '' };
-  hourlyMapEmp[tgl].sales += parseFloat(r.total_sales) || 0;
-  hourlyMapEmp[tgl].count += parseInt(r.count_transaksi) || 0;
+  const pos = r.pos || '-';
+  const key = tgl + '|' + pos;
+  if (!hourlyMapEmp[key]) hourlyMapEmp[key] = { sales: 0, count: 0, periode: r.periode || '' };
+  hourlyMapEmp[key].sales += parseFloat(r.total_sales) || 0;
+  hourlyMapEmp[key].count += parseInt(r.count_transaksi) || 0;
 });
 const allTglEmp = new Set([...Object.keys(memberMapEmp), ...Object.keys(hourlyMapEmp)]);
 let salesGroupsEmp = {};
-allTglEmp.forEach(tgl => {
-  const m = memberMapEmp[tgl] || { sales: 0, periode: '' };
-  const h = hourlyMapEmp[tgl] || { sales: 0, count: 0, periode: '' };
+allTglEmp.forEach(key => {
+  const parts = key.split('|');
+  const tgl = parts[0];
+  const pos = parts[1] || '-';
+  const m = memberMapEmp[key] || { sales: 0, periode: '' };
+  const h = hourlyMapEmp[key] || { sales: 0, count: 0, periode: '' };
   const periode = m.periode || h.periode || 'Unknown';
   if (!salesGroupsEmp[periode]) salesGroupsEmp[periode] = { bulan: periode, totalMemberSales: 0, totalHourlySales: 0, totalCount: 0, details: [] };
   salesGroupsEmp[periode].totalMemberSales += m.sales;
   salesGroupsEmp[periode].totalHourlySales += h.sales;
   salesGroupsEmp[periode].totalCount += h.count;
-  salesGroupsEmp[periode].details.push({ tgl, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
+  salesGroupsEmp[periode].details.push({ tgl, pos, memberSales: m.sales, hourlySales: h.sales, count: h.count, avgTransaction: h.count > 0 ? Math.round(h.sales / h.count) : 0 });
 });
 const finalSalesGroupsEmp = Object.values(salesGroupsEmp).map(g => {
   g.details.sort((a, b) => (b.tgl || '').localeCompare(a.tgl || ''));
