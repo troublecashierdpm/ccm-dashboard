@@ -5,12 +5,9 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
 
-// FUNGSI BARU: "Mesin Cuci" angka untuk membersihkan Rp dan titik dari Google Sheets
-function cleanNum(val) {
-  if (!val) return "0";
-  let str = String(val).replace(/[^0-9-]/g, '');
-  return str || "0";
-}
+// FUNGSI "Mesin Cuci" angka dipindah ke src/lib/cleanNum.js — parser yang mengerti
+// format Indonesia (titik ribuan, koma desimal), tidak lagi membuang semua karakter
+import { cleanNum } from '@/lib/cleanNum';
 
 export async function GET() {
   try {

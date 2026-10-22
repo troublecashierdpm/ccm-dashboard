@@ -2,13 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
-
-function cleanNum(val) {
-  if (!val) return "0";
-  let str = String(val).replace(/[^0-9-]/g, '');
-  return str || "0";
-}
-
+import { cleanNum } from '@/lib/cleanNum';
 export async function GET(request, { params }) {
   const { table } = params;
     const tables = {
