@@ -708,27 +708,68 @@ export default function SupervisorDashboard() {
     setSortConfig({ key: null, direction: "desc" });
   }, [activePanel]);
 
-  // LOGIKA BARU: TARIK SEMUA DATA TANPA BATAS 1000 BARIS (PAGINATION LOOP)
+  // LOGIKA: TARIK SEMUA DATA TANPA BATAS 1000 BARIS — OPTIMIZED.
+  // 1) Request pertama sekaligus membawa jumlah total baris (count exact) + halaman pertama.
+  // 2) Tabel <= 1000 baris: selesai dalam 1 request.
+  // 3) Tabel besar: semua halaman DITARIK PARALEL (batch 8 request) dengan urutan stabil
+  //    (kolom `id` / `created_at`) supaya tidak ada baris dobel/hilang antar halaman.
+  // 4) Tanpa kolom sort yang bisa diandalkan: fallback ke loop sekuensial cara lama.
   const fetchAllData = async (table, orderByCol = null) => {
-    let all = [];
-    let from = 0;
     const step = 1000;
-    while (true) {
-      let q = supabase.from(table).select("*").range(from, from + step - 1);
-      if (orderByCol) q = q.order(orderByCol, { ascending: true });
-      
-      const { data, error } = await q;
-      if (error) { console.error(`Error fetch ${table}:`, error); break; }
-      
-      if (data && data.length > 0) {
-        all = [...all, ...data];
-        if (data.length < step) break; // Jika data yang ditarik kurang dari 1000, berarti sudah habis
-        from += step;
-      } else {
-        break;
+
+    const fetchPageSequential = async () => {
+      let all = [];
+      let from = 0;
+      while (true) {
+        let sq = supabase.from(table).select("*").range(from, from + step - 1);
+        if (orderByCol) sq = sq.order(orderByCol, { ascending: true });
+        const { data, error } = await sq;
+        if (error) { console.error(`Error fetch ${table}:`, error); break; }
+        if (data && data.length > 0) {
+          all = [...all, ...data];
+          if (data.length < step) break;
+          from += step;
+        } else {
+          break;
+        }
+      }
+      return all;
+    };
+
+    let q = supabase.from(table).select("*", { count: "exact" }).range(0, step - 1);
+    if (orderByCol) q = q.order(orderByCol, { ascending: true });
+    const { data, error, count } = await q;
+    if (error) throw new Error(`${table}: ${error.message}`);
+
+    // Tabel kecil (<= 1000 baris): selesai dalam 1 request.
+    if (count != null && count <= step && count > 0) return data || [];
+    if (count === 0) return [];
+
+    // Kolom sort stabil untuk pagination paralel (id = primary key unik,
+    // created_at alternatif); tanpa ini pagination paralel bisa dobel/hilang.
+    const row0 = (data && data[0]) || {};
+    const sortCol = orderByCol || (row0.id != null ? "id" : row0.created_at != null ? "created_at" : null);
+    if (count == null || !sortCol) return fetchPageSequential();
+
+    // Tabel besar: tarik semua halaman paralel (batch 8 request sekaligus).
+    const pages = Math.ceil(count / step);
+    const reqs = [];
+    for (let p = 0; p < pages; p++) {
+      reqs.push(
+        supabase.from(table).select("*")
+          .range(p * step, p * step + step - 1)
+          .order(sortCol, { ascending: true })
+      );
+    }
+    const rows = [];
+    for (let i = 0; i < reqs.length; i += 8) {
+      const parts = await Promise.all(reqs.slice(i, i + 8));
+      for (const part of parts) {
+        if (part.error) throw new Error(`${table}: ${part.error.message}`);
+        rows.push(...(part.data || []));
       }
     }
-    return all;
+    return rows;
   };
 
   useEffect(() => {
@@ -880,52 +921,41 @@ export default function SupervisorDashboard() {
 
     try {
       // TAHAP 1: Direktori dulu — halaman langsung bisa dipakai.
-      setLoadStage("Tahap 1/4: Direktori karyawan…");
+      setLoadStage("Tahap 1/2: Direktori karyawan…");
       const nikData = await safeFetch("nik", "nama");
       if (cancelled) return;
       setAllKaryawan(nikData || []);
       markLoaded(["nik"]);
       setLoading(false);
 
-      // TAHAP 2: Member + Sales.
-      setLoadStage("Tahap 2/4: Member + Sales…");
-      const [memData, smData, shData] = await Promise.all([
-        safeFetch("member_per_day"),
-        safeFetch("sales_member"),
-        safeFetch("sales_hourly"),
-      ]);
+      // TAHAP 2: SEMUA tabel data DITARIK PARALEL sekaligus (tidak antre satu per satu),
+      // masing-masing menandai tabelnya sendiri saat selesai (progress tetap terlihat).
+      setLoadStage("Tahap 2/2: Memuat semua tabel data…");
+      const tableSetters = [
+        ["member_per_day", setRawMember],
+        ["sales_member", setRawSalesMember],
+        ["sales_hourly", setRawSalesHourly],
+        ["shortage_per_day", setRawShortage],
+        ["ecobag_per_day", setRawEcobag],
+        ["sakit_per_day", setRawSakit],
+        ["sp_ba_per_day", setRawSpBa],
+        ["pwp_kasir", setRawPwp],
+      ];
+      let doneCount = 1; // nik sudah termuat di Tahap 1
+      await Promise.all(tableSetters.map(async ([tbl, setter]) => {
+        const data = await safeFetch(tbl);
+        if (cancelled) return;
+        setter(data || []);
+        doneCount += 1;
+        markLoaded([tbl]);
+      }));
       if (cancelled) return;
-      setRawMember(memData || []);
-      setRawSalesMember(smData || []);
-      setRawSalesHourly(shData || []);
-      markLoaded(["member_per_day", "sales_member", "sales_hourly"]);
 
-      // TAHAP 3: Shortage + Ecobag + Sakit.
-      setLoadStage("Tahap 3/4: Shortage + Ecobag + Sakit…");
-      const [shortData, ecoData, sakData] = await Promise.all([
-        safeFetch("shortage_per_day"),
-        safeFetch("ecobag_per_day"),
-        safeFetch("sakit_per_day"),
-      ]);
-      if (cancelled) return;
-      setRawShortage(shortData || []);
-      setRawEcobag(ecoData || []);
-      setRawSakit(sakData || []);
-      markLoaded(["shortage_per_day", "ecobag_per_day", "sakit_per_day"]);
-
-      // TAHAP 4: SP/BA + PWP.
-      setLoadStage("Tahap 4/4: SP/BA + PWP…");
-      const [spData, pwpData] = await Promise.all([
-        safeFetch("sp_ba_per_day"),
-        safeFetch("pwp_kasir"),
-      ]);
-      if (cancelled) return;
-      setRawSpBa(spData || []);
-      setRawPwp(pwpData || []);
-      markLoaded(["sp_ba_per_day", "pwp_kasir"]);
-
-      if (cancelled) return;
-      setLoadStage(`Semua data termuat (${TOTAL_TABLES}/${TOTAL_TABLES}).`);
+      if (doneCount >= TOTAL_TABLES) {
+        setLoadStage(`Semua data termuat (${TOTAL_TABLES}/${TOTAL_TABLES}).`);
+      } else {
+        setLoadStage(`Sebagian data gagal dimuat (${doneCount}/${TOTAL_TABLES}) — coba lagi per tabel.`);
+      }
     } catch (err) {
       console.error(err);
       setLoading(false);
