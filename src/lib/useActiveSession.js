@@ -23,6 +23,11 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
     localStorage.removeItem("session_start");
     if (setIsLoggedIn) setIsLoggedIn(false);
     if (setUser) setUser(null);
+    // Beri pesan dulu sebelum dikembalikan ke halaman login (hanya jika sesi habis,
+    // bukan untuk logout manual).
+    if (reason === "SESSION_EXPIRED") {
+      alert("⏰ Sesi Anda telah berakhir (melebihi 10 menit).\nAnda akan dikembalikan ke halaman login.");
+    }
     window.location.reload();
   }, [user, setUser, setIsLoggedIn]);
 
