@@ -110,6 +110,11 @@ const [previewFoto, setPreviewFoto] = useState(null);
 const [isUploadingFoto, setIsUploadingFoto] = useState(false);
 const fotoInputRef = useRef(null);
 
+// NOTIFIKASI APPROVE/REJECT (ikon lonceng di halaman utama)
+const [notifOpen, setNotifOpen] = useState(false);
+const [notifItems, setNotifItems] = useState([]); // keputusan terbaru (Approved/Rejected)
+const [notifCount, setNotifCount] = useState(0);  // jumlah belum dilihat
+
 // --- LOGIKA REQUEST GANTI FOTO (sama seperti kasir/page.js) ---
 const handleFileSelect = (e) => {
   const file = e.target.files[0];
@@ -473,6 +478,47 @@ async function openMyRequests() {
   }
   setMyRequestsLoading(false);
 }
+
+// --- NOTIFIKASI APPROVE/REJECT (ikon lonceng di halaman utama) ---
+const fetchNotifs = async () => {
+  if (!user || !user.nik) return;
+  try {
+    const res = await fetch(`/api/absensi/my-requests?nik=${user.nik}`);
+    const json = await res.json();
+    if (!json.success) return;
+    // Hanya keputusan yang sudah selesai yang jadi notifikasi (Pending tidak dihitung)
+    const decisions = (json.data || [])
+      .filter(r => r.statusReq === "Approved" || r.statusReq === "Rejected")
+      .slice(0, 10);
+    setNotifItems(decisions);
+    // "Terbaca" = req_id sudah pernah disimpan di localStorage (per NIK)
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(`ccm_absensi_notif_seen_${user.nik}`) || "[]") || []; } catch {}
+    const seenSet = new Set(seen.map(String));
+    const unseen = decisions.filter(r => !seenSet.has(String(r.reqId))).length;
+    setNotifCount(unseen);
+  } catch {
+    // Hening: jangan ganggu pengguna kalau fetch notifikasi gagal
+  }
+};
+
+const tandaiNotifTerbaca = () => {
+  if (!user || !user.nik) return;
+  try {
+    let old = [];
+    try { old = JSON.parse(localStorage.getItem(`ccm_absensi_notif_seen_${user.nik}`) || "[]") || []; } catch {}
+    const ids = notifItems.map(r => String(r.reqId));
+    const merged = [...new Set([...old, ...ids])].slice(-50);
+    localStorage.setItem(`ccm_absensi_notif_seen_${user.nik}`, JSON.stringify(merged));
+  } catch {}
+  setNotifCount(0);
+};
+
+const toggleNotif = () => {
+  const next = !notifOpen;
+  setNotifOpen(next);
+  if (next) tandaiNotifTerbaca();
+};
  
 // Generate daftar kode shift utk dropdown (samakan dgn hitungJamKerja backend)
 function generateShiftOptions() {
@@ -544,6 +590,14 @@ async function fetchStaffDetailLog(nik, monthDate) {
   useEffect(() => {
     if (step === "log" && user) fetchLog(logMonthDate);
   }, [step, logMonthDate]);
+
+  // Polling notifikasi approve/reject: sekali saat login + tiap 60 detik
+  useEffect(() => {
+    if (!user || !user.nik) return;
+    fetchNotifs();
+    const iv = setInterval(fetchNotifs, 60 * 1000);
+    return () => clearInterval(iv);
+  }, [user && user.nik]);
   
   useEffect(() => {
     if (step === "staff-detail" && staffDetailStaff) {
@@ -1752,6 +1806,62 @@ function getStatusBadgeClass(remarks) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Ikon lonceng notifikasi approve/reject */}
+            <div className="relative">
+              <button onClick={toggleNotif} title="Notifikasi Approve/Reject"
+                className="relative bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">
+                🔔
+                {notifCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1 bg-red-500 text-white text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-[#e20074]">
+                    {notifCount > 9 ? "9+" : notifCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <>
+                  {/* klik di luar menutup dropdown */}
+                  <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)}></div>
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[85vw] bg-white rounded-2xl shadow-2xl z-40 overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 font-black text-[10px] uppercase tracking-wider text-gray-500">
+                      🔔 Notifikasi Approve/Reject
+                    </div>
+                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                      {notifItems.length === 0 && (
+                        <div className="p-6 text-center text-gray-400 text-xs font-bold">Belum ada notifikasi.</div>
+                      )}
+                      {notifItems.map(r => {
+                        const jenisNotif = (r.alasan || "").indexOf("[CHANGE SHIFT]") !== -1 ? "Change Shift" : "Attendance";
+                        const alasanN = (r.alasan || "").replace("[CHANGE SHIFT]", "").replace("[ATTENDANCE]", "").trim();
+                        const badgeN = r.statusReq === "Approved"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700";
+                        return (
+                          <div key={r.reqId}
+                            onClick={() => { setNotifOpen(false); openMyRequests(); }}
+                            className="p-3 hover:bg-pink-50/50 cursor-pointer transition-colors">
+                            <div className="flex justify-between items-center mb-1 gap-2">
+                              <span className="text-[9px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded uppercase">{jenisNotif}</span>
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${badgeN}`}>{r.statusReq}</span>
+                            </div>
+                            <p className="text-[10px] text-gray-600 font-bold">
+                              Tgl Absen: <span className="text-gray-800">{r.tglAbsen}</span>
+                            </p>
+                            {alasanN && <p className="text-[9px] italic text-gray-400 truncate">"{alasanN}"</p>}
+                            {r.catatanAdmin && r.catatanAdmin !== "-" && (
+                              <p className="text-[9px] text-gray-600 mt-0.5">Catatan: {r.catatanAdmin}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div onClick={() => { setNotifOpen(false); openMyRequests(); }}
+                      className="py-2.5 text-center text-[10px] font-black text-[#e20074] hover:bg-pink-50 uppercase tracking-wider cursor-pointer border-t border-gray-100">
+                      Lihat Semua di My Requests →
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <a href="/kasir" onClick={() => {
               localStorage.setItem("ccm_user", JSON.stringify(user));
               localStorage.setItem("ccm_sup", JSON.stringify(user));
