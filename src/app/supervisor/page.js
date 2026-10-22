@@ -1586,6 +1586,15 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         body { overflow: ${activeModalData ? 'hidden' : 'auto'}; }
       `}</style>
 
+      {/* OVERLAY: di layar HP, klik di luar sidebar menutup sidebar (tidak perlu tombol ✕) */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          aria-hidden="true"
+        ></div>
+      )}
+
       <aside className={`fixed inset-y-0 left-0 w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="bg-[#e20074] p-5 text-white flex items-center justify-between"><div className="flex items-center gap-2 font-black text-sm tracking-wider"><span className="bg-white text-[#e20074] px-2 py-1 rounded-lg font-black shadow-sm">AEON</span> TRC PANEL</div><button onClick={() => setSidebarOpen(false)} className="md:hidden text-white font-bold text-xl">✕</button></div>
         <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-80px)]">
