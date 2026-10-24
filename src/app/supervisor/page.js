@@ -36,6 +36,21 @@ function dedupeSalesRows(rows) {
     return true;
   });
 }
+
+// DEDUPE baris dobel pada tabel PWP Kasir. Key memakai normName(nama) supaya
+// duplikat dengan beda kapitalisasi/spasi tetap dianggap baris yang sama —
+// grouping panel memang pakai normName, jadi dedupe dengan nama RAW bisa
+// bocor dan membuat total dobel. Dipakai di 4 tempat: panel global,
+// profil karyawan, jawaban AI/asisten, dan export Excel.
+function dedupePwpRows(rows) {
+  const seen = new Set();
+  return (rows || []).filter(r => {
+    const key = [normName(r.nama), r.tanggal, r.sku_produk, r.nama_barang, r.qty, r.periode].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
  
 // Hanya nama-nama ini yang boleh login ke Panel Supervisor (dicocokkan dari kolom
 // "nama" di tabel nik, lowercase & trim supaya tidak sensitif kapitalisasi/spasi)
@@ -313,7 +328,7 @@ export default function SupervisorDashboard() {
 
       // PWP per karyawan per periode (hanya nama direktori, periode ternormalisasi)
       const pwpSummary = {};
-      rawPwp.forEach(r => {
+      dedupePwpRows(rawPwp).forEach(r => {
         if (!r.nama) return;
         const nama = normName(r.nama);
         if (!inDirektori(nama)) { barisKotorTerbuang++; return; }
@@ -698,7 +713,7 @@ export default function SupervisorDashboard() {
       XLSX.utils.book_append_sheet(wb, wsSh, "Sales Hourly");
     }
     if (rawPwp.length > 0) {
-      const wsPwp = XLSX.utils.json_to_sheet(rawPwp);
+      const wsPwp = XLSX.utils.json_to_sheet(dedupePwpRows(rawPwp));
       XLSX.utils.book_append_sheet(wb, wsPwp, "PWP");
     }
 
@@ -1142,14 +1157,7 @@ let totalMemberSalesEmp = 0, totalHourlySalesEmp = 0;
 Object.values(salesGroupsEmp).forEach(g => { totalMemberSalesEmp += g.totalMemberSales; totalHourlySalesEmp += g.totalHourlySales; });
 const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSalesEmp / totalHourlySalesEmp) * 1000) / 10 : null;
 
-    const pwpDataEmpRaw = rawPwp.filter(r => normName(r.nama) === namaKey);
-    const seenPwpKeysEmp = new Set();
-    const pwpDataEmp = pwpDataEmpRaw.filter(r => {
-      const key = [r.tanggal, r.nama, r.sku_produk, r.nama_barang, r.qty, r.periode].join('|');
-      if (seenPwpKeysEmp.has(key)) return false;
-      seenPwpKeysEmp.add(key);
-      return true;
-    });
+    const pwpDataEmp = dedupePwpRows(rawPwp.filter(r => normName(r.nama) === namaKey));
     let pwpGroupsEmp = {};
     pwpDataEmp.forEach(r => {
       const periode = r.periode || 'Unknown';
@@ -1419,17 +1427,13 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
 
     if (activePanel === "pwp") {
       const map = {};
-      const seenPwpKeysGlobal = new Set();
-      rawPwp.forEach(r => {
+      dedupePwpRows(rawPwp).forEach(r => {
         if (!r.nama) return;
         if (filterBulan && r.periode !== filterBulan) return;
         const namaResolved = resolveNama(r.nama);
         if (searchNama && !namaResolved.toLowerCase().includes(searchNama.toLowerCase())) return;
  
-        // Dedupe: skip baris yang persis sama (efek sync ganda sebelum truncate diperbaiki)
-        const dedupeKey = [r.tanggal, r.nama, r.sku_produk, r.nama_barang, r.qty, r.periode].join('|');
-        if (seenPwpKeysGlobal.has(dedupeKey)) return;
-        seenPwpKeysGlobal.add(dedupeKey);
+        // Dedupe dilakukan di atas via dedupePwpRows(rawPwp)
  
         const key = normName(r.nama) + "||" + r.periode;
         if (!map[key]) map[key] = { nama: namaResolved, periode: r.periode, totalQty: 0, details: [] };

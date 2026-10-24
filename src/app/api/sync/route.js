@@ -170,6 +170,15 @@ export async function GET() {
       }
     }
 
+    // Hapus eksplisit data PWP lama — JANGAN andalkan RPC hapus_semua_data().
+    // RPC itu sudah diketahui tidak menyapu tabel nik (lihat komentar di atas),
+    // kemungkinan juga melewatkan pwp_kasir → setiap full sync menumpuk baris
+    // dobel → total PWP dobel di panel supervisor.
+    const { error: delPwpError } = await supabase.from('pwp_kasir').delete().not('nama', 'is', null);
+    if (delPwpError) throw new Error("Gagal menghapus data PWP lama: " + delPwpError.message);
+    const { error: delPwpNullError } = await supabase.from('pwp_kasir').delete().is('nama', null);
+    if (delPwpNullError) throw new Error("Gagal menghapus data PWP lama (null): " + delPwpNullError.message);
+
     // 10. SINKRONISASI PWP KASIR
     const responsePwp = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'PWP KASIR!A2:G' });
     const rowsPwp = responsePwp.data.values;
