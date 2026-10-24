@@ -180,7 +180,7 @@ export async function GET() {
     if (delPwpNullError) throw new Error("Gagal menghapus data PWP lama (null): " + delPwpNullError.message);
 
     // 10. SINKRONISASI PWP KASIR
-    const responsePwp = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'PWP KASIR!A2:G' });
+    const responsePwp = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'PWP KASIR!A2:H' });
     const rowsPwp = responsePwp.data.values;
     if (rowsPwp && rowsPwp.length > 0) {
       const formattedPwp = rowsPwp.filter(row => row[0] && String(row[0]).toUpperCase() !== 'TGL').map(row => ({
@@ -188,9 +188,10 @@ export async function GET() {
         nama: row[1] || null,
         status: row[2] || null,
         sku_produk: row[3] || null,
-        nama_barang: row[4] || null,
-        qty: parseInt(cleanNum(row[5])) || 0,
-        periode: row[6] || null
+        // Kolom E (row[4]) kosong di sheet PWP KASIR — dilewati.
+        nama_barang: row[5] || null,
+        qty: parseInt(cleanNum(row[6])) || 0,
+        periode: row[7] || null
       }));
       for (let i = 0; i < formattedPwp.length; i += 2000) {
         const { error } = await supabase.from('pwp_kasir').insert(formattedPwp.slice(i, i + 2000));
