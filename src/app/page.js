@@ -280,15 +280,33 @@ export default function HomePage() {
             {/* Live Log Login Notice */}
             <div className="mt-8 pt-8 border-t border-gray-100 text-left">
               <h3 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                <span>📋 Aktivitas Login</span>
+                <span>📋 Aktivitas Login Terakhir</span>
               </h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {loadingLogs ? <p className="text-gray-400 text-[10px] text-center">Memuat...</p> : logs.map((log, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-[10px]">
-                    <span className="font-bold text-gray-800 truncate max-w-[120px]">{log.nama}</span>
-                    <span className="text-gray-400">{new Date(log.timestamp || log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                ))}
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {loadingLogs ? (
+                  <p className="text-gray-400 text-[10px] text-center py-4">Memuat...</p>
+                ) : logs.length === 0 ? (
+                  <p className="text-gray-400 text-[10px] text-center py-4">Belum ada aktivitas</p>
+                ) : logs.map((log, i) => {
+                  const isSuccess = log.status?.includes('SUCCESS');
+                  return (
+                    <div key={i} className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-lg text-[10px] border border-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="font-extrabold text-gray-900 truncate">{log.nama}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {isSuccess ? '✓ Success' : '✗ Failed'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <span className="font-mono">NIK: {log.nik}</span>
+                          <span>•</span>
+                          <span>{new Date(log.timestamp || log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
