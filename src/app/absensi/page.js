@@ -95,6 +95,7 @@ const [teamLoading, setTeamLoading] = useState(false);
 const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
 const [pegawaiStatusFilter, setPegawaiStatusFilter] = useState("All"); // All, PPKK, RESIGN
+const [teamSearchName, setTeamSearchName] = useState(""); // Search nama
 const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
 const [teamStats, setTeamStats] = useState(null);
 const [teamPhotoModal, setTeamPhotoModal] = useState(null);
@@ -308,7 +309,7 @@ async function openTeamMonitor(dateVal) {
   try {
     const res = await fetch(`/api/absensi/team-status?tanggal=${tgl}`);
     const json = await res.json();
-    if (json.success) { setTeamList(json.data); setTeamStats(json.stats); setTeamStatusFilter("All"); setPegawaiStatusFilter("All"); }
+    if (json.success) { setTeamList(json.data); setTeamStats(json.stats); setTeamStatusFilter("All"); setPegawaiStatusFilter("All"); setTeamSearchName(""); }
     else alert(json.message);
   } catch (err) {
     alert("Gagal memuat: " + err.message);
@@ -342,6 +343,12 @@ function getFilteredTeam() {
   // Filter berdasarkan status kehadiran
   if (teamStatusFilter !== "All") {
     filtered = filtered.filter(t => t.status === teamStatusFilter);
+  }
+  
+  // Filter berdasarkan nama (search)
+  if (teamSearchName.trim()) {
+    const search = teamSearchName.toLowerCase();
+    filtered = filtered.filter(t => t.nama?.toLowerCase().includes(search) || t.nik?.includes(search));
   }
   
   return filtered;
@@ -1495,7 +1502,19 @@ function getStatusBadgeClass(remarks) {
             <button onClick={() => setStep("home")} className="text-xl text-[#e20074]">←</button>
             <h2 className="font-bold text-gray-800">Team Monitor</h2>
           </div>
-          <div className="flex gap-2 mb-4">
+          
+          {/* Month Picker */}
+          <div className="mb-3">
+            <input 
+              type="month" 
+              value={teamDate.substring(0, 7)} 
+              onChange={(e) => openTeamMonitor(e.target.value + '-01')}
+              className="w-full p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50 font-bold"
+            />
+          </div>
+          
+          {/* Date Navigator */}
+          <div className="flex gap-2 mb-3">
             <button onClick={() => { 
               const d = new Date(teamDate); d.setDate(d.getDate() - 1); 
               openTeamMonitor(d.toLocaleDateString('sv-SE'));
@@ -1507,8 +1526,18 @@ function getStatusBadgeClass(remarks) {
               openTeamMonitor(d.toLocaleDateString('sv-SE'));
             }} className="p-3 bg-white rounded-xl shadow-sm font-bold text-[#e20074]">›</button>
           </div>
+          
+          {/* Search Bar */}
+          <input 
+            type="text"
+            placeholder="🔍 Cari nama atau NIK..."
+            value={teamSearchName}
+            onChange={(e) => setTeamSearchName(e.target.value)}
+            className="w-full p-2.5 rounded-xl border border-gray-200 text-xs bg-gray-50 mb-3"
+          />
+          
           <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
-            className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+            className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50 mb-3">
             {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
           </select>
           <select value={pegawaiStatusFilter} onChange={(e) => setPegawaiStatusFilter(e.target.value)}
@@ -1522,30 +1551,30 @@ function getStatusBadgeClass(remarks) {
         <div className="p-5 space-y-3">
           {teamStats && (
             <div className="grid grid-cols-3 gap-2 mb-3">
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              <button onClick={() => setTeamStatusFilter("Normal")} className="bg-white rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:bg-green-50 transition-all cursor-pointer">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">Present</p>
                 <h4 className="text-lg font-black text-green-600">{teamStats.present}</h4>
-              </div>
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              </button>
+              <button onClick={() => setTeamStatusFilter("Late")} className="bg-white rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:bg-red-50 transition-all cursor-pointer">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">Late</p>
                 <h4 className="text-lg font-black text-red-600">{teamStats.late}</h4>
-              </div>
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              </button>
+              <button onClick={() => setTeamStatusFilter("Early")} className="bg-white rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:bg-orange-50 transition-all cursor-pointer">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">Early Out</p>
                 <h4 className="text-lg font-black text-orange-500">{teamStats.early}</h4>
-              </div>
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              </button>
+              <button onClick={() => setTeamStatusFilter("Absent")} className="bg-white rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:bg-red-50 transition-all cursor-pointer">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">Absent</p>
                 <h4 className="text-lg font-black text-red-600">{teamStats.absent}</h4>
-              </div>
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              </button>
+              <button onClick={() => setTeamStatusFilter("No Clock In")} className="bg-white rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:bg-red-50 transition-all cursor-pointer">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock In</p>
                 <h4 className="text-lg font-black text-red-600">{teamStats.noIn}</h4>
-              </div>
-              <div className="bg-white rounded-xl p-3 text-center shadow-sm">
+              </button>
+              <button onClick={() => setTeamStatusFilter("No Clock Out")} className="bg-white rounded-xl p-3 text-center shadow-sm hover:shadow-md hover:bg-amber-50 transition-all cursor-pointer">
                 <p className="text-[9px] text-gray-400 font-bold uppercase">No Clock Out</p>
                 <h4 className="text-lg font-black text-amber-500">{teamStats.noOut}</h4>
-              </div>
+              </button>
             </div>
           )}
 
