@@ -35,15 +35,39 @@ export async function POST(req) {
 
     const users = (nikRows || []).filter(u => u.nik && u.email && u.email.trim() !== "" && (targetNik ? true : (u.status && u.status.trim().toUpperCase() === "PPKK")));
 
-    // 2. Tentukan rentang tanggal: 1 bulan ini s/d kemarin
+    const mode = body.mode || new URL(req.url).searchParams.get('mode'); // 'weekly' atau 'monthly_last'
+    
+    // 2. Tentukan rentang tanggal
     const now = new Date();
-    const yesterday = new Date(now.getTime() - 1 * 24 * 3600000);
-    const startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
-    const yyyy = startDate.getFullYear();
-    const mm = String(startDate.getMonth() + 1).padStart(2, '0');
-    const strStart = `${String(startDate.getDate()).padStart(2,'0')}/${mm}/${yyyy}`;
-    const strEnd = `${String(yesterday.getDate()).padStart(2,'0')}/${mm}/${yyyy}`;
-    const endDay = yesterday.getDate();
+    let startDate, endDate, strStart, strEnd;
+    let endDay;
+
+    if (mode === 'monthly_last') {
+      // Bulan lalu (keseluruhan bulan kemarin)
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      startDate = lastMonth;
+      endDate = lastDayOfLastMonth;
+      endDay = lastDayOfLastMonth.getDate();
+      
+      const mNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+      strStart = `01/${mNames[startDate.getMonth() + 1 || startDate.getMonth()]} /${startDate.getFullYear()}`; // simplified
+      strStart = `01/${String(startDate.getMonth() + 1).padStart(2,'0')}/${startDate.getFullYear()}`;
+      strEnd = `${String(endDay).padStart(2,'0')}/${String(endDate.getMonth() + 1).padStart(2,'0')}/${endDate.getFullYear()}`;
+    } else {
+      // Mingguan (1 bulan ini s/d kemarin)
+      const yesterday = new Date(now.getTime() - 1 * 24 * 3600000);
+      startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
+      endDate = yesterday;
+      endDay = yesterday.getDate();
+      const mm = String(startDate.getMonth() + 1).padStart(2, '0');
+      const yyyy = startDate.getFullYear();
+      strStart = `${String(startDate.getDate()).padStart(2,'0')}/${mm}/${yyyy}`;
+      strEnd = `${String(yesterday.getDate()).padStart(2,'0')}/${mm}/${yyyy}`;
+    }
+
+    const yyyy = endDate.getFullYear();
+    const mm = String(endDate.getMonth() + 1).padStart(2, '0');
 
     // 3. Ambil semua log bulan ini
     const allLogs = [];
@@ -110,11 +134,19 @@ export async function POST(req) {
 
           const key = userData.nik + "_" + tglIso;
           const schedCode = schedMap[key] || 'XX';
-          const actual = logMap[key] || {
-            shift: (schedCode === 'X' || schedCode === 'OFF') ? 'DAY OFF' : schedCode,
-            in: '-', out: '-',
-            remarks: (schedCode === 'X' || schedCode === 'OFF') ? 'OFF' : 'Alpha'
+          const logData = logMap[key];
+          
+          let actual = {
+            shift: schedCode === 'XX' || schedCode === 'OFF' ? 'DAY OFF' : schedCode,
+            in: logData?.in || '-',
+            out: logData?.out || '-',
+            remarks: logData?.remarks || (schedCode === 'XX' || schedCode === 'OFF' ? 'OFF' : 'Alpha')
           };
+          
+          // Jika ada di log, prioritaskan shift dari log
+          if (logData && logData.shift && logData.shift !== '-') {
+            actual.shift = logData.shift;
+          }
 
           const remColor = actual.remarks === 'Present' ? '#16a34a'
             : actual.remarks === 'Alpha' ? '#dc2626'
