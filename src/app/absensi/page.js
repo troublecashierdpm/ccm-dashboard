@@ -94,6 +94,7 @@ const [teamList, setTeamList] = useState(null);
 const [teamLoading, setTeamLoading] = useState(false);
 const [teamDate, setTeamDate] = useState("");
 const [teamStatusFilter, setTeamStatusFilter] = useState("All");
+const [pegawaiStatusFilter, setPegawaiStatusFilter] = useState("All"); // All, PPKK, RESIGN
 const [teamSelectedStaff, setTeamSelectedStaff] = useState(null);
 const [teamStats, setTeamStats] = useState(null);
 const [teamPhotoModal, setTeamPhotoModal] = useState(null);
@@ -307,7 +308,7 @@ async function openTeamMonitor(dateVal) {
   try {
     const res = await fetch(`/api/absensi/team-status?tanggal=${tgl}`);
     const json = await res.json();
-    if (json.success) { setTeamList(json.data); setTeamStats(json.stats); setTeamStatusFilter("All"); }
+    if (json.success) { setTeamList(json.data); setTeamStats(json.stats); setTeamStatusFilter("All"); setPegawaiStatusFilter("All"); }
     else alert(json.message);
   } catch (err) {
     alert("Gagal memuat: " + err.message);
@@ -329,8 +330,21 @@ async function fetchStaffMonthlyLog(nik, tgl) {
  
 function getFilteredTeam() {
   if (!teamList) return [];
-  if (teamStatusFilter === "All") return teamList;
-  return teamList.filter(t => t.status === teamStatusFilter);
+  let filtered = teamList;
+  
+  // Filter berdasarkan status pegawai (Aktif/Resign)
+  if (pegawaiStatusFilter === "PPKK") {
+    filtered = filtered.filter(t => t.pegawaiStatus === "PPKK");
+  } else if (pegawaiStatusFilter === "RESIGN") {
+    filtered = filtered.filter(t => t.pegawaiStatus === "RESIGN");
+  }
+  
+  // Filter berdasarkan status kehadiran
+  if (teamStatusFilter !== "All") {
+    filtered = filtered.filter(t => t.status === teamStatusFilter);
+  }
+  
+  return filtered;
 }
  
 function statusBadgeClass(status) {
@@ -1496,6 +1510,12 @@ function getStatusBadgeClass(remarks) {
           <select value={teamStatusFilter} onChange={(e) => setTeamStatusFilter(e.target.value)}
             className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
             {statusOptions.map(s => <option key={s} value={s}>{s === "All" ? "Semua Status" : s}</option>)}
+          </select>
+          <select value={pegawaiStatusFilter} onChange={(e) => setPegawaiStatusFilter(e.target.value)}
+            className="w-full p-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-gray-50">
+            <option value="All">Semua Pegawai</option>
+            <option value="PPKK">Aktif (PPKK)</option>
+            <option value="RESIGN">Resign</option>
           </select>
         </div>
 

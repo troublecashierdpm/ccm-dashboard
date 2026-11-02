@@ -63,6 +63,7 @@ export async function GET(req) {
 
         return {
           nik: u.nik, nama: u.nama,
+          pegawaiStatus: u.status || 'PPKK', // 'PPKK' atau 'RESIGN'
           photoUrl: u.file_id ? `https://drive.google.com/thumbnail?id=${u.file_id}&sz=w500` : "",
           shift: shiftCode, jam: shiftInfo.jam, in: actIn, out: actOut, status
         };
