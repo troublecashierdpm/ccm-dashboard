@@ -973,7 +973,7 @@ function getStatusBadgeClass(remarks) {
         <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8 relative">
           <div className="absolute top-4 right-4">
             <a href="/" className="text-[10px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors">
-              ← Beranda
+              ← Kembali ke Portal
             </a>
           </div>
           <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
