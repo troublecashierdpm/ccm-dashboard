@@ -632,20 +632,21 @@ function getStatusBadgeClass(remarks) {
                 setUser(json.data);
                 localStorage.setItem("ccm_user", JSON.stringify(json.data));
               } else {
-                // NIK ini tidak terdaftar sebagai PPKK/Head Dept di Absensi —
-                // jangan auto-login, biarkan tampil form login manual.
                 localStorage.removeItem("ccm_user");
+                window.location.replace("/");
               }
             })
-            .catch(() => { /* biarkan user login manual kalau refresh gagal */ })
+            .catch(() => { window.location.replace("/"); })
             .finally(() => setCheckingSession(false));
           return;
         }
       } catch (e) {
         localStorage.removeItem("ccm_user");
+        window.location.replace("/");
       }
+    } else {
+      window.location.replace("/");
     }
-    setCheckingSession(false);
   }, []);
 
   async function handleLogin(e) {

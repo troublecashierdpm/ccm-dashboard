@@ -87,6 +87,7 @@ export default function PicPage() {
         if (parsed?.nik) {
           if (!isPicWhitelisted(parsed?.nama)) {
             if (saved) localStorage.removeItem("ccm_pic");
+            window.location.replace("/");
           } else {
             const q = supabase.from("nik").select("*").eq("nik", parsed.nik);
             const { data: userData, error } = parsed.id_swipe
@@ -94,14 +95,20 @@ export default function PicPage() {
               : await q.single();
             if (error || !userData || !isPicWhitelisted(userData.nama)) {
               localStorage.removeItem("ccm_pic");
+              window.location.replace("/");
             } else {
               localStorage.setItem("ccm_pic", JSON.stringify(userData));
               setPicUser(userData);
               setLoggedIn(true);
             }
           }
+        } else {
+          window.location.replace("/");
         }
-      } catch { localStorage.removeItem("ccm_pic"); }
+      } catch { 
+        localStorage.removeItem("ccm_pic");
+        window.location.replace("/");
+      }
       setCheckingSession(false);
     })();
   }, []);
@@ -368,7 +375,7 @@ export default function PicPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#fffcfd] p-6">
         <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8 relative">
           <div className="absolute top-4 right-4">
-            <a href="/" className="text-[10px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors">← Beranda</a>
+            <a href="/" className="text-[10px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors">← Kembali ke Portal</a>
           </div>
           <div className="bg-amber-500 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
             <span className="text-white text-2xl">🪪</span>

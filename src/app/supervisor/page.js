@@ -814,13 +814,15 @@ export default function SupervisorDashboard() {
           setSupervisorUser(parsedUser);
           setIsSupervisorLoggedIn(true);
         } else {
-          // Sesi ini datang dari login Kasir/Absensi (bukan Supervisor terdaftar) —
-          // JANGAN auto-login, walau ada data tersimpan di ccm_sup.
           localStorage.removeItem("ccm_sup");
+          window.location.replace("/");
         }
       } catch (e) {
         localStorage.removeItem("ccm_sup");
+        window.location.replace("/");
       }
+    } else {
+      window.location.replace("/");
     }
   }, []);
 
@@ -1544,7 +1546,7 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
         <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-xl p-8 relative">
           <div className="absolute top-4 right-4">
             <a href="/" className="text-[10px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors">
-              ← Beranda
+              ← Kembali ke Portal
             </a>
           </div>
           <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
