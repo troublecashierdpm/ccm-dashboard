@@ -15,10 +15,16 @@ export async function GET(req) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
-    const { data: users } = await supabase.from('absensi_nik').select('nik, nama, status, file_id').eq('status', 'PPKK');
     const { data: jadwalRows } = await supabase.from('absensi_master_schedule').select('nik, shift_code').eq('tanggal', tanggal);
     const jadwalMap = {};
-    (jadwalRows || []).forEach(j => { jadwalMap[j.nik] = j.shift_code; });
+    const jadwalNiks = [];
+    (jadwalRows || []).forEach(j => { 
+      jadwalMap[j.nik] = j.shift_code;
+      jadwalNiks.push(j.nik);
+    });
+
+    // Ambil semua user yang punya jadwal pada tanggal ini (termasuk resign)
+    const { data: users } = await supabase.from('absensi_nik').select('nik, nama, status, file_id').in('nik', jadwalNiks.length > 0 ? jadwalNiks : ['__NONE__']);
 
     const { data: logRows } = await supabase.from('absensi_log').select('nik, clock_in, clock_out').eq('tanggal', tanggal);
     const logMap = {};
