@@ -1,6 +1,6 @@
 // src/app/page.js
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useActiveSession } from "@/lib/useActiveSession";
@@ -72,8 +72,7 @@ export default function HomePage() {
     setCheckingSession(false);
   }, []);
 
-  const prosesLogin = async (e) => {
-    e.preventDefault();
+  const prosesLogin = async () => {
     if (!nik || !password) { 
       alert("Wajib isi NIK & ID Swipe!"); 
       return; 
@@ -164,7 +163,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fffcfd] font-sans">
+    <>
       <style jsx global>{`
         @keyframes slideUpFade { 0% { opacity: 0; transform: translateY(30px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes popIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
@@ -178,18 +177,18 @@ export default function HomePage() {
           100% { transform: translateY(0) rotate(0deg); }
         }
         @keyframes handCatchLeft {
-          0% { top: 5rem; left: -0.75rem; transform: rotate(-30deg); }
-          15% { top: 7rem; left: 0.5rem; transform: rotate(-60deg); }
-          40% { top: 7rem; left: 0.5rem; transform: rotate(-45deg); }
-          70% { top: 4.5rem; left: -0.5rem; transform: rotate(-20deg); }
-          100% { top: 5rem; left: -0.75rem; transform: rotate(-30deg); }
+          0% { top: 6rem; left: -0.5rem; transform: rotate(-20deg); }
+          15% { top: 7.5rem; left: 0.5rem; transform: rotate(-60deg); }
+          40% { top: 7.5rem; left: 0.5rem; transform: rotate(-45deg); }
+          70% { top: 5rem; left: -0.5rem; transform: rotate(-20deg); }
+          100% { top: 6rem; left: -0.5rem; transform: rotate(-20deg); }
         }
         @keyframes handCatchRight {
-          0% { top: 5rem; right: -0.75rem; transform: rotate(30deg); }
-          15% { top: 7rem; right: 0.5rem; transform: rotate(60deg); }
-          40% { top: 7rem; right: 0.5rem; transform: rotate(45deg); }
-          70% { top: 4.5rem; right: -0.5rem; transform: rotate(20deg); }
-          100% { top: 5rem; right: -0.75rem; transform: rotate(30deg); }
+          0% { top: 6rem; right: -0.5rem; transform: rotate(20deg); }
+          15% { top: 7.5rem; right: 0.5rem; transform: rotate(60deg); }
+          40% { top: 7.5rem; right: 0.5rem; transform: rotate(45deg); }
+          70% { top: 5rem; right: -0.5rem; transform: rotate(20deg); }
+          100% { top: 6rem; right: -0.5rem; transform: rotate(20deg); }
         }
         .anim-slide-up { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         .anim-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -197,6 +196,7 @@ export default function HomePage() {
         .anim-logo-drop { animation: logoDropCatch 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
         .anim-hand-catch-l { animation: handCatchLeft 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
         .anim-hand-catch-r { animation: handCatchRight 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .anim-fade-in { animation: fadeInScale 0.5s ease-out forwards; }
         .eye-happy {
           width: 0 !important; height: 0 !important;
           border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 6px solid #1f2937;
@@ -205,83 +205,116 @@ export default function HomePage() {
       `}</style>
 
       {!isLoggedIn ? (
-        <div className="min-h-screen flex items-center justify-center p-6">
-          <div className="w-full max-w-sm">
-            <div className="relative mb-8 pt-10">
-              {/* Mako Chan Character Wrapper */}
-              <div className="relative w-32 h-32 mx-auto">
-                <div className={`absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 bg-[#e20074] rounded-2xl flex items-center justify-center z-30 cursor-pointer shadow-lg active:scale-95 transition-transform ${isFalling ? 'anim-logo-drop' : 'anim-floating'}`} onClick={handleLogoClick}>
-                  <span className="text-white font-black text-xl tracking-tighter">AEON</span>
-                </div>
+        <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-[#f4f6f9] anim-fade-in overflow-hidden">
+          <div className="bg-white px-8 pt-20 pb-10 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[380px] text-center anim-slide-up border border-gray-100 relative mt-10">
+            
+            {/* --- KARAKTER MAKO CHAN --- */}
+            <div 
+              className={`absolute -top-16 left-0 right-0 mx-auto w-32 h-32 cursor-pointer z-40 flex justify-center ${isFalling ? 'anim-fumble' : 'anim-floating'}`}
+              onClick={handleLogoClick}
+              title="Coba klik aku!"
+            >
+              {/* Telinga Kiri */}
+              <div className="absolute top-1 left-2 w-10 h-10 bg-[#811051] rounded-[0.8rem] rotate-[-25deg] shadow-inner"></div>
+              {/* Telinga Kanan */}
+              <div className="absolute top-1 right-2 w-10 h-10 bg-[#811051] rounded-[0.8rem] rotate-[25deg] shadow-inner"></div>
+
+              {/* Badan Utama Daruma */}
+              <div className="absolute inset-0 bg-[#9c1869] rounded-[4rem] shadow-[0_15px_30px_rgba(156,24,105,0.4)] overflow-hidden flex flex-col items-center pt-5 border-b-8 border-[#7a0c4f]">
                 
-                {/* Hands */}
-                <div className={`absolute top-20 -left-3 w-8 h-8 z-20 ${isFalling ? 'anim-hand-catch-l' : ''}`}>
-                  <div className="w-full h-full bg-[#ffd4b8] rounded-full border-2 border-[#e20074]/10"></div>
-                </div>
-                <div className={`absolute top-20 -right-3 w-8 h-8 z-20 ${isFalling ? 'anim-hand-catch-r' : ''}`}>
-                  <div className="w-full h-full bg-[#ffd4b8] rounded-full border-2 border-[#e20074]/10"></div>
+                {/* Ikat Kepala Ninja */}
+                <div className="absolute top-4 w-[120%] h-7 bg-[#111] z-10 flex items-center justify-center shadow-md rotate-[-2deg]">
+                  <div className="bg-white px-3 py-0.5 rounded-full text-[9px] font-black text-black tracking-widest border-2 border-gray-300">MAKO</div>
                 </div>
 
-                {/* Face */}
-                <div className="w-32 h-32 bg-[#ffd4b8] rounded-[2.5rem] relative overflow-hidden border-4 border-white shadow-xl">
-                  {/* Hair */}
-                  <div className="absolute top-0 left-0 w-full h-8 bg-[#1f2937]"></div>
-                  <div className="absolute top-0 left-0 w-6 h-14 bg-[#1f2937] rounded-b-full"></div>
-                  <div className="absolute top-0 right-0 w-6 h-14 bg-[#1f2937] rounded-b-full"></div>
+                {/* Muka Putih */}
+                <div className="absolute top-12 w-[85%] h-14 bg-white rounded-[2rem] shadow-inner flex justify-center z-0">
                   
-                  {/* Eyes Container */}
-                  <div className={`flex gap-6 justify-center mt-12 transition-all duration-300 ${isPasswordFocused ? 'opacity-0 scale-50' : 'opacity-100'}`}>
-                    <div className={`w-3.5 h-3.5 bg-gray-800 rounded-full relative ${isSuccess ? 'eye-happy' : ''}`}>
-                      {!isSuccess && <div className="absolute top-1 left-1 w-1 h-1 bg-white rounded-full" style={{ transform: `translate(${eyePos.x}px, ${eyePos.y}px)` }}></div>}
+                  {/* Alis Kiri & Kanan */}
+                  <div className={`absolute top-2 left-5 w-3.5 h-1.5 bg-gray-800 rounded-full transition-all duration-300 ${isSuccess ? 'rotate-[25deg] -translate-y-1' : 'rotate-[15deg]'}`}></div>
+                  <div className={`absolute top-2 right-5 w-3.5 h-1.5 bg-gray-800 rounded-full transition-all duration-300 ${isSuccess ? 'rotate-[-25deg] -translate-y-1' : 'rotate-[-15deg]'}`}></div>
+
+                  {/* Mata Eye Tracking */}
+                  <div className="flex gap-5 mt-4">
+                    <div className="relative w-3.5 h-3.5 flex items-center justify-center">
+                      <div 
+                        style={{ transform: (isPasswordFocused || isSuccess) ? 'none' : `translate(${eyePos.x}px, ${eyePos.y}px)` }} 
+                        className={`absolute w-3 h-3.5 bg-gray-800 rounded-full transition-all duration-75 ${isPasswordFocused ? 'scale-y-0 opacity-0' : isSuccess ? 'eye-happy' : 'opacity-100'}`}
+                      ></div>
                     </div>
-                    <div className={`w-3.5 h-3.5 bg-gray-800 rounded-full relative ${isSuccess ? 'eye-happy' : ''}`}>
-                      {!isSuccess && <div className="absolute top-1 left-1 w-1 h-1 bg-white rounded-full" style={{ transform: `translate(${eyePos.x}px, ${eyePos.y}px)` }}></div>}
+                    <div className="relative w-3.5 h-3.5 flex items-center justify-center">
+                      <div 
+                        style={{ transform: (isPasswordFocused || isSuccess) ? 'none' : `translate(${eyePos.x}px, ${eyePos.y}px)` }} 
+                        className={`absolute w-3 h-3.5 bg-gray-800 rounded-full transition-all duration-75 ${isPasswordFocused ? 'scale-y-0 opacity-0' : isSuccess ? 'eye-happy' : 'opacity-100'}`}
+                      ></div>
                     </div>
                   </div>
 
-                  {/* Password Focus Eyes (Closed) */}
-                  {isPasswordFocused && (
-                    <div className="flex gap-6 justify-center mt-14">
-                      <div className="w-4 h-1 bg-gray-800 rounded-full"></div>
-                      <div className="w-4 h-1 bg-gray-800 rounded-full"></div>
-                    </div>
-                  )}
+                  {/* Pipi Merah Blush */}
+                  <div className={`absolute top-6 left-2 w-4 h-1.5 bg-red-400/70 rounded-full transition-all duration-300 ${isSuccess ? 'scale-125' : ''}`}></div>
+                  <div className={`absolute top-6 right-2 w-4 h-1.5 bg-red-400/70 rounded-full transition-all duration-300 ${isSuccess ? 'scale-125' : ''}`}></div>
 
-                  {/* Blush */}
-                  <div className="absolute top-16 left-3 w-4 h-2 bg-pink-300/40 rounded-full blur-[2px]"></div>
-                  <div className="absolute top-16 right-3 w-4 h-2 bg-pink-300/40 rounded-full blur-[2px]"></div>
-                  
-                  {/* Mouth */}
-                  <div className={`mx-auto mt-4 w-4 h-2 border-b-2 border-gray-800 rounded-full transition-all ${isSuccess ? 'w-6 h-3 border-b-4' : ''}`}></div>
+                  {/* Mulut */}
+                  <div className={`absolute transition-all duration-300 ${isPasswordFocused ? 'top-6 w-2 h-2 border-b-2 border-gray-800 rounded-full' : isSuccess || isFalling ? 'top-5 w-6 h-5 bg-[#d81b60] rounded-b-full' : 'top-6 w-5 h-4 bg-gray-800 rounded-b-full overflow-hidden flex justify-center items-end'}`}>
+                    {!isPasswordFocused && <div className={`w-3.5 bg-pink-400 rounded-t-full ${isSuccess || isFalling ? 'h-3' : 'h-2'}`}></div>}
+                  </div>
+                </div>
+
+                {/* Ornamen Perut Emas */}
+                <div className="absolute bottom-1 flex gap-1.5 text-[#d4af37] text-[12px] font-serif font-black drop-shadow-md">
+                   <span className="rotate-[-10deg]">|</span><span className="rotate-[-5deg]">|</span><span className="text-[14px] -mt-1">福</span><span className="rotate-[5deg]">|</span><span className="rotate-[10deg]">|</span>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 border border-gray-100 anim-pop-in">
-              <h2 className="text-xl font-black text-center text-gray-900 mb-1">Portal Login</h2>
-              <p className="text-xs text-center text-gray-400 mb-8 font-bold uppercase tracking-widest">CCM AEON DPM</p>
+              {/* Kotak AEON (Dipegang oleh Mako Chan) - Terjatuh saat diklik */}
+              <div className={`absolute -bottom-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-[#e20074] rounded-[1rem] flex items-center justify-center shadow-lg border-2 border-white/20 z-30 ${isFalling ? 'anim-logo-drop' : ''}`}>
+                 <span className="text-white font-black text-sm tracking-tighter">AEON</span>
+              </div>
+
+              {/* Tangan Kiri */}
+              <div className={`absolute w-7 h-8 bg-[#9c1869] border-t-2 border-l-2 border-[#ff6bb6] rounded-[1.5rem] transition-all duration-500 z-40 shadow-lg 
+                ${isPasswordFocused ? 'top-12 left-4 rotate-[45deg] scale-110' : 
+                  isFalling ? 'anim-hand-catch-l' : 'top-[6rem] -left-2 rotate-[-20deg]'}`}></div>
               
-              <form onSubmit={prosesLogin} className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase ml-4 mb-1 block">NIK Karyawan</label>
-                  <input type="text" placeholder="Masukkan NIK" value={nik} onChange={(e) => setNik(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-pink-200 focus:ring-4 focus:ring-pink-50 outline-none transition-all text-sm font-bold" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase ml-4 mb-1 block">ID Swipe (Password)</label>
-                  <input type="password" placeholder="Masukkan ID Swipe" value={password} onFocus={() => setIsPasswordFocused(true)} onBlur={() => setIsPasswordFocused(false)} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-pink-200 focus:ring-4 focus:ring-pink-50 outline-none transition-all text-sm font-bold" />
-                </div>
-                
-                <button type="submit" disabled={loading || isSuccess} className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${isSuccess ? 'bg-green-500 text-white' : 'bg-[#e20074] text-white shadow-pink-200 hover:shadow-pink-300'}`}>
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : isSuccess ? (
-                    "Berhasil!"
-                  ) : "Masuk ke Portal"}
-                </button>
-              </form>
+              {/* Tangan Kanan */}
+              <div className={`absolute w-7 h-8 bg-[#9c1869] border-t-2 border-r-2 border-[#ff6bb6] rounded-[1.5rem] transition-all duration-500 z-40 shadow-lg 
+                ${isPasswordFocused ? 'top-12 right-4 -rotate-[45deg] scale-110' : 
+                  isFalling ? 'anim-hand-catch-r' : 'top-[6rem] -right-2 rotate-[20deg]'}`}></div>
             </div>
             
-            <p className="text-center text-[10px] text-gray-300 mt-8 font-bold uppercase tracking-widest">Aeon DPM Semarang</p>
+            <h2 className="text-2xl font-extrabold text-gray-900 mb-1.5 tracking-tight mt-6">Portal CCM DPM</h2>
+            <p className="text-gray-500 text-[13px] font-medium mb-8">Silakan login dengan NIK & ID Swipe</p>
+            
+            <div className="space-y-4 relative z-30">
+              <input 
+                type="text" 
+                placeholder="NIK" 
+                value={nik} 
+                onChange={(e) => setNik(e.target.value)} 
+                className="w-full px-5 py-4 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100/50 transition-all text-sm text-gray-900 font-bold placeholder:text-gray-400 placeholder:font-medium" 
+              />
+              <input 
+                type="password" 
+                placeholder="ID Swipe" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                onFocus={() => setIsPasswordFocused(true)}
+                onBlur={() => setIsPasswordFocused(false)}
+                className="w-full px-5 py-4 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100/50 transition-all text-sm text-gray-900 font-bold placeholder:text-gray-400 placeholder:font-medium" 
+              />
+            </div>
+
+            <button 
+              onClick={prosesLogin} 
+              disabled={loading || isSuccess} 
+              className={`mt-8 text-white font-black py-4 px-6 rounded-xl w-full shadow-lg active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider relative z-30 ${isSuccess ? 'bg-green-500 shadow-green-500/30' : 'bg-[#e20074] hover:bg-[#c80066] shadow-pink-500/20'}`}
+            >
+              {loading ? (
+                <><svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> MEMVERIFIKASI...</>
+              ) : isSuccess ? (
+                "BERHASIL LOGIN! 🎉"
+              ) : "MASUK DASHBOARD"}
+            </button>
           </div>
         </div>
       ) : (
@@ -329,6 +362,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
