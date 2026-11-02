@@ -23,8 +23,11 @@ export async function GET(req) {
       jadwalNiks.push(j.nik);
     });
 
-    // Ambil semua user yang punya jadwal pada tanggal ini (termasuk resign)
-    const { data: users } = await supabase.from('absensi_nik').select('nik, nama, status, file_id').in('nik', jadwalNiks.length > 0 ? jadwalNiks : ['__NONE__']);
+    // Ambil user: 
+    // 1. Yang PPKK (status = 'PPKK')
+    // 2. ATAU Resign TAPI harus ada di jadwalNiks (punya jadwal)
+    const { data: allUsers } = await supabase.from('absensi_nik').select('nik, nama, status, file_id');
+    const users = (allUsers || []).filter(u => u.status === 'PPKK' || (u.status === 'RESIGN' && jadwalNiks.includes(u.nik)));
 
     const { data: logRows } = await supabase.from('absensi_log').select('nik, clock_in, clock_out').eq('tanggal', tanggal);
     const logMap = {};
