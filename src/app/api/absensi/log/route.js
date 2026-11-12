@@ -61,10 +61,15 @@ export async function GET(req) {
       const displayDate = `${DAY_NAMES_ID[loopDate.getDay()]}, ${String(d).padStart(2, '0')} ${MONTH_NAMES_ID[targetMonth]}`;
       const fullDisplayDate = `${displayDate} ${targetYear}`;
 
-      const shiftCode = jadwalMap[dateIso] || "XX";
-      const shiftDetails = hitungJamKerja(shiftCode);
-
       const logRow = logMap[dateIso];
+
+      // Prioritas shift: kode yang tersimpan di baris log (source of truth absen),
+      // lalu jadwal master_schedule, baru "XX" sebagai fallback terakhir.
+      // Tanpa ini, log row dengan shift tersimpan (mis. DN) bisa tampil "XX"
+      // hanya karena baris schedule-nya tidak ada.
+      const logShift = (logRow && logRow.shift && logRow.shift !== "-") ? logRow.shift : null;
+      const shiftCode = logShift || jadwalMap[dateIso] || "XX";
+      const shiftDetails = hitungJamKerja(shiftCode);
       const actualIn = (logRow && logRow.clock_in) || "-";
       const actualOut = (logRow && logRow.clock_out) || "-";
       const totalHrs = (logRow && logRow.durasi_kerja) || "-";

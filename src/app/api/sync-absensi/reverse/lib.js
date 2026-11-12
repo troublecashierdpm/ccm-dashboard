@@ -154,11 +154,27 @@ export async function reverseLogAbsensi(supabase, sheets, spreadsheetId, schedul
   const logRows = await fetchAll(supabase, 'absensi_log', '*', 'id', true, 500);
 
   const logHeader = ["Date","NIK","Nama Lengkap","Shift","Remarks","Clock In","Clock Out","Late In","Early Out","Durasi Kerja","Foto In","Foto Out"];
-  const logGrid = (logRows || []).map(r => [
-    toYyyyMmDd(r.tanggal), r.nik, r.nama || '', r.shift || '', r.remarks || '',
-    r.clock_in || '', r.clock_out || '', r.late_in || '', r.early_out || '', r.durasi_kerja || '',
-    r.foto_in || '', r.foto_out || ''
-  ]);
+  const logGrid = (logRows || []).map(r => {
+    const dLog = toYyyyMmDd(r.tanggal);
+    let shift = r.shift || '';
+    const sched = (scheduleMap[r.nik] && scheduleMap[r.nik][dLog]) || '';
+    if (sched) {
+      if (!shift || shift === '-') {
+        // Baris log tanpa shift: pakai jadwal
+        shift = sched;
+      } else if (shift === 'XX' && sched !== 'XX' && sched !== '-' && !hitungJamKerja(sched).isOff) {
+        // "XX" hasil default clock-in (jadwal belum ter-sync saat itu): koreksi
+        // dengan kode jadwal asli. Jangan menimpa XX yang sah (kerja di hari OFF,
+        // jadwalnya memang OFF/berbeda).
+        shift = sched;
+      }
+    }
+    return [
+      dLog, r.nik, r.nama || '', shift, r.remarks || '',
+      r.clock_in || '', r.clock_out || '', r.late_in || '', r.early_out || '', r.durasi_kerja || '',
+      r.foto_in || '', r.foto_out || ''
+    ];
+  });
 
   // Generate baris Alpha: NIK x tanggal kerja (non-OFF) bulan berjalan tanpa baris log
   const todayJakarta = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });

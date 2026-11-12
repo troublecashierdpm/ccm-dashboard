@@ -74,8 +74,25 @@ export async function POST(req) {
       targetRow = (todayRows && todayRows[0]) || null;
     }
 
-    // 3. Tentukan kode shift final
-    const sc = (targetRow && targetRow.shift && targetRow.shift !== "-") ? targetRow.shift : (shiftCode || "XX");
+    // 3. Tentukan kode shift final — server-side source of truth dari master_schedule.
+    // Jangan langsung percaya shiftCode dari client (bisa "XX" kalau login sebelum
+    // jadwal ter-sync) dan jangan pernah menulis "XX" ke log kalau jadwal aslinya ada.
+    let sc = (targetRow && targetRow.shift && targetRow.shift !== "-") ? targetRow.shift : "";
+    if (!sc || sc === "XX") {
+      const tanggalShift = targetRow ? targetRow.tanggal : todayStr;
+      const { data: schedRows } = await supabase
+        .from("absensi_master_schedule")
+        .select("shift_code")
+        .eq("nik", nik)
+        .eq("tanggal", tanggalShift)
+        .limit(1);
+      const schedShift = (schedRows && schedRows[0] && schedRows[0].shift_code) || "";
+      if (schedShift) {
+        sc = schedShift;
+      } else if (!sc) {
+        sc = shiftCode || "XX";
+      }
+    }
     const shiftDetails = hitungJamKerja(sc);
 
     if (targetRow) {

@@ -63,7 +63,11 @@ export async function POST(req) {
       const existingSchedule = schedRows && schedRows[0];
       const existingLog = logRows && logRows[0];
 
-      let finalShiftCode = "XX";
+      // Rantai prioritas shift: shift_baru (request) -> master_schedule -> shift
+      // yang sudah tersimpan di baris log. Jangan pernah default "XX" — kalau
+      // schedule memang belum ada, biarkan kosong supaya baris log tidak
+      // terkunci salah dan bisa dikoreksi saat jadwal ter-sync.
+      let finalShiftCode = "";
       const writeOps = [];
       if (shiftReq) {
         finalShiftCode = shiftReq;
@@ -73,23 +77,29 @@ export async function POST(req) {
           writeOps.push(supabase.from("absensi_master_schedule").insert({ nik, tanggal, shift_code: shiftReq }));
         }
       } else {
-        if (existingSchedule && existingSchedule.shift_code) finalShiftCode = existingSchedule.shift_code;
+        if (existingSchedule && existingSchedule.shift_code && existingSchedule.shift_code !== "-") {
+          finalShiftCode = existingSchedule.shift_code;
+        } else if (existingLog && existingLog.shift && existingLog.shift !== "-") {
+          finalShiftCode = existingLog.shift;
+        }
       }
 
       const finalIn = inBaru || (existingLog ? existingLog.clock_in : null);
       const finalOut = outBaru || (existingLog ? existingLog.clock_out : null);
-      const shiftDetails = hitungJamKerja(finalShiftCode);
+      const shiftDetails = hitungJamKerja(finalShiftCode || "-");
       const calculated = hitungLateEarlyDurasi(finalIn, finalOut, shiftDetails.jam);
       const remarks = getRemarks(finalIn, finalOut, shiftDetails.isOff, calculated.late, calculated.early);
 
       if (existingLog) {
-        writeOps.push(supabase.from("absensi_log").update({
-          shift: finalShiftCode, clock_in: finalIn, clock_out: finalOut, remarks,
+        const logPayload = {
+          clock_in: finalIn, clock_out: finalOut, remarks,
           late_in: calculated.late, early_out: calculated.early, durasi_kerja: calculated.durasi
-        }).eq("id", existingLog.id));
+        };
+        if (finalShiftCode) logPayload.shift = finalShiftCode;
+        writeOps.push(supabase.from("absensi_log").update(logPayload).eq("id", existingLog.id));
       } else if (finalIn || finalOut) {
         writeOps.push(supabase.from("absensi_log").insert({
-          tanggal, nik, nama: reqData.nama, shift: finalShiftCode, remarks,
+          tanggal, nik, nama: reqData.nama, shift: finalShiftCode || "-", remarks,
           clock_in: finalIn, clock_out: finalOut,
           late_in: calculated.late, early_out: calculated.early, durasi_kerja: calculated.durasi
         }));
