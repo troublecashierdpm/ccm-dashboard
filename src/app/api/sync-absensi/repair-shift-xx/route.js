@@ -52,7 +52,8 @@ export async function GET(req) {
     const fixes = [];
     let skipped = 0;
     for (const row of logRows) {
-      if (row.shift !== 'XX') continue;
+      // Koreksi baris tanpa shift jelas: "XX", "-", atau kosong
+      if (!['XX', '-', ''].includes(String(row.shift || ''))) continue;
       const d = String(row.tanggal).slice(0, 10);
       const sched = (schedMap[row.nik] && schedMap[row.nik][d]) || '';
       // Hanya koreksi kalau jadwal asli = kode shift kerja yang berbeda dari XX

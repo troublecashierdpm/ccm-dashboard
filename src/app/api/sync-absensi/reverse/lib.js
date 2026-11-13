@@ -2,7 +2,7 @@
 // Fungsi bersama untuk reverse sync (DB -> Sheet), dipakai Reverse All + single per tabel.
 import { google } from 'googleapis';
 import { createClient } from '@supabase/supabase-js';
-import { hitungJamKerja, formatWaktuDb } from '@/lib/absensiHelpers';
+import { hitungJamKerja, hitungLateEarlyDurasi, getRemarks, formatWaktuDb } from '@/lib/absensiHelpers';
 
 export function toYyyyMmDd(iso) {
   if (!iso) return '';
@@ -158,20 +158,36 @@ export async function reverseLogAbsensi(supabase, sheets, spreadsheetId, schedul
     const dLog = toYyyyMmDd(r.tanggal);
     let shift = r.shift || '';
     const sched = (scheduleMap[r.nik] && scheduleMap[r.nik][dLog]) || '';
+    let corrected = false;
     if (sched) {
       if (!shift || shift === '-') {
         // Baris log tanpa shift: pakai jadwal
         shift = sched;
+        corrected = true;
       } else if (shift === 'XX' && sched !== 'XX' && sched !== '-' && !hitungJamKerja(sched).isOff) {
         // "XX" hasil default clock-in (jadwal belum ter-sync saat itu): koreksi
         // dengan kode jadwal asli. Jangan menimpa XX yang sah (kerja di hari OFF,
         // jadwalnya memang OFF/berbeda).
         shift = sched;
+        corrected = true;
       }
     }
+    // Saat shift dikoreksi, remarks + late/early/durasi juga harus dihitung ulang
+    // dari clock in/out aktual dan jam shift baru — jangan biarkan sisa perhitungan
+    // shift lama (mis. "Late In" padahal shift aslinya malam).
+    let remarks = r.remarks || '', lateIn = r.late_in || '', earlyOut = r.early_out || '', durasi = r.durasi_kerja || '';
+    if (corrected) {
+      const shiftDetails = hitungJamKerja(shift);
+      const inStr = r.clock_in || '', outStr = r.clock_out || '';
+      const calc = hitungLateEarlyDurasi(inStr, outStr, shiftDetails.jam);
+      remarks = getRemarks(inStr, outStr, shiftDetails.isOff, calc.late, calc.early);
+      lateIn = calc.late;
+      earlyOut = calc.early;
+      durasi = calc.durasi;
+    }
     return [
-      dLog, r.nik, r.nama || '', shift, r.remarks || '',
-      r.clock_in || '', r.clock_out || '', r.late_in || '', r.early_out || '', r.durasi_kerja || '',
+      dLog, r.nik, r.nama || '', shift, remarks,
+      r.clock_in || '', r.clock_out || '', lateIn, earlyOut, durasi,
       r.foto_in || '', r.foto_out || ''
     ];
   });
