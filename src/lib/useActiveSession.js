@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const SESSION_LIMIT_MS = 10 * 60 * 1000; // 10 menit
+const SESSION_LIMIT_MS = 15 * 60 * 1000; // 15 menit
 
 export function useActiveSession(user, setUser, setIsLoggedIn) {
   const mountTime = useRef(Date.now());
@@ -26,7 +26,7 @@ export function useActiveSession(user, setUser, setIsLoggedIn) {
     // Beri pesan dulu sebelum dikembalikan ke halaman login (hanya jika sesi habis,
     // bukan untuk logout manual).
     if (reason === "SESSION_EXPIRED") {
-      alert("⏰ Sesi Anda telah berakhir (melebihi 10 menit).\nAnda akan dikembalikan ke halaman login.");
+      alert("⏰ Sesi Anda telah berakhir (melebihi 15 menit).\nAnda akan dikembalikan ke halaman login.");
     }
     window.location.reload();
   }, [user, setUser, setIsLoggedIn]);
