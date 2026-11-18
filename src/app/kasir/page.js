@@ -40,7 +40,7 @@ export default function App() {
     setRequestResultMsg({ text: "", success: null });
     setRequestForm({ hari: "", alasan: "" });
     try {
-      const res = await fetch(`/api/request-schedule?under=${user.under}&nik=${user.nik}`);
+      const res = await fetch(`/api/request-schedule?under=${user.trc_under || user.under}&nik=${user.nik}`);
       const data = await res.json();
       setRequestStatus(data);
  
