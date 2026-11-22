@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { formatWaktuDb } from '@/lib/absensiHelpers';
 
 export async function GET() {
   try {
@@ -46,7 +47,7 @@ export async function GET() {
       const log = logMap[key];
       return {
         reqId: r.req_id,
-        submitTgl: r.waktu_submit,
+        submitTgl: formatWaktuDb(r.waktu_submit),
         nik: r.nik,
         nama: r.nama,
         tglAbsen: r.tanggal_absen,

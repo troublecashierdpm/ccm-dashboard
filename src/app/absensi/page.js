@@ -1442,7 +1442,7 @@ function getStatusBadgeClass(remarks) {
                     <p className="font-bold text-sm text-gray-800">{r.nama} <span className="text-[9px] bg-blue-500 text-white px-1.5 py-0.5 rounded ml-1 uppercase">{jenis}</span></p>
                     <p className="text-[10px] text-gray-400">{r.nik}</p>
                   </div>
-                  <span className="text-[10px] text-gray-400">{r.submitTgl.split(" ")[0]}</span>
+                  <span className="text-[10px] text-gray-400 text-right">Diajukan (WIB)<br />{r.submitTgl || "-"}</span>
                 </div>
                 <div onClick={() => setApprovalDetail(r)} className="cursor-pointer text-xs space-y-1 mb-3">
                   <p><span className="text-gray-500">Tgl Absen:</span> <strong>{r.tglAbsen}</strong></p>
@@ -1470,6 +1470,7 @@ function getStatusBadgeClass(remarks) {
                 <button onClick={() => setApprovalDetail(null)} className="text-gray-400 text-xl">✕</button>
               </div>
               <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 mb-4">
+                <div className="flex justify-between gap-2"><span className="text-gray-500">Waktu Pengajuan (WIB)</span><strong className="text-right">{approvalDetail.submitTgl || "-"}</strong></div>
                 <div className="flex justify-between"><span className="text-gray-500">Tgl Absen</span><strong>{approvalDetail.tglAbsen}</strong></div>
                 <div className="flex justify-between"><span className="text-gray-500">Shift Awal</span><strong>{approvalDetail.shiftAwal}</strong></div>
                 <div className="flex justify-between"><span className="text-gray-500">Aktual Tersimpan</span><strong>In ({approvalDetail.actualIn}) | Out ({approvalDetail.actualOut})</strong></div>
