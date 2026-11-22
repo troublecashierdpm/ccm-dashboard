@@ -414,6 +414,10 @@ export default function PicPage() {
       </header>
 
       <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+        {section !== "main" && (
+          <button onClick={() => setSection(section === "stock" || section === "user" ? "idswipe" : "main")} className="flex items-center text-gray-600 hover:text-[#c80066] font-semibold text-sm">← Kembali ke Menu</button>
+        )}
+
         {section === "main" && (
           <>
             <div className="text-center py-4">
@@ -464,10 +468,6 @@ export default function PicPage() {
 
         {section === "audit" && (
           <AuditClinicForm evaluatorNama={picUser?.nama || ""} />
-        )}
-
-        {section !== "main" && (
-          <button onClick={() => setSection(section === "stock" || section === "user" ? "idswipe" : "main")} className="flex items-center text-gray-600 hover:text-[#c80066] font-semibold text-sm">← Kembali ke Menu</button>
         )}
 
         {section === "stock" && (
