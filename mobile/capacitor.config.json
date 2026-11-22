@@ -1,0 +1,9 @@
+{
+  "appId": "id.co.ccmdpm.dashboard",
+  "appName": "CCM DPM",
+  "webDir": "www",
+  "server": {
+    "url": "https://ccm-dashboard-nine.vercel.app",
+    "cleartext": false
+  }
+}
