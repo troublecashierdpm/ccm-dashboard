@@ -1843,6 +1843,9 @@ function getStatusBadgeClass(remarks) {
           </div>
         )}
         <div className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-4 sm:px-6 py-8 rounded-b-[2.5rem] shadow-lg overflow-hidden">
+        <a href="/" className="inline-block mb-3 bg-white/25 hover:bg-white/40 text-white font-bold text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl backdrop-blur-md transition-all">
+          ← Kembali ke Portal
+        </a>
         <div className="flex items-center justify-between gap-2 mb-6">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {user.isHeadDept && (

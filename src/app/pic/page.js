@@ -404,6 +404,7 @@ export default function PicPage() {
       <header className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2 font-black text-sm"><span className="bg-white text-[#c80066] px-2 py-1 rounded-lg">AEON</span> PANEL PIC</div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          <a href="/" className="bg-white/25 hover:bg-white/40 px-3 py-2 rounded-xl text-xs font-bold tracking-wider transition-colors">← Kembali ke Portal</a>
           <span className="text-xs font-bold opacity-80 hidden sm:block">{picUser?.nama}</span>
           <a href="/kasir" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Kasir</a>
           <a href="/supervisor" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Supervisor</a>
