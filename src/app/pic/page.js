@@ -363,7 +363,7 @@ export default function PicPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fffcfd]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-4 border-[#e20074] border-t-transparent rounded-full animate-spin"></div>
           <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Memeriksa sesi...</p>
         </div>
       </div>
@@ -377,16 +377,16 @@ export default function PicPage() {
           <div className="absolute top-4 right-4">
             <a href="/" className="text-[10px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors">← Kembali ke Portal</a>
           </div>
-          <div className="bg-amber-500 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
+          <div className="bg-[#e20074] w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg">
             <span className="text-white text-2xl">🪪</span>
           </div>
           <h1 className="text-xl font-extrabold text-center text-gray-900 mb-1">Panel PIC</h1>
           <p className="text-xs text-center text-gray-400 mb-8">Akses terbatas — khusus PIC/TRC terdaftar</p>
           <form onSubmit={prosesLogin} className="space-y-4">
-            <input type="text" placeholder="NIK" value={picNik} onChange={(e) => setPicNik(e.target.value)} className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-amber-400 text-sm" />
-            <input type="password" placeholder="ID Swipe" value={picPassword} onChange={(e) => setPicPassword(e.target.value)} className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-amber-400 text-sm" />
+            <input type="text" placeholder="NIK" value={picNik} onChange={(e) => setPicNik(e.target.value)} className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
+            <input type="password" placeholder="ID Swipe" value={picPassword} onChange={(e) => setPicPassword(e.target.value)} className="w-full px-4 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-pink-400 text-sm" />
             {loginError && <div className="text-xs font-semibold text-red-600 bg-red-50 p-3 rounded-xl">{loginError}</div>}
-            <button type="submit" disabled={loginLoading} className="w-full py-3.5 bg-amber-500 text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">{loginLoading ? "Memverifikasi..." : "Masuk Panel"}</button>
+            <button type="submit" disabled={loginLoading} className="w-full py-3.5 bg-[#e20074] text-white font-bold rounded-2xl shadow-lg disabled:opacity-60">{loginLoading ? "Memverifikasi..." : "Masuk Panel"}</button>
           </form>
         </div>
       </div>
@@ -395,14 +395,14 @@ export default function PicPage() {
 
   const stats = [
     { label: "ID Tersedia", count: ids.tersedia.length, color: "text-green-600" },
-    { label: "ID Aktif", count: ids.aktif.length, color: "text-amber-600" },
+    { label: "ID Aktif", count: ids.aktif.length, color: "text-[#c80066]" },
     { label: "ID Non-Aktif", count: ids.nonAktif.length, color: "text-red-600" },
   ];
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] font-sans text-gray-800 pb-12">
-      <header className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-5 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-2 font-black text-sm"><span className="bg-white text-amber-600 px-2 py-1 rounded-lg">AEON</span> PANEL PIC</div>
+      <header className="bg-gradient-to-r from-[#e20074] to-[#ff1a8c] text-white px-6 py-5 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center gap-2 font-black text-sm"><span className="bg-white text-[#c80066] px-2 py-1 rounded-lg">AEON</span> PANEL PIC</div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <span className="text-xs font-bold opacity-80 hidden sm:block">{picUser?.nama}</span>
           <a href="/kasir" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Kasir</a>
@@ -416,11 +416,11 @@ export default function PicPage() {
         {section === "main" && (
           <>
             <div className="text-center py-4">
-              <h2 className="text-2xl font-extrabold">PANEL <span className="text-amber-600">PIC</span></h2>
+              <h2 className="text-2xl font-extrabold">PANEL <span className="text-[#c80066]">PIC</span></h2>
               <p className="text-gray-500 mt-1 text-sm">Pilih modul yang ingin dibuka</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button onClick={() => setSection("idswipe")} className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
+              <button onClick={() => setSection("idswipe")} className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
                 <span className="text-5xl block mb-3">🪪</span>
                 <span className="font-bold block">Dashboard ID Swipe</span>
                 <span className="text-xs opacity-80">Manajemen Kartu Akses & Formulir Otomatis</span>
@@ -437,7 +437,7 @@ export default function PicPage() {
         {section === "idswipe" && (
           <>
             <div className="text-center py-4">
-              <h2 className="text-2xl font-extrabold">DASHBOARD MANAGEMENT <span className="text-amber-600">ID SWIPE</span></h2>
+              <h2 className="text-2xl font-extrabold">DASHBOARD MANAGEMENT <span className="text-[#c80066]">ID SWIPE</span></h2>
               <p className="text-gray-500 mt-1 text-sm">Sistem Informasi Manajemen Kartu Akses & Formulir Otomatis</p>
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -453,7 +453,7 @@ export default function PicPage() {
                 <span className="text-5xl block mb-3">📦</span>
                 <span className="font-bold">Stok & Pengembalian HRD</span>
               </button>
-              <button onClick={() => setSection("user")} className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
+              <button onClick={() => setSection("user")} className="bg-gradient-to-br from-[#e20074] to-[#ff1a8c] rounded-2xl p-10 text-white text-center shadow-lg hover:-translate-y-1 transition-all">
                 <span className="text-5xl block mb-3">📝</span>
                 <span className="font-bold">Form Request User Swipe</span>
               </button>
@@ -466,12 +466,12 @@ export default function PicPage() {
         )}
 
         {section !== "main" && (
-          <button onClick={() => setSection(section === "stock" || section === "user" ? "idswipe" : "main")} className="flex items-center text-gray-600 hover:text-amber-600 font-semibold text-sm">← Kembali ke Menu</button>
+          <button onClick={() => setSection(section === "stock" || section === "user" ? "idswipe" : "main")} className="flex items-center text-gray-600 hover:text-[#c80066] font-semibold text-sm">← Kembali ke Menu</button>
         )}
 
         {section === "stock" && (
           <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h4 className="text-xl font-bold mb-6 border-b pb-3">Manajemen <span className="text-amber-600">Stok ID</span> (HRD)</h4>
+            <h4 className="text-xl font-bold mb-6 border-b pb-3">Manajemen <span className="text-[#c80066]">Stok ID</span> (HRD)</h4>
             <form onSubmit={handleStockSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -486,8 +486,8 @@ export default function PicPage() {
                   <input type="text" value={stockPic} onChange={(e) => setStockPic(e.target.value)} placeholder="Nama Lengkap Anda" className="w-full border rounded-lg px-4 py-2.5 text-sm" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-amber-600 mb-2">Lampirkan Foto Tanda Terima (Bukti HRD)</label>
-                  <input type="file" id="stockFile" accept="image/*" className="w-full border-2 border-dashed border-amber-300 rounded-lg p-2 text-sm" />
+                  <label className="block text-sm font-bold text-[#c80066] mb-2">Lampirkan Foto Tanda Terima (Bukti HRD)</label>
+                  <input type="file" id="stockFile" accept="image/*" className="w-full border-2 border-dashed border-pink-300 rounded-lg p-2 text-sm" />
                 </div>
               </div>
               <button type="button" onClick={() => setStockRows(prev => [...prev, ""])} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-sm">+ Tambah Baris ID</button>
@@ -525,25 +525,25 @@ export default function PicPage() {
               </div>
               <button type="submit" disabled={stockLoading} className="w-full bg-gray-800 text-white font-bold py-4 rounded-xl disabled:opacity-60">{stockLoading ? "Memproses..." : "PROSES UPDATE STOK"}</button>
             </form>
-            {stockMsg.text && <div className={`mt-4 text-center font-bold text-sm p-3 rounded-xl ${stockMsg.ok ? "bg-green-100 text-green-700" : stockMsg.ok === false ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-600"}`}>{stockMsg.text}</div>}
+            {stockMsg.text && <div className={`mt-4 text-center font-bold text-sm p-3 rounded-xl ${stockMsg.ok ? "bg-green-100 text-green-700" : stockMsg.ok === false ? "bg-red-100 text-red-700" : "bg-pink-50 text-[#c80066]"}`}>{stockMsg.text}</div>}
           </div>
         )}
 
         {section === "user" && (
           <div className="bg-white rounded-2xl shadow-xl p-6 space-y-6">
-            <h4 className="text-xl font-bold border-b pb-3">Form Request <span className="text-amber-600">User Swipe</span></h4>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <h4 className="text-xl font-bold border-b pb-3">Form Request <span className="text-[#c80066]">User Swipe</span></h4>
+            <div className="bg-pink-50 border border-pink-200 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="flex flex-wrap gap-4">
                 {[["Activation", "Activation"], ["Edit", "Edit User"], ["Non-Aktif", "Non-Active"]].map(([v, l]) => (
                   <label key={v} className="inline-flex items-center cursor-pointer">
-                    <input type="radio" name="requestType" checked={requestType === v} onChange={() => setRequestType(v)} className="h-5 w-5 accent-amber-600" />
+                    <input type="radio" name="requestType" checked={requestType === v} onChange={() => setRequestType(v)} className="h-5 w-5 accent-[#c80066]" />
                     <span className="ml-2 font-semibold">{l}</span>
                   </label>
                 ))}
               </div>
               <div className="flex flex-col justify-center gap-2">
-                <label className="inline-flex items-center"><input type="checkbox" checked={newUser} onChange={(e) => setNewUser(e.target.checked)} className="h-5 w-5 accent-amber-600" /><span className="ml-2">New User</span></label>
-                <label className="inline-flex items-center"><input type="checkbox" checked={activationIdCard} onChange={(e) => setActivationIdCard(e.target.checked)} className="h-5 w-5 accent-amber-600" /><span className="ml-2">Activation ID CARD</span></label>
+                <label className="inline-flex items-center"><input type="checkbox" checked={newUser} onChange={(e) => setNewUser(e.target.checked)} className="h-5 w-5 accent-[#c80066]" /><span className="ml-2">New User</span></label>
+                <label className="inline-flex items-center"><input type="checkbox" checked={activationIdCard} onChange={(e) => setActivationIdCard(e.target.checked)} className="h-5 w-5 accent-[#c80066]" /><span className="ml-2">Activation ID CARD</span></label>
               </div>
             </div>
 
@@ -574,7 +574,7 @@ export default function PicPage() {
                       <td className="p-2">
                         <div className="grid grid-cols-2 gap-1 text-xs">
                           {[["c", "Cashier"], ["m", "Manager"], ["s", "Supervisor"], ["a", "Admin"]].map(([k, l]) => (
-                            <label key={k} className="inline-flex items-center gap-1"><input type="checkbox" checked={r[k]} onChange={(e) => setRow(i, { [k]: e.target.checked })} className="accent-amber-600" />{l}</label>
+                            <label key={k} className="inline-flex items-center gap-1"><input type="checkbox" checked={r[k]} onChange={(e) => setRow(i, { [k]: e.target.checked })} className="accent-[#c80066]" />{l}</label>
                           ))}
                         </div>
                       </td>
@@ -616,8 +616,8 @@ export default function PicPage() {
                     <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Authority</label>
                     <div className="grid grid-cols-2 gap-2">
                       {[["c", "Cashier"], ["m", "Manager"], ["s", "Supervisor"], ["a", "Admin"]].map(([k, l]) => (
-                        <label key={k} className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 text-sm cursor-pointer ${r[k] ? "border-amber-500 bg-amber-50 font-bold text-amber-700" : "border-gray-300 bg-white text-gray-600"}`}>
-                          <input type="checkbox" checked={r[k]} onChange={(e) => setRow(i, { [k]: e.target.checked })} className="h-5 w-5 accent-amber-600" />{l}
+                        <label key={k} className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 text-sm cursor-pointer ${r[k] ? "border-[#e20074] bg-pink-50 font-bold text-pink-700" : "border-gray-300 bg-white text-gray-600"}`}>
+                          <input type="checkbox" checked={r[k]} onChange={(e) => setRow(i, { [k]: e.target.checked })} className="h-5 w-5 accent-[#c80066]" />{l}
                         </label>
                       ))}
                     </div>
@@ -630,7 +630,7 @@ export default function PicPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border rounded-xl p-4">
                 <h6 className="font-extrabold text-center text-xs uppercase text-gray-500 mb-3">Requested By</h6>
-                <select value={reqSelect} onChange={(e) => { setReqSelect(e.target.value); setReqEditFlag(false); }} className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm mb-3">
+                <select value={reqSelect} onChange={(e) => { setReqSelect(e.target.value); setReqEditFlag(false); }} className="w-full border-2 border-[#e20074] rounded-lg px-3 py-2 text-sm mb-3">
                   <option value="">-- Pilih Requester --</option>
                   <option value="NEW">+++ TAMBAH REQUESTER BARU +++</option>
                   {sigs.requesters.map(n => <option key={n} value={n}>{n}</option>)}
@@ -642,7 +642,7 @@ export default function PicPage() {
                   </div>
                 )}
                 {(reqSelect === "NEW" || (reqSelect && reqEditFlag)) ? (
-                  <div className="p-4 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer" onClick={() => openSigModal('req')}>
+                  <div className="p-4 border-2 border-dashed border-pink-300 rounded-lg cursor-pointer" onClick={() => openSigModal('req')}>
                     <p className="text-center text-xs text-gray-500">{reqSigUrl ? "✓ TTD Tersimpan (Klik untuk Ubah)" : "Tap untuk Tanda Tangan"}</p>
                     {reqSigUrl && <img src={reqSigUrl} alt="Signature" className="mt-2 h-16 mx-auto object-contain bg-white rounded" />}
                   </div>
@@ -655,7 +655,7 @@ export default function PicPage() {
               </div>
               <div className="border rounded-xl p-4">
                 <h6 className="font-extrabold text-center text-xs uppercase text-gray-500 mb-3">Acknowledge By (Superior)</h6>
-                <select value={supSelect} onChange={(e) => { setSupSelect(e.target.value); setSupEditFlag(false); }} className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm mb-3">
+                <select value={supSelect} onChange={(e) => { setSupSelect(e.target.value); setSupEditFlag(false); }} className="w-full border-2 border-[#e20074] rounded-lg px-3 py-2 text-sm mb-3">
                   <option value="">-- Pilih Superior --</option>
                   <option value="NEW">+++ TAMBAH SUPERIOR BARU +++</option>
                   {sigs.superiors.map(n => <option key={n} value={n}>{n}</option>)}
@@ -667,7 +667,7 @@ export default function PicPage() {
                   </div>
                 )}
                 {(supSelect === "NEW" || (supSelect && supEditFlag)) ? (
-                  <div className="p-4 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer" onClick={() => openSigModal('sup')}>
+                  <div className="p-4 border-2 border-dashed border-pink-300 rounded-lg cursor-pointer" onClick={() => openSigModal('sup')}>
                     <p className="text-center text-xs text-gray-500">{supSigUrl ? "✓ TTD Tersimpan (Klik untuk Ubah)" : "Tap untuk Tanda Tangan"}</p>
                     {supSigUrl && <img src={supSigUrl} alt="Signature" className="mt-2 h-16 mx-auto object-contain bg-white rounded" />}
                   </div>
@@ -680,11 +680,11 @@ export default function PicPage() {
               </div>
             </div>
 
-            <button onClick={handleFormSubmit} disabled={formLoading} className="w-full bg-amber-500 text-white font-bold py-4 rounded-xl disabled:opacity-60">{formLoading ? "Memproses..." : "PROSES REQUEST & DOWNLOAD PDF"}</button>
+            <button onClick={handleFormSubmit} disabled={formLoading} className="w-full bg-[#e20074] text-white font-bold py-4 rounded-xl disabled:opacity-60">{formLoading ? "Memproses..." : "PROSES REQUEST & DOWNLOAD PDF"}</button>
             {formMsg.text && (
-              <div className={`text-center font-bold text-sm p-3 rounded-xl ${formMsg.ok ? "bg-green-100 text-green-700" : formMsg.ok === false ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-600"}`}>
+              <div className={`text-center font-bold text-sm p-3 rounded-xl ${formMsg.ok ? "bg-green-100 text-green-700" : formMsg.ok === false ? "bg-red-100 text-red-700" : "bg-pink-50 text-[#c80066]"}`}>
                 {formMsg.text}
-                {formMsg.pdf && <a href={formMsg.pdf} target="_blank" rel="noopener noreferrer" className="block mt-3 bg-amber-500 text-white font-bold py-2 px-6 rounded-lg">UNDUH PDF SEKARANG</a>}
+                {formMsg.pdf && <a href={formMsg.pdf} target="_blank" rel="noopener noreferrer" className="block mt-3 bg-[#e20074] text-white font-bold py-2 px-6 rounded-lg">UNDUH PDF SEKARANG</a>}
               </div>
             )}
           </div>
@@ -701,7 +701,7 @@ export default function PicPage() {
             </div>
             <div className="flex gap-2">
               <button onClick={() => closeSigModal(false)} className="flex-1 py-3 bg-gray-200 rounded-xl font-bold">Batal</button>
-              <button onClick={() => closeSigModal(true)} className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold">Simpan</button>
+              <button onClick={() => closeSigModal(true)} className="flex-1 py-3 bg-[#e20074] text-white rounded-xl font-bold">Simpan</button>
             </div>
           </div>
         </div>
