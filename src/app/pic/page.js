@@ -409,7 +409,6 @@ export default function PicPage() {
           <a href="/kasir" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Kasir</a>
           <a href="/supervisor" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Supervisor</a>
           <a href="/absensi" className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Absensi</a>
-          <button onClick={prosesLogout} className="bg-white/20 px-3 py-2 rounded-xl text-xs font-bold hover:bg-white/30">Logout</button>
         </div>
       </header>
 

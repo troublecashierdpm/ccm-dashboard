@@ -1649,7 +1649,6 @@ const overallSalesRatioEmp = totalHourlySalesEmp > 0 ? Math.round((totalMemberSa
             <button onClick={() => setAiOpen(!aiOpen)} className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5 ${aiOpen ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600'}`}><span>🤖</span> AI Assistant</button>
             <button onClick={exportAllPanels} className="bg-white text-[#e20074] hover:bg-pink-50 px-4 py-2.5 rounded-xl font-black text-xs uppercase transition shadow-md flex items-center gap-1.5"><span>📊</span> Export Semua Excel</button>
             {selectedKaryawan && <button onClick={() => { setActivePanel("dir"); setSelectedKaryawan(null); }} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">← Kembali</button>}
-            <button onClick={prosesLogoutSupervisor} className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">🚪 Logout</button>
             <a href="/absensi" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">Absensi</a>
             <a href="/kasir" className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase transition shadow-sm">Kasir</a>
           </div>

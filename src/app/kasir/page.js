@@ -723,9 +723,6 @@ setHistory({ member: finalMemberHistory, shortage: finalShortageHistory, ecobag:
                   <p className="text-xl font-extrabold tracking-tight">Halo, Kasir!</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={prosesLogout} className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-3.5 rounded-2xl transition-all duration-300 active:scale-90 shadow-sm">
-                    <svg style={{width:"20px",height:"20px"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                  </button>
                   {isSupervisorWhitelisted(user?.nama) && (
                     <a href="/supervisor" title="Panel Supervisor" className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-3.5 rounded-2xl transition-all duration-300 active:scale-90 shadow-sm flex items-center justify-center">
                       <svg style={{width:"20px",height:"20px"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>

@@ -1926,7 +1926,6 @@ function getStatusBadgeClass(remarks) {
             }} className="bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white hover:bg-white/30 transition-colors">
               Kasir →
             </a>
-            <button onClick={logout} className="bg-white/20 px-2 sm:px-3 py-2 rounded-xl text-xs font-bold text-white">Logout</button>
           </div>
         </div>
         <div className="bg-white/10 rounded-2xl p-4">
