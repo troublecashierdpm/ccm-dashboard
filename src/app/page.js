@@ -268,14 +268,15 @@ export default function HomePage() {
             <h2 className="text-2xl font-extrabold text-gray-900 mb-1.5 tracking-tight mt-6">Portal CCM DPM</h2>
             <p className="text-gray-500 text-[13px] font-medium mb-8">Silakan login dengan NIK & ID Swipe</p>
             
-            <div className="space-y-4 relative z-30">
-              <input type="text" placeholder="NIK" value={nik} onChange={(e) => setNik(e.target.value)} className="w-full px-5 py-4 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100/50 transition-all text-sm text-gray-900 font-bold" />
-              <input type="password" placeholder="ID Swipe" value={password} onFocus={() => setIsPasswordFocused(true)} onBlur={() => setIsPasswordFocused(false)} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-4 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100/50 transition-all text-sm text-gray-900 font-bold" />
-            </div>
-
-            <button onClick={prosesLogin} disabled={loading || isSuccess} className={`mt-8 text-white font-black py-4 px-6 rounded-xl w-full shadow-lg active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider relative z-30 ${isSuccess ? 'bg-green-500 shadow-green-500/30' : 'bg-[#e20074] hover:bg-[#c80066] shadow-pink-500/20'}`}>
-              {loading ? "MEMVERIFIKASI..." : isSuccess ? "BERHASIL LOGIN!" : "MASUK DASHBOARD"}
-            </button>
+            <form onSubmit={(e) => { e.preventDefault(); if (!loading && !isSuccess) prosesLogin(); }} className="relative z-30">
+              <div className="space-y-4">
+                <input type="text" placeholder="NIK" value={nik} onChange={(e) => setNik(e.target.value)} className="w-full px-5 py-4 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100/50 transition-all text-sm text-gray-900 font-bold" />
+                <input type="password" placeholder="ID Swipe" value={password} onFocus={() => setIsPasswordFocused(true)} onBlur={() => setIsPasswordFocused(false)} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-4 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100/50 transition-all text-sm text-gray-900 font-bold" />
+              </div>
+              <button type="submit" disabled={loading || isSuccess} className={`mt-8 text-white font-black py-4 px-6 rounded-xl w-full shadow-lg active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 text-[13px] uppercase tracking-wider ${isSuccess ? 'bg-green-500 shadow-green-500/30' : 'bg-[#e20074] hover:bg-[#c80066] shadow-pink-500/20'}`}>
+                {loading ? "MEMVERIFIKASI..." : isSuccess ? "BERHASIL LOGIN!" : "MASUK DASHBOARD"}
+              </button>
+            </form>
             
             {/* Live Log Login Notice */}
             <div className="mt-8 pt-8 border-t border-gray-100 text-left">
